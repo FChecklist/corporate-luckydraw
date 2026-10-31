@@ -197,7 +197,7 @@ describe("the pages carry the recorder", () => {
       if (h.includes('src="/rum.js"')) { withRum++; expect(h.indexOf('src="/blackbox.js"')).toBeGreaterThan(-1); expect(h.indexOf('src="/blackbox.js"')).toBeLessThan(h.indexOf('src="/rum.js"')); }
     }
     expect(withRum).toBeGreaterThan(8);
-    for (const f of ["z.html", "zc.html", "big.html", "demo.html", "pay.html", "paylink.html", "signin.html", "preview.html", "index.html"].filter((x) => existsSync(join(PUB, x)))) expect(readFileSync(join(PUB, f), "utf8")).toContain('src="/blackbox.js"');
+    for (const f of ["z.html", "zc.html", "pay.html", "paylink.html", "signin.html", "index.html"].filter((x) => existsSync(join(PUB, x)))) expect(readFileSync(join(PUB, f), "utf8")).toContain('src="/blackbox.js"');
     expect(readFileSync(join(PUB, "z.js"), "utf8")).toContain("window.ctzView(v)");
   });
   test("the recorder file never reads what a person types or writes", () => {

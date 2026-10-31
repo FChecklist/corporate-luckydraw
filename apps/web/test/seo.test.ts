@@ -22,7 +22,7 @@ describe("sitemap and robots", () => {
   test("robots.txt allows the site, keeps crawlers out of the API, app and payment pages, and points at the sitemap", () => {
     const r = rd("robots.txt");
     expect(r).toMatch(/User-agent: \*\s+Allow: \//); expect(r).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
-    for (const p of ["/api/", "/ai/", "/pay.html", "/signin.html", "/z.html", "/zc.html", "/big.html"]) expect(r).toContain("Disallow: " + p);
+    for (const p of ["/api/", "/ai/", "/pay.html", "/signin.html", "/z.html", "/zc.html"]) expect(r).toContain("Disallow: " + p);
     // only the rules for everyone (User-agent: *) count: the AI-crawler groups below them say "Disallow: /" on purpose (the public pages are allowed back to them by "Allow:" lines)
     const everyone = r.replace(/\r/g, "").split(/\n\s*\n/).filter((g) => /^User-agent: \*$/m.test(g)).join("\n");
     for (const f of INDEXABLE) expect(everyone).not.toMatch(new RegExp("Disallow: /" + (f === "index.html" ? "$" : f.replace(".", "\\.")), "m"));
@@ -43,7 +43,7 @@ describe("each indexable page", () => {
     expect(desc.length).toBeGreaterThanOrEqual(50); expect(desc.length).toBeLessThanOrEqual(320);
     expect(titles.has(title)).toBe(false); titles.set(title, f); expect(descs.has(desc)).toBe(false); descs.set(desc, f);
     expect(h.match(/<link rel="canonical"/g)?.length).toBe(1); expect(meta(h, /<link rel="canonical" href="([^"]+)"/)).toBe(urlOf(f));
-    expect(meta(h, /<meta property="og:url" content="([^"]+)"/)).toBe(urlOf(f)); expect(h).toMatch(/<meta property="og:title" content="[^"]+"/); expect(h).toMatch(/<meta property="og:description" content="[^"]+"/); expect(h).toMatch(/<meta property="og:image" content="https:\/\/bingo\.corporatetambola\.com\/[^"]+"/);
+    expect(meta(h, /<meta property="og:url" content="([^"]+)"/)).toBe(urlOf(f)); expect(h).toMatch(/<meta property="og:title" content="[^"]+"/); expect(h).toMatch(/<meta property="og:description" content="[^"]+"/); expect(h).toMatch(/<meta property="og:image" content="https:\/\/luckydraw\.corporatetambola\.com\/[^"]+"/);
     expect(h).toContain('<meta name="twitter:card" content="summary_large_image">'); expect(h).toMatch(/<meta name="twitter:title" content="[^"]+"/);
     expect(h).not.toMatch(/name="robots" content="[^"]*noindex/); expect(h).toMatch(/<html lang="en">/); expect(h).toContain('name="viewport"');
     for (const tag of ['name="description"', 'rel="canonical"', 'property="og:title"', 'name="twitter:card"']) expect(h.split(tag).length).toBe(2); // each exactly once
@@ -65,7 +65,7 @@ describe("each indexable page", () => {
     for (const w of ["Inter-normal-400.woff2", "Fraunces-normal-500-700.woff2"]) expect(h).toContain(`<link rel="preload" href="/fonts/${w}" as="font" type="font/woff2" crossorigin>`);
     for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme\.js|theme-init\.js|keep\.js|consent\.js|common\.js|google\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); // theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
     expect(h).toMatch(/<script src="\/common\.js"><\/script><script src="\/google\.js"><\/script><script src="\/site\.js"><\/script>\s*<\/body>/); // the page scripts sit at the very end
-    expect(h.replace(/<footer class="ck-foot"[\s\S]*?<\/footer>/, "")).not.toMatch(/(src|href)="https?:\/\/(?!bingo\.corporatetambola\.com|shobhakamalsolutions\.pages\.dev)/); // the uniform footer names the sister products on purpose
+    expect(h.replace(/<footer class="ck-foot"[\s\S]*?<\/footer>/, "")).not.toMatch(/(src|href)="https?:\/\/(?!luckydraw\.corporatetambola\.com|shobhakamalsolutions\.pages\.dev)/); // the uniform footer names the sister products on purpose
     expect(rd("../../../pages/build.mjs" as any).includes("max-age=31536000, immutable")).toBe(true);
   });
 });

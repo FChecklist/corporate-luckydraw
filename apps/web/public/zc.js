@@ -131,6 +131,7 @@
   }
   const navButtons = () => `<div class="zc-chips" style="margin-top:10px">${S.step > 1 ? `<button class="zc-btn zc-btn-alt" id="back" style="min-height:48px">Back</button>` : ""}${S.step < 6 ? `<button class="zc-btn" id="next" style="min-height:48px">Save and continue</button>` : ""}</div>`;
 
+  window.ctzFocus = (n) => { try { if (n >= 1 && n <= 6) { S.step = Number(n); paint(); } } catch (e) { /* the guide only moves the view */ } };
   function paint() {
     $app.className = "zapp zc";
     $app.innerHTML = view();
@@ -156,8 +157,8 @@
       try {
         await save();
         try { if (window.TBControl) await TBControl.ensureKey(eid, { token: secret, base: BASE, prefix: "/api/z" }); } catch (e) { /* pause needs this key; the console says so on the day */ }
-        const r = await api("POST", `/api/z/${eid}/publish`, { email: S.f.email, phone: S.f.phone, consent: CBConsent.payload($("app"), "K1") });
-        S.editing = false; S.note = r.paid ? "Published. Share the link." : "Published. Pay before the draw so it can happen."; await load();
+        const pr = await api("POST", `/api/z/${eid}/publish`, { email: S.f.email, phone: S.f.phone, consent: CBConsent.payload($("app"), "K1") });
+        S.editing = false; S.note = pr && pr.needsOrganizer ? "Ready. The organizer must open the link and publish it." : pr.paid ? "Published. Share the link." : "Published. Pay before the draw so it can happen."; await load();
       } catch (e) { return fail(e); }
       S.busy = false; paint();
     });
@@ -212,5 +213,7 @@
     paint();
     setInterval(async () => { if (eid && S.sum && S.sum.status !== "draft" && !document.hidden && !S.busy) { try { await load(); paint(); } catch (e) { /* next time */ } } }, 15000);
   }
+
+  (async () => { try { const m = await (await fetch(BASE + "/api/mode", { cache: "no-store" })).json(); if (m && m.mode === "TEST" && !document.getElementById("testmode")) { const b = document.createElement("div"); b.id = "testmode"; b.className = "ztest"; b.setAttribute("role", "status"); b.textContent = "TEST MODE: nothing here is real. No one outside the owner’s test list is e-mailed, and nothing is charged."; const app = document.getElementById("app"); app.parentNode.insertBefore(b, app); } } catch (e) { /* no banner when the mode cannot be read */ } })();
   boot();
 })();

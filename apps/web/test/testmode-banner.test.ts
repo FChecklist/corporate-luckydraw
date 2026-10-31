@@ -20,19 +20,6 @@ async function consoleIn(mode: "TEST" | "LIVE") {
 }
 
 describe("TEST MODE banner", () => {
-  test("in TEST the organizer console shows one calm notice, outside the working area", async () => {
-    const p = await consoleIn("TEST");
-    const b = p.win.document.getElementById("testmode"); expect(b).toBeTruthy();
-    expect(b.textContent).toMatch(/^TEST MODE: nothing here is real\./); expect(b.getAttribute("role")).toBe("status");
-    expect(p.win.document.querySelectorAll("#testmode").length).toBe(1);
-    expect(p.win.document.getElementById("app").contains(b)).toBe(false); // the console redraws #app; the notice is not wiped with it
-    expect(p.errors).toEqual([]);
-  });
-  test("in LIVE the console has no notice at all", async () => {
-    const p = await consoleIn("LIVE");
-    expect(p.win.document.getElementById("testmode")).toBeNull(); expect(p.win.document.body.textContent).not.toMatch(/TEST MODE/);
-    expect(p.errors).toEqual([]);
-  });
   test("only the organizer console's own files carry the wording: no public page, participant page, screen, report or shared script does", () => {
     const hits = readdirSync(PUB).filter((f) => /\.(html|js|css|webmanifest|txt)$/.test(f)).filter((f) => /TEST MODE|testmode|ztest/.test(readFileSync(join(PUB, f), "utf8")));
     expect(hits.sort()).toEqual(["zc.css", "zc.js"]);

@@ -16,37 +16,7 @@
       "keys": [
         "cb-last-eid",
         "cbz:*:pid",
-        "cbz:*:jr",
-        "cbz:*:claimed",
-        "cbz-daub:*:*:*",
-        "cbz-prizes:*",
-        "cbz-over:*",
-        "cbz-wait-*"
-      ]
-    },
-    {
-      "id": "player-brand",
-      "store": "localStorage",
-      "say": "On a player's phone: the organizer's name and logo, so they show even without a connection.",
-      "keys": [
-        "cbz:*:brand"
-      ]
-    },
-    {
-      "id": "player-sound",
-      "store": "localStorage",
-      "say": "On a player's phone: whether the sound is on.",
-      "keys": [
-        "cbz-sound"
-      ]
-    },
-    {
-      "id": "player-old",
-      "store": "localStorage",
-      "cleanup": true,
-      "say": "An older version saved a player's number on the phone. The page now removes it.",
-      "keys": [
-        "cbz-phone"
+        "ld-pid-*"
       ]
     },
     {
@@ -59,13 +29,11 @@
         "cbz-login-email",
         "cbz-aimsg",
         "cbz-email",
-        "cbz-phone",
         "cbz-name",
         "cbz-pl",
-        "cbz-shield",
-        "cbz-alt",
         "cbz-cap",
-        "cb-auto-done"
+        "cb-auto-done",
+        "cbz-phone"
       ]
     },
     {
@@ -94,16 +62,6 @@
       "say": "In an organizer's browser: the name, e-mail, mobile number and invoice details typed on the payment page, so the form is filled in next time.",
       "keys": [
         "cb-payer"
-      ]
-    },
-    {
-      "id": "console-progress",
-      "store": "localStorage",
-      "say": "In an organizer's browser: which setup steps are done and which messages were sent, for each game.",
-      "keys": [
-        "cbz-prog-*-*",
-        "cbz-cc",
-        "cbz-sent-*"
       ]
     },
     {
@@ -171,14 +129,6 @@
       "say": "On any page, in this tab only: when we send you to fix something, a note of where you were working, so one tap brings you back. It is removed when you come back or close the tab.",
       "keys": [
         "ctz-return"
-      ]
-    },
-    {
-      "id": "console-screens",
-      "store": "localStorage",
-      "say": "On the organizer's computer: which console screens were chosen (the new screens or the previous screens).",
-      "keys": [
-        "cbz-zcflow"
       ]
     }
   ],

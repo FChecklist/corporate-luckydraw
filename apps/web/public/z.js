@@ -3,7 +3,7 @@
 (function () {
   const $app = document.getElementById("app");
   const q = new URLSearchParams(location.search);
-  const LAST = "ld-last-eid";
+  const LAST = "cb-last-eid";
   let EID = (q.get("e") || location.hash.replace(/^#/, "") || "").trim();
   try { if (EID) localStorage.setItem(LAST, EID); else EID = localStorage.getItem(LAST) || ""; } catch (e) { /* the page still works */ }
   const BASE = (q.get("api") || "").replace(/\/$/, "");
@@ -83,6 +83,7 @@
 
   function paint() {
     $app.innerHTML = view();
+    try { const v = { phase: D && D.drawn ? "ended" : D && D.paused ? "paused" : "play", paused: !!(D && D.paused), locked: false }; if (window.ctzView) window.ctzView(v); } catch (e) { /* the recorder never disturbs the page */ }
     const reg = document.getElementById("reg");
     if (reg) {
       const k = document.getElementById("k4");
@@ -93,7 +94,8 @@
         if (!id) { S.err = I.idKind === "email" ? "Enter your Email ID." : "Enter your Employee ID."; return paint(); }
         S.busy = true; S.err = "";
         try {
-          const r = await api("POST", `/api/z/${EID}/join`, { empId: id, name: name || undefined, device: device(), consent: CBConsent.payload(reg, "K4"), ...(TOKEN ? { token: TOKEN } : {}) });
+          const body = { empId: id, name: name || undefined, device: device(), consent: CBConsent.payload(reg, "K4"), ...(TOKEN ? { token: TOKEN } : {}) };
+          let r; try { r = await api("POST", `/api/z/${EID}/join`, body); } catch (e) { if (e && e.status) throw e; await new Promise((ok) => setTimeout(ok, 1500)); r = await api("POST", `/api/z/${EID}/join`, body); } // a join call lost on a slow network is asked once more by itself
           S.pid = r.pid; store.set(pidKey(), r.pid); rx("hello");
         } catch (e) { S.err = e.code === "draw-closed" ? e.message : e.code === "device-used" ? "This phone has already registered. One entry for each person." : e.status === 423 ? "This ID is already in the draw from another phone." : e.status === 409 ? "The draw is full." : e.status === 429 ? "It is busy right now. Please try again in a few minutes." : e.message; }
         S.busy = false; await refresh();

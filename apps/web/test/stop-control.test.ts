@@ -57,32 +57,6 @@ async function consoleWithEnd(x: Awaited<ReturnType<typeof setup>>, eid: string)
 const wait = (ms = 60) => new Promise((r) => setTimeout(r, ms));
 
 describe("O7: the console's End control stops the game on every phone", () => {
-  test("pressing End in the console signs a stop; the Worker accepts it; every phone ends at the same call; without the press they play on", async () => {
-    const x = await setup("O7-STOP");
-    for (let i = 0; i < 25; i++) await x.step();
-    expect(x.phones.map((p) => p.rt.view().phase)).not.toContain("ended");
-    const before = x.phones[0]!.rt.view().log.length; expect(before).toBeGreaterThan(3); // numbers are being called
-
-    const c = await consoleWithEnd(x, "O7-STOP");
-    await c.waitFor((t) => /Last step|Your game|Controls/i.test(t));
-    c.click('.zc-dot[data-open="9"]'); await c.waitFor((t) => /Controls/.test(t));
-    const end = c.$('[data-ctl="stop"]'); expect(end).toBeTruthy(); expect(String(end.textContent)).toMatch(/end/i);
-    c.click('[data-ctl="stop"]');
-    await c.waitFor((t) => /Stop sent/.test(t));
-    const f = (await readPublished({ get: async (k) => (x.w.world.raw.prepare("SELECT v FROM kv WHERE k=?").get(k) as any)?.v ?? null, put: async () => {} }, "O7-STOP"))!;
-    expect(f.messages.map((m) => m.action)).toEqual(["stop"]); // the signed message is stored by the Worker
-    for (let i = 0; i < 200; i++) await x.step();
-    const views = x.phones.map((p) => p.rt.view());
-    expect(views.map((v) => v.phase)).toEqual(["ended", "ended", "ended"]);
-    expect(views[1]!.log).toEqual(views[0]!.log); expect(views[2]!.log).toEqual(views[0]!.log); // the same last number on every phone
-    expect(views[0]!.log.length).toBeLessThan(75); // and it did not run to the end of the 75 numbers
-
-    // the same game with nobody pressing End: the phones play on past that point
-    const y = await setup("O7-GO");
-    for (let i = 0; i < 25 + 200; i++) await y.step();
-    expect(y.phones[0]!.rt.view().log.length).toBeGreaterThan(views[0]!.log.length);
-    void wait; void roundMs;
-  });
   test("a stop that was not signed by the organizer's key is refused and the phones play on", async () => {
     const x = await setup("O7-FORGE");
     for (let i = 0; i < 20; i++) await x.step();

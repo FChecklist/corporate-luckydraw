@@ -127,15 +127,15 @@ describe("privacy signal", () => {
 });
 
 describe("pages it must stay out of", () => {
-  for (const [url, html] of [["/z.html?e=GAME-1", "z.html"], ["/zc.html", "zc.html"], ["/big.html?e=GAME-1", "big.html"], ["/play.html", "z.html"], ["/report.html", "report.html"], ["/owner-visits.html", "owner-visits.html"]] as const) test(url + ": the script does nothing", async () => {
+  for (const [url, html] of [["/z.html?e=GAME-1", "z.html"], ["/zc.html", "zc.html"], ["/play.html", "z.html"], ["/report.html", "report.html"], ["/owner-visits.html", "owner-visits.html"]] as const) test(url + ": the script does nothing", async () => {
     const s = await site(url, html, { scripts: ["common.js", "v.js"] });
     await s.drain();
     expect(s.p.win.TBV).toBeUndefined(); expect(s.sent.length).toBe(0); expect(s.p.win.localStorage.getItem("cbv_id")).toBeNull();
   });
   test("none of the game pages loads the script, and the public pages do", async () => {
     const { readFileSync } = await import("node:fs"); const rd = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
-    for (const f of ["z.html", "zc.html", "big.html", "report.html", "ai-link.html", "owner-visits.html", "404.html"]) expect([f, rd(f).includes("/v.js")]).toEqual([f, false]);
+    for (const f of ["z.html", "zc.html", "report.html", "ai-link.html", "owner-visits.html", "404.html"]) expect([f, rd(f).includes("/v.js")]).toEqual([f, false]);
     for (const f of ["index.html", "legal.html", "terms.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "partner.html", "signin.html", "pay.html"]) expect([f, rd(f).includes('<script src="/v.js" defer></script>')]).toEqual([f, true]);
-    for (const f of ["z.js", "zc.js", "zgame.js", "big.js", "control.js"]) { const t = rd(f); expect([f, /cbv_id|TBV|\/api\/v\/b/.test(t)]).toEqual([f, false]); }
+    for (const f of ["z.js", "zc.js", "control.js"]) { const t = rd(f); expect([f, /cbv_id|TBV|\/api\/v\/b/.test(t)]).toEqual([f, false]); }
   });
 });

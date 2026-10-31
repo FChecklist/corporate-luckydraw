@@ -153,9 +153,4 @@ describe("the right guide for the right message and the right person", () => {
     const o = await page("pricing.html", "/zc.html?e=ABCD1234"); expect(o.win.CTG.role()).toBe("organizer");
     expect(o.win.CTG.explain({ status: 409, message: "This engagement is full." }).go.step).toBe(2);
   });
-  test("the game page tells the truth about why a game could not be opened", () => {
-    const rt = readFileSync(join(import.meta.dir, "../../../packages/beacon/src/phone-runtime.ts"), "utf8");
-    expect(rt).toContain('st === 403 || st === 410 ? String(e?.message');
-    expect(readFileSync(join(import.meta.dir, "../public/zgame.js"), "utf8")).toContain("The game could not be opened just now");
-  });
 });

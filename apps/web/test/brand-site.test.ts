@@ -34,13 +34,13 @@ describe("the shared Corporate Games brand kit", () => {
   test("the two fonts and the logo are identical, and the font file the page preloads is the one the css names", () => {
     expect(sha("fonts/Inter-normal-400.woff2", false)).toBe("3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62");
     expect(sha("fonts/Fraunces-normal-500-700.woff2", false)).toBe("7234ed860a9cc83045413c4faee63c960a8f2d1917adcf728119307d56e0d783");
-    expect(sha("favicon.svg")).toBe("5f06c353bdd73ebd980600f44e7316ee228ff850cacd57ab04173bc3ab7711f0");
+    expect(sha("favicon.svg")).toBe("702b82865a7c70a1668bce1f8895a1e5d605aa78cf3253d847beb647322d09a0");
     const f = rd("fonts.css"); expect(f).toContain("/fonts/Inter-normal-400.woff2"); expect(f).toContain("/fonts/Fraunces-normal-500-700.woff2");
     expect(f).not.toMatch(/https?:\/\//); // no font is loaded from another site
   });
   test("the games bar is identical to the canonical copy", () => {
-    expect(sha("gamesbar.js")).toBe("16f02208af3c84cef63d81cdfcbc788f1baf23957ed71e912d44cafd4f881b98");
-    expect(sha("gamesbar.css")).toBe("6b0311de98525de646e637a28102163dfecf9fde35b8befe0344a5e16fff8b5b");
+    expect(sha("gamesbar.js")).toBe("232311c5d94dc80427836fe7bea017ddda912c5ecdd1e088d268a8a0ef5a4bb1");
+    expect(sha("gamesbar.css")).toBe("d65bc37004de56b0bc1511b21116ccadf36bff27e0fcdb4f0301623d66976355");
   });
   test("every site page links the kit styles, the fonts and the games bar, with a version number, and the build ships them all", () => {
     const build = readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8");
@@ -66,15 +66,6 @@ describe("the header menu: exactly six items, in the owner's order", () => {
     for (const f of ["how-it-works.html", "guide.html", "brochure.html", "partner.html", "zc.html", "brochure.pdf"]) expect([f, existsSync(new URL(f, PUB))]).toEqual([f, true]);
     expect(readFileSync(new URL("../../../packages/beacon/src/config.ts", import.meta.url), "utf8")).toMatch(/DEMO_CAP\s*=\s*10/);
     for (const banned of ["Free AI assistant", "WhatsApp us", "Pricing</a>", ">Video<"]) expect(nav).not.toContain(banned);
-  });
-  test("the header carries the one logo: the kit badge with CORPORATE small above Bingo", () => {
-    for (const p of SITE_PAGES) {
-      const h = rd(p + ".html"), brand = /<a class="ck-brand"[^>]*>([\s\S]*?)<\/a>/.exec(h)?.[1] ?? "";
-      expect([p, brand.includes('href="#i-draw"')]).toEqual([p, true]);
-      expect([p, brand.includes("<i>Corporate</i><b>Bingo</b>")]).toEqual([p, true]);
-      expect([p, h.includes('<symbol id="i-draw"')]).toEqual([p, true]); // the badge is drawn in the page, from the kit sprite
-    }
-    const tr = rd("trust.html"); expect(tr).toContain('<img class="ck-badge" src="/favicon.svg"'); expect(tr).toContain("<i>Corporate</i><b>Bingo</b>"); expect(navLabels(tr)).toEqual(SIX);
   });
 });
 

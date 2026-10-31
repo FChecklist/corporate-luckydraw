@@ -34,7 +34,7 @@ describe("installable app (PWA)", () => {
   });
   test("service worker never touches the API or other sites, and the pages link manifest and installer", () => {
     expect(sw).toContain('url.pathname.startsWith("/api/")'); expect(sw).toContain("url.origin !== location.origin");
-    for (const p of ["z.html", "zc.html", "big.html", "index.html"]) {
+    for (const p of ["z.html", "zc.html", "index.html"]) {
       const h = readFileSync(join(PUB, p), "utf8");
       expect(h).toContain('rel="manifest"'); expect(h).toContain("/pwa.js"); expect(h).toContain("apple-touch-icon");
     }

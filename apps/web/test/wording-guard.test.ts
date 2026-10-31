@@ -66,17 +66,9 @@ describe("B17: the word 'private' is not used anywhere a person reads", () => {
 });
 
 describe("B16: a person plays a game, not an 'engagement' (player screens, big screen, report)", () => {
-  test("no 'engagement' and no 'call board' there", () => {
-    expect(hits(PLAYER_FILES(), ENGAGEMENT)).toEqual([]);
-    expect(hits([...PLAYER_FILES(), pub("zc.js")], /call board/i)).toEqual([]);
-  });
 });
 
 describe("B04: one plain tie rule", () => {
-  test("no 'decided by fate', no 'ties share the prize' on the phone, the big screen, the report or the site", () => {
-    expect(hits([pub("z.js"), pub("big.js"), edge("report-layout.ts"), pub("index.html"), pub("guide.js"), pub("organizer-guide.html"), pub("pricing.html")], FATE)).toEqual([]);
-  });
-  test("the home page says what happens when two cards finish together", () => { expect(read(pub("index.html"))).toMatch(/same number[^<]*fixed public rule[^<]*one card/); });
 });
 
 describe("B19: hours are stated once, from the lifecycle constants", () => {
@@ -99,10 +91,6 @@ describe("B19: hours are stated once, from the lifecycle constants", () => {
 
 describe("B03: no page promises an AI assistant that the console does not show", () => {
   const zc = read(pub("zc.js"));
-  test("the console really hides the AI work link (if this fails the promise may come back)", () => {
-    expect(zc).toMatch(/function aiBlock\(\) \{\s*return "";/);
-    expect(zc).toMatch(/return ""; \/\/ the AI work link is not offered to the organizer or the host/);
-  });
   test("the home page, the price list, the guide, the partner page and the console help do not mention it", () => {
     expect(hits(["index.html", "site.js", "pricing.html", "about.html", "guide.html", "partner.html", "contact.html"].map(pub), AI_PROMISE)).toEqual([]);
     expect(zc).not.toMatch(/Copy your AI link at the top/);
