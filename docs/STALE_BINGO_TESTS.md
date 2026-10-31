@@ -62,3 +62,10 @@ Not all removals of the first pass are in the list above (the `pay.test.ts`, `wo
 - Bingo-only cases removed (Bingo phone card page, brand strip on the card, personal links and waiting-room joins by phone number, guest invitations, card preview, quick setup and the ten-step console, big number board, pause limit for big games, B08/B15/B33 phone wording, B09/B10/B12/B26 console steps) from `phone-guest.test.ts`, `gameday-copy.test.ts` and `setup-choices.test.ts`. Lucky Draw has none of these screens. Still wanted as new Lucky Draw tests: a cancelled draw shows one calm screen; a removed person is told so; the Paused banner; the brand strip on the participant page.
 - Real fix on the way: the console TEST MODE notice was ported from Bingo's `zc.js` (it was missing).
 - `apps/edge/test/param-life.test.ts`: "an UNPAID game keeps the base figures (200 new seats a minute)" joins by phone number (Bingo); Lucky Draw joins by ID.
+
+## Core 0.9.8 (shared legal text)
+Privacy, Terms and Conditions, cookies and complaints are now the one common text from game-core (rendered at pages build by `tools/shared-legal.ts`, markers in `privacy.html`, `terms.html`, `legal.html`; the game rules are `docs/LUCKYDRAW_RULES_BOOK.md`). Cases that asserted the site's own copy of that text were removed:
+- `branding.test.ts`: "anchors, headings, counts", "six disclaimer lines", "rules say only what the software does" (they checked legal.html's own Bingo rules/privacy list). The lifecycle.ts timing checks were kept as their own test.
+- `terms.test.ts`: terms.html needles for its own clauses (kept: title, seller, version), the "We do not hold, take or give any money" line, and "one set of retention facts" (checked terms.html/legal.html own wording).
+- `data-map.test.ts`: legal.html dropped from the Asia-Pacific list (subprocessors.html still checked).
+Owner to confirm: the own Terms clauses (indemnity, no-lottery, etc.) are no longer on terms.html; the common text is a draft for owner approval and GRIEVANCE_EMAIL is a placeholder.

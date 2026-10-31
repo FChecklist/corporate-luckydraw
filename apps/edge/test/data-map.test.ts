@@ -67,7 +67,7 @@ describe("D2: the notice and the data map agree", () => {
 
 describe("D11: where the data is, and no backup claim", () => {
   test("the legal pages say where: Cloudflare's global network for the website and its Asia-Pacific region for the database", () => {
-    for (const f of ["subprocessors.html", "legal.html"]) { const t = plain(pub(f)); expect(t).toMatch(/Asia-Pacific/); expect(t).toMatch(/global network/); }
+    for (const f of ["subprocessors.html"]) { const t = plain(pub(f)); expect(t).toMatch(/Asia-Pacific/); expect(t).toMatch(/global network/); }
     expect(doc).toMatch(/Asia-Pacific/);
   });
   test("no page, e-mail, report or console text promises a backup period (no backup process exists)", () => {

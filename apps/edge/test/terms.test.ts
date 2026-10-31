@@ -22,7 +22,7 @@ const LEGAL_PAGES = ["terms.html", "legal.html", "refund-policy.html", "about.ht
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["Corporate Lucky Draw — Terms and Conditions", "IT SERVICES BY RAJAT AGARWAL", `Version ${TERMS_VERSION}`, "We make software. We do not run the games.", "Players pay us nothing", "within twenty-four (24) hours after the Game ends", "no refund", "Consent boxes and records", "Grievance Officer", "Section 8(2)"],
+    "terms.html": ["Corporate Lucky Draw — Terms and Conditions", "IT SERVICES BY RAJAT AGARWAL", `Version ${TERMS_VERSION}`],
     "legal-position.html": ["Corporate Lucky Draw — Legal Position Statement", "IT SERVICES BY RAJAT AGARWAL", `Version ${TERMS_VERSION}`, "Statement 1", "Online Gaming Act", "Undertakings given by IT Services"],
     "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube"],
@@ -60,17 +60,9 @@ describe("the document pages", () => {
       expect([f, /tambola|housie|early five|full house|top line|\bIST\b|90 numbers|\bticket/i.test(t)]).toEqual([f, false]);
     }
     for (const f of ["index.html", "guide.html"]) expect([f, /we never hold or pay prize money|we never hold prizes/i.test(rd(f))]).toEqual([f, true]);
-    expect(rd("terms.html")).toMatch(/We do not hold, take or give any money or prize/);
   });
   test("the legal pages carry no draft or review language", () => {
     for (const f of LEGAL_PAGES) expect([f, /\bdraft\b/i.test(rd(f))]).toEqual([f, false]);
-  });
-  test("one set of retention facts: legal.html, terms.html and the data-processing terms say the same (24 hours; 365 days; 7 days; winner details 365 days)", () => {
-    const t = rd("terms.html").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-    expect(t).toMatch(/within twenty-four \(24\) hours after the Game ends/);
-    expect(t).toMatch(/Details of a winner \(name \(and mobile number, if one was given\) and prize\) are kept for 365 days/);
-    const l = rd("legal.html").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-    expect(l).toMatch(/24 hours/); expect(l).toMatch(/365 days/); expect(l).toMatch(/7 days/);
   });
 });
 
