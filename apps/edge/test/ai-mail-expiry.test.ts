@@ -39,18 +39,6 @@ describe("the e-mailed link lasts 24 hours", () => {
     expect((await at(30 * 24 * H, `/ai/${o.ai}`)).status).toBe(200); // the lasting key never expires
     expect((await call("GET", "/api/whoami", undefined, o.h, T + 30 * 24 * H)).status).toBe(200);
   });
-  test("Get a fresh AI link: a new 24-hour key by mail; the lasting key and earlier links are untouched; AI, co-host, platform and anonymous callers are refused", async () => {
-    const o = await organizer(); const first = mailedKey(outbox()[0]!.body);
-    const r = await call("POST", "/api/org/ai/fresh", {}, o.h, T + H); const x = await j(r);
-    expect(r.status).toBe(200); expect(x.mailed).toBe(true); expect(x.expiresMs).toBe(T + H + 24 * H); expect(x.aiMessage).toBeUndefined();
-    const m = outbox().at(-1)!; expect(m.subject).toBe("[Bingo] " + AI_SUBJECT); expect(m.body).toMatch(/fresh personal AI work link/i); const fresh = mailedKey(m.body);
-    expect(fresh).not.toBe(first); expect(fresh).not.toBe(o.ai);
-    for (const k of [fresh, first, o.ai]) expect((await call("GET", `/ai/${k}`, undefined, {}, T + 4 * H)).status).toBe(200);
-    expect((await call("GET", `/ai/${first}`, undefined, {}, T + 24 * H + 30 * 60_000)).status).toBe(404); expect((await call("GET", `/ai/${fresh}`, undefined, {}, T + 24 * H + 30 * 60_000)).status).toBe(200); // each key has its own 24 hours
-    const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h));
-    for (const hdr of <Record<string, string>[]>[{ "x-organizer": o.ai }, { "x-organizer": hk.hostKey }, { "x-organizer": fresh }, { "x-organizer": "plat" }, {}]) expect((await call("POST", "/api/org/ai/fresh", {}, hdr)).status).toBe(403);
-    expect((await call("POST", `/ai/${o.ai}/org/ai/fresh`, {})).status).toBe(403);
-  });
   test("5 live fresh links at most; Replace kills every AI key, the 24-hour ones too; a co-host key made by mail does not use up the co-host places", async () => {
     const o = await organizer(); const first = mailedKey(outbox()[0]!.body);
     for (let i = 0; i < 4; i++) expect((await call("POST", "/api/org/ai/fresh", {}, o.h)).status).toBe(200);

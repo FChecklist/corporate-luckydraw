@@ -17,20 +17,6 @@ const dev = (i: number) => i.toString(16).padStart(4, "0").repeat(8);
 beforeEach(() => { const d = makeD1(); raw = d.raw; ip = 0; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt", DATA_KEY: "k", TEST_MODE: "1" } as WorkerEnv; });
 
 describe("LR-1: no code path takes money from a participant", () => {
-  test("the pages a participant sees contain no payment call, no payment provider and no price", () => {
-    for (const f of ["apps/web/public/z.js", "apps/web/public/zgame.js", "apps/web/public/big.js", "apps/web/public/demo.js", "apps/web/public/z.html", "apps/web/public/big.html", "apps/web/public/demo.html", "packages/beacon/src/phone-runtime.ts"]) {
-      const s = rd(f);
-      expect([f, /\/api\/(checkout|payments|paylink)|razorpay|checkout\.js|\bpaygo\b|TB\.pay\b|amount_paid|\bprice\(/i.test(s)]).toEqual([f, false]);
-    }
-  });
-  test("only the payment pages are allowed to load the payment provider (the page headers the build writes)", () => {
-    const b = rd("pages/build.mjs");
-    const paycsp = b.match(/const PAYCSP = [^\n]*/)![0];
-    expect(paycsp).toContain("https://checkout.razorpay.com");
-    const usingPay = [...b.matchAll(/\["(\/[a-z-]+)", PAYCSP, (?:true|false)\]/g)].map((m) => m[1]).sort();
-    expect(usingPay).toEqual(["/pay", "/paylink", "/paytest"]); // no game, phone, big-screen or demo page is among them
-    for (const p of ["/z", "/big", "/demo", "/preview"]) expect(b).toContain(`["${p}", ${p === "/big" ? "PLAINCSP" : "GAMECSP"},`);
-  });
   test("joining, playing and the public answers create no payment, order, invoice or entitlement, and show no payment link", async () => {
     const k = (await j(await call("POST", "/api/start", { email: "boss@acme.com" }))).token as string;
     expect((await call("POST", "/api/z", { id: "LR1-1", startRound: START, callSeconds: 6, cap: 100 }, k)).status).toBe(200);

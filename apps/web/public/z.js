@@ -78,7 +78,7 @@
   }
   function prizeForm(m) {
     if (S.prizeDone) return `<div class="zbanner ok">Thank you. Your details are saved for the prize hand-over.</div>`;
-    return `<form class="zcard zform" id="pz"><h2>Where should the prize go?</h2><label for="pn">Your name</label><input id="pn" maxlength="60" autocomplete="name" value="${esc(S.pname || "")}"><label for="pp">Mobile number (optional)</label><input id="pp" inputmode="tel" maxlength="20" autocomplete="tel">${S.perr ? `<div class="zbanner bad" role="alert">${esc(S.perr)}</div>` : ""}<button class="zbtn" type="submit">Save details</button><p class="zsmall">Winners' details are kept for 365 days so the prize can be handed over. Everyone else's are deleted within 24 hours.</p></form>`;
+    return `<form class="zcard zform" id="pz"><h2>Where should the prize go?</h2><label for="pn">Your name</label><input id="pn" maxlength="60" autocomplete="name" value="${esc(S.pname || "")}"><label for="pp">Mobile number (optional)</label><input id="pp" type="tel" inputmode="tel" maxlength="20" autocomplete="tel">${S.perr ? `<div class="zbanner bad" role="alert">${esc(S.perr)}</div>` : ""}<button class="zbtn" type="submit">Save details</button><p class="zsmall">Winners' details are kept for 365 days so the prize can be handed over. Everyone else's are deleted within 24 hours.</p></form>`;
   }
 
   function paint() {
@@ -94,7 +94,7 @@
         S.busy = true; S.err = "";
         try {
           const r = await api("POST", `/api/z/${EID}/join`, { empId: id, name: name || undefined, device: device(), consent: CBConsent.payload(reg, "K4"), ...(TOKEN ? { token: TOKEN } : {}) });
-          S.pid = r.pid; store.set(pidKey(), r.pid); rx("good_luck");
+          S.pid = r.pid; store.set(pidKey(), r.pid); rx("hello");
         } catch (e) { S.err = e.code === "draw-closed" ? e.message : e.code === "device-used" ? "This phone has already registered. One entry for each person." : e.status === 423 ? "This ID is already in the draw from another phone." : e.status === 409 ? "The draw is full." : e.status === 429 ? "It is busy right now. Please try again in a few minutes." : e.message; }
         S.busy = false; await refresh();
       };
@@ -109,7 +109,7 @@
     };
   }
 
-  const rx = (id) => { try { if (window.CBReact) window.CBReact.react(id); } catch (e) { /* a missing word never stops the page */ } };
+  const rx = (id, high) => { try { if (window.CBReact) window.CBReact.react(id, !!high); } catch (e) { /* a missing word never stops the page */ } };
   async function refresh() {
     try {
       I = await api("GET", `/api/z/${EID}/info`);
@@ -118,8 +118,8 @@
       else if (D && D.drawn && S.pid) { const r = await api("GET", `/api/z/${EID}/draw?pid=${encodeURIComponent(S.pid)}`); D = r.draw; }
       S.err = S.err && !I ? S.err : S.err;
       if (D) { // one short word at the big moments, only when this page saw the change happen
-        if (S.wasPaused === false && D.paused) rx("pause"); else if (S.wasPaused === true && !D.paused) rx("resume");
-        if (S.wasDrawn === false && D.drawn) { rx("draw"); setTimeout(() => rx(D.mine ? "win" : "winners_drawn"), 1300); }
+        if (S.wasPaused === false && D.paused) rx("hang_on");
+        if (S.wasDrawn === false && D.drawn) { rx("ta_da"); if (D.mine) setTimeout(() => rx("champion", 1), 2700); }
         S.wasPaused = !!D.paused; S.wasDrawn = !!D.drawn;
       }
     } catch (e) { if (!I) { I = e.status === 404 ? { draft: false } : null; S.err = e.status === 404 ? "This link is not valid. Ask the organizer to send it again." : e.message; if (e.status === 404) { D = null; I = { name: "" }; } } }
@@ -129,7 +129,7 @@
     clearInterval(timer);
     timer = setInterval(() => {
       const cd = document.getElementById("cd");
-      if (cd && D && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("countdown"); } }
+      if (cd && D && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("tick_tock"); } }
       S.tick++;
       const near = D && !D.drawn && Date.now() + (S.skew || 0) >= D.drawMs - 120000;
       if (!document.hidden && !document.getElementById("reg") && (near ? S.tick % 3 === 0 : S.tick % 15 === 0)) refresh();

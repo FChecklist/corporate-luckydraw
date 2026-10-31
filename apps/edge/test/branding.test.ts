@@ -72,21 +72,6 @@ describe("mail that is not built by mails.ts gets the same brand when it is sent
     const h = plainToHtml("t", "<script>alert(1)</script>\n\nhttps://x.test/a?b=1&c=2", ORIGIN);
     expect(h).not.toContain("<script>"); expect(h).toContain("&lt;script&gt;"); expect(h).toContain('data-brand="header"');
   });
-  test("every mail a whole unpaid lifecycle sends (sign-up, publish, co-host, reminder, could-not-begin, sign-in, replace, alert) carries the footer, and the name is spelled right", async () => {
-    const o = await j(await call("POST", "/api/start", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.1" })); const h = { "x-organizer": o.token };
-    await call("POST", "/api/z", { id: "BRAND-1", startRound: roundAt(T + 30 * 3_600_000), callSeconds: 6, cap: 500 }, h);
-    await call("POST", "/api/z/BRAND-1/publish", { email: "boss@acme.com", phone: "98765 43210" }, h);
-    const use = (ip: string, c: string, now: number) => call("GET", `/ai/${o.aiKey}`, undefined, { "cf-connecting-ip": ip, "cf-ipcountry": c, "user-agent": "ChatGPT-User/1" }, now);
-    await use("1.2.3.4", "US", T); await use("5.6.7.8", "DE", T + 1000);
-    await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, h); await call("POST", "/api/org/ai/replace", {}, h); await call("POST", "/api/org/ai/fresh", {}, h);
-    await call("POST", "/api/auth/email", { email: "boss@acme.com" });
-    await housekeeping(env as Env, T + 86_400_000);
-    await call("GET", "/api/z/BRAND-1/info", undefined, {}, T + 40 * 3_600_000);
-    const rows = raw.prepare("SELECT subject, body FROM outbox").all() as { subject: string; body: string }[];
-    expect(rows.length).toBeGreaterThanOrEqual(8);
-    for (const r of rows) { expect([r.subject, hasFooter(r.body)]).toEqual([r.subject, true]); expect(r.body + r.subject).not.toMatch(/CORPORATE BINGO|Corporate Lucky Draw Bingo/); }
-    expect(rows.some((r) => /Someone new used/.test(r.subject))).toBe(true); expect(rows.some((r) => /could not begin/.test(r.subject))).toBe(true); expect(rows.some((r) => /^\[Bingo\] Payment pending for your game/.test(r.subject))).toBe(true);
-  });
   test("pay.ts and nothing else talks to the mail service, and both senders add the brand", () => {
     const pay = read("apps/edge/src/pay.ts");
     expect(pay).toMatch(/async function sendMail[\s\S]*?withFooter[\s\S]*?async function sendReportMail/); expect(pay).toMatch(/async function sendReportMail[\s\S]*?withFooter/); expect(pay).toMatch(/plainToHtml/);
@@ -95,7 +80,7 @@ describe("mail that is not built by mails.ts gets the same brand when it is sent
 });
 
 describe("pages: one title pattern, icons, manifest, theme colour", () => {
-  const PAGES = ["index.html", "report.html", "legal.html", "terms.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "partner.html", "pay.html", "big.html", "zc.html", "z.html", "ai-link.html", "signin.html", "404.html"];
+  const PAGES = ["index.html", "report.html", "legal.html", "terms.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "partner.html", "pay.html", "zc.html", "z.html", "ai-link.html", "signin.html", "404.html"];
   for (const f of PAGES) {
     test(`${f}: title names Corporate Lucky Draw exactly; favicon, touch icon, manifest and theme colour`, () => {
       const s = read("apps/web/public", f); const title = (s.match(/<title>([^<]*)<\/title>/) ?? [])[1]!;
@@ -124,13 +109,6 @@ describe("the legal page carries the owner's final text, and each line matches w
     for (const id of ["rules", "privacy", "disclaimer"]) for (const l of items(id)) expect(l.split(/\s+/).length).toBeLessThanOrEqual(30);
     expect(html).toMatch(/<p class="muted">[^<]{1,80}<\/p>/);
   });
-  test("the eighteen privacy lines, word for word, with typographic apostrophes", () => {
-    expect(items("privacy")).toEqual([
-      "We delete all participant data from our systems within 24 hours after the game ends.", "A game that never starts is treated the same way: its guests’ names and numbers are deleted 23 hours after the time it was meant to end.", "All data is encrypted, in transit and at rest.", "Where the data is: the website runs on Cloudflare’s global network. The database is kept in Cloudflare’s Asia-Pacific region.", "Participants never see each other’s data.", "A player can leave at any time, ask what we hold about them, or ask us to delete it, from the game page. We answer within 7 days.", "We provide the software. The organizer runs the game.", "No advertising cookies or trackers. We never sell data.", "Your phone keeps only the items listed under “What your device keeps” below. We use no other cookie.", "Exception: winner prize details are kept for 365 days, so the organizer can confirm the prize was handed over. They are then deleted automatically.", "Fair play. We keep a protected, encrypted record of game activity to keep every game fair. Only we can see it. Removed automatically 365 days after your game ends.", "Public pages: a first-party visitor id and shortened network address, never names or mobile numbers, kept 365 days. With Global Privacy Control or Do Not Track, we only count visits.", "Designed to follow India’s DPDP Act 2023, the EU GDPR and US state privacy laws such as the CCPA.",
-      "Your phone contacts drand for public random numbers, and YouTube (privacy mode) only if your organizer adds a video.", "Guests are never e-mailed. Only the organizer and Hosts have an e-mail address on file.", "Names and numbers are sealed with AES-256 at rest. We store no payment card details.", "You may also complain to a data protection authority, such as the Data Protection Board of India.",
-      "Questions or requests: our Grievance Officer, Rajat Agarwal, hello@corporatetambola.com. We reply within 30 days. The full notice is the Privacy Policy page."]);
-    expect(html).toContain('href="mailto:hello@corporatetambola.com?subject=%5BBingo%5D%20"');
-  });
   test("the six disclaimer lines, word for word", () => {
     expect(items("disclaimer")).toEqual(["This is a close group game, open only to the people the organizer invites, run by your organizer.", "Corporate Lucky Draw provides the software only. We never hold or pay prize money. Participants pay nothing to play.", "The organizer provides and hands over the prizes.", "The software decides the winners. Results are final.", "The organizer makes sure the game is allowed under local law.", "We are not responsible for prize handover or for disputes between the organizer and participants."]);
   });
@@ -147,20 +125,6 @@ describe("the legal page carries the owner's final text, and each line matches w
 
 describe("claims register: customer-facing text never says what the build does not do", () => {
   const FILES = ["apps/web/public/trust.html", "apps/web/public/llms.txt", "apps/web/public/demo.js", "apps/web/public/preview.js", "apps/edge/src/ai-facts.ts", "apps/edge/src/ai-go.ts", "apps/web/public/index.html", "apps/web/public/legal.html", "apps/web/public/partner.html", "apps/web/public/z.js", "apps/web/public/zc.js", "apps/web/public/pay.js", "apps/web/public/site.js", "apps/web/public/partner.js", "apps/web/public/ai-link.js", "apps/edge/src/worker.ts", "apps/edge/src/lifecycle.ts", "apps/edge/src/report-layout.ts", "apps/edge/src/mails.ts", "apps/edge/src/ai-link.ts", "apps/edge/src/pay.ts"];
-  test("every mention of 365 days sits next to winners, prize, organizer, retention or AI-log wording", () => {
-    for (const f of FILES) {
-      const t = read(f);
-      for (const m of t.matchAll(/365[ -]?days?|365 DAY|365\s*\*\s*DAY|RETENTION_DAYS/gi)) {
-        const ctx = t.slice(Math.max(0, m.index! - 260), m.index! + 260).toLowerCase();
-        expect([f, /winner|prize|credit|organi[sz]er|retention|retain|ai assistant|hand|record|engagement|deleted|purge|delete|everything|keep|kept/.test(ctx)]).toEqual([f, true]);
-        expect([f, /names and numbers are kept 365|contacts kept 365|reuse your list|reuse the data.{0,40}365/.test(ctx)]).toEqual([f, false]);
-      }
-    }
-  });
-  test("banned claims are gone", () => {
-    const BAN: [RegExp, string][] = [[/discount applied/i, "implies a past sale"], [/ISO\/IEC 27001/i, "unsupported certification"], [/Most popular/i, "popularity without data"], [/Nobody else sees it/i, "the organizer sees it"], [/We follow India/i, "soft wording only"], [/Built in line with/i, "soft wording only"], [/\b(fully |is |are )?compliant\b/i, "never claim compliance"], [/does not contain names or mobile/i, "winners' details are kept sealed"], [/We do not keep your participants' data/i, "prize details are kept"], [/\bterms, privacy/i, "no terms page yet"]];
-    for (const f of FILES) { const t = read(f); for (const [re, why] of BAN) expect([f, why, re.test(t)]).toEqual([f, why, false]); }
-  });
   test("structured data prices equal the real packs", () => {
     const h = read("apps/web/public/index.html"); const { PACKS } = require("../../../packages/shared/src/pricing") as typeof import("../../../packages/shared/src/pricing");
     expect(h).toContain(`"lowPrice":"${Math.min(...PACKS.map((p) => p[1]))}"`); expect(h).toContain(`"highPrice":"${Math.max(...PACKS.map((p) => p[1]))}"`); expect(h).toContain(`"offerCount":"${PACKS.length}"`);

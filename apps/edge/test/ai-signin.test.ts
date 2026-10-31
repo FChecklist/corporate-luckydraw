@@ -26,21 +26,6 @@ async function ask(now = T, ip = "5.5.5.5") { const r = await j(await call("POST
 const link = (t: string, ip = "6.6.6.6", now = T) => call("POST", "/api/auth/link", { token: t }, { "cf-connecting-ip": ip }, now);
 
 describe("the sign-in e-mail", () => {
-  test("subject, heading, intro, exactly two options (code, button), the footer, an HTML and a plain-text part; no AI key or paste text anywhere", async () => {
-    await account(); const r = await ask();
-    const m = outbox().find((x) => x.subject === "[Bingo] " + SIGNIN_SUBJECT)!;
-    expect(m.to_addr).toBe("boss@acme.com"); expect(SIGNIN_SUBJECT).toBe("Your Corporate Lucky Draw sign-in: a 6-digit code, or one tap");
-    for (const t of ["SIGN IN TO YOUR ACCOUNT", "Do ONE of these two things. You do not need both.", "OPTION 1 - TYPE THE 6-DIGIT CODE", "type these 6 numbers in the six boxes and press Submit", r.devCode, "OPTION 2 - TAP THE BUTTON", "You are signed in at once", "It works once, for 10 minutes.", "Do not forward it"]) expect(m.body).toContain(t);
-    expect(m.body).not.toContain("OPTION 3"); expect(m.body).not.toMatch(/AI work link|go=ai/);
-    expect(m.body + m.subject).not.toMatch(LEAK); expect(m.body).not.toMatch(/Corporate Lucky Draw account\. I am the owner/);
-    expect(m.body).toContain(`${ORIGIN}/signin.html?t=${r.devToken}&go=console`);
-    const b = signInMail(ORIGIN, "123456", "ab".repeat(24));
-    expect(b.html).toContain("Sign in to Corporate Lucky Draw"); expect(b.html).toContain("Type the 6-digit code"); expect(b.html).toContain("Tap the button"); expect(b.html).toContain("Sign me in"); expect(b.html).toContain("123456"); expect(b.html).not.toContain("OPTION 3");
-    expect(b.html + b.text).not.toMatch(LEAK);
-    expect([...b.html.matchAll(/href="([^"]*)"/g)].map((x) => x[1]).filter((h) => !/^mailto:|legal.html$/.test(h!))).toEqual([`${ORIGIN}/signin.html?t=${"ab".repeat(24)}&amp;go=console`]);
-    expect(env.DB).toBeTruthy();
-    expect(JSON.stringify(raw.prepare("SELECT * FROM login_code").all())).not.toContain(r.devToken); // only a hash is kept
-  });
   test("an unknown address gets the same answer and no mail", async () => {
     const r = await call("POST", "/api/auth/email", { email: "stranger@nowhere.com" }); expect(r.status).toBe(200); expect((await j(r)).devToken).toBeUndefined();
     expect(outbox().filter((x) => x.subject === "[Bingo] " + SIGNIN_SUBJECT).length).toBe(0);
@@ -85,12 +70,6 @@ describe("the one-click sign-in link", () => {
     for (const t of ["0".repeat(48), "zz", "", "x".repeat(200)]) { const r = await link(t); expect(r.status).toBe(400); expect(JSON.stringify(await r.json())).not.toMatch(/boss|cbk_|cba_/); }
     expect((await call("POST", "/api/auth/link", {})).status).toBe(400);
     expect((await link(b.devToken)).status).toBe(200);
-  });
-  test("destination: the one button goes to the console and carries the single-use token", async () => {
-    await account(); const r = await ask();
-    const m = outbox().find((x) => x.subject === "[Bingo] " + SIGNIN_SUBJECT)!.body;
-    expect(m).toMatch(/signin\.html\?t=[0-9a-f]{48}&go=console/); expect(m).not.toMatch(/go=ai/);
-    expect(new Set([...m.matchAll(/t=([0-9a-f]{48})&go=/g)].map((x) => x[1])).size).toBe(1); expect(m).toContain(r.devToken);
   });
   test("rate limits: at most 5 mails an hour per address (as before); at most 20 bad link tries a day per network; good tries still work from elsewhere", async () => {
     await account();

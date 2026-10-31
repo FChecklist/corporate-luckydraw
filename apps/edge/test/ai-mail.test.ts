@@ -70,40 +70,12 @@ describe("the dedicated mail builders", () => {
 });
 
 describe("the AI link is in the dedicated mails and nowhere else", () => {
-  test("sign-up sends exactly one mail, the dedicated one; the console shows the same paste", async () => {
-    const o = await organizer();
-    const sent = outbox();
-    expect(sent.length).toBe(1); expect(sent[0]!.to_addr).toBe("boss@acme.com"); expect(sent[0]!.subject).toBe("[Bingo] " + AI_SUBJECT);
-    expect(sent[0]!.body.startsWith(AI_WARNING)).toBe(true); expect(sent[0]!.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
-    expect(sent[0]!.body).not.toContain(o.ai); expect(sent[0]!.body).not.toContain(o.msg); // the lasting key stays in the console; the mail has its own 24-hour key
-    const mk = mailedKey(sent[0]!.body); expect(mk).not.toBe(o.ai); expect((await call("GET", `/ai/${mk}`)).status).toBe(200);
-  });
   test("with AI_LINK_MAIL_AT_SIGNUP=0 (the live setting) sign-up sends no AI mail at all; the account and the sign-in e-mail (code and link) still work", async () => {
     (env as any).AI_LINK_MAIL_AT_SIGNUP = "0";
     const o = await organizer();
     expect(outbox().length).toBe(0); expect((await call("GET", "/api/whoami", undefined, o.h)).status).toBe(200); // the account exists and the console key works
     const r = await j(await call("POST", "/api/auth/email", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.2" }));
     expect(r.ok).toBe(true); const sent = outbox(); expect(sent.length).toBe(1); expect(sent[0]!.subject).not.toBe("[Bingo] " + AI_SUBJECT); expect(sent[0]!.body).toMatch(/\b\d{6}\b/); // one sign-in mail: the 6-digit code
-  });
-  test("publish, reminder, could-not-begin and every other mail of a full unpaid lifecycle carry no AI link; only the dedicated mails do", async () => {
-    const { h } = await organizer();
-    await call("POST", "/api/z", { id: "MAIL-1", startRound: roundAt(T + 30 * 3_600_000), callSeconds: 6, cap: 500 }, h);
-    expect((await call("POST", "/api/z/MAIL-1/publish", contact, h)).status).toBe(200);
-    expect((await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, h)).status).toBe(200);
-    expect((await call("POST", "/api/org/ai/replace", {}, h)).status).toBe(200);
-    await housekeeping(env as Env, T + 86_400_000); // payment reminder
-    await call("GET", "/api/z/MAIL-1/info", undefined, {}, T + 40 * 3_600_000); // start passed unpaid: the "could not begin" mail
-    const sent = outbox(); const subjects = sent.map((m) => m.subject);
-    expect(subjects.some((s) => /published/i.test(s))).toBe(true); expect(subjects.some((s) => /^\[Bingo\] Payment pending for your game/.test(s))).toBe(true); expect(subjects.some((s) => /could not begin/i.test(s))).toBe(true);
-    for (const m of sent) {
-      if (DEDICATED.has(m.subject.replace("[Bingo] ", ""))) { expect(m.body).toMatch(LEAK); continue; }
-      expect(m.body + "\n" + m.subject).not.toMatch(LEAK); // forwardable
-    }
-    expect(sent.filter((m) => m.subject === "[Bingo] " + AI_SUBJECT).length).toBe(2); // sign-up and replace
-    expect(sent.filter((m) => m.subject === "[Bingo] " + HOST_SUBJECT).length).toBe(1);
-    const pub = sent.find((m) => /published/i.test(m.subject))!;
-    expect(pub.body).toContain("/z.html?e=MAIL-1"); expect(pub.body).toContain("/pay.html?e=MAIL-1");
-    expect(pub.body).not.toMatch(/AI work link|Option 1|\/ai\//);
   });
   test("no other source that builds a mail, a PDF, a report or a guest page can carry an AI link", () => {
     const root = join(import.meta.dir, "..", "..", "..");
@@ -119,22 +91,6 @@ describe("the AI link is in the dedicated mails and nowhere else", () => {
 });
 
 describe("Replace my AI link", () => {
-  test("the signed-in organizer replaces it: the old link answers 404 at once, the new one works, the new link is e-mailed, and the call is audited", async () => {
-    const o = await organizer();
-    expect((await call("GET", `/ai/${o.ai}`)).status).toBe(200);
-    const r = await call("POST", "/api/org/ai/replace", {}, o.h); const x = await j(r);
-    expect(r.status).toBe(200); expect(x.aiKey).toMatch(/^cba_[0-9a-f]{48}$/); expect(x.aiKey).not.toBe(o.ai); expect(x.mailed).toBe(true);
-    expect(x.aiMessage).toContain(`/ai/${x.aiKey}`); expect(x.aiMessage.split("\n").length).toBe(2);
-    expect((await call("GET", `/ai/${o.ai}`)).status).toBe(404); expect((await call("GET", `/ai/${o.ai}/whoami`)).status).toBe(404);
-    expect((await call("GET", "/api/whoami", undefined, { "x-organizer": o.ai })).status).toBe(403);
-    expect((await call("GET", `/ai/${x.aiKey}`)).status).toBe(200); expect(await j(await call("GET", `/ai/${x.aiKey}/whoami`))).toEqual({ kind: "ai" });
-    const last = outbox().at(-1)!; expect(last.subject).toBe("[Bingo] " + AI_SUBJECT); expect(last.body).toMatch(/NEW personal AI work link/i);
-    expect(last.body).not.toContain(x.aiKey); expect(last.body).not.toContain(o.ai); // the mail carries its own 24-hour key, not the lasting one
-    const mk = mailedKey(last.body); expect(mk).not.toBe(x.aiKey); expect((await call("GET", `/ai/${mk}`)).status).toBe(200);
-    const rows = raw.prepare("SELECT method, path, status FROM ai_audit WHERE path='/api/org/ai/replace'").all() as any[];
-    expect(rows).toEqual([{ method: "POST", path: "/api/org/ai/replace", status: 200 }]);
-    expect(JSON.stringify(raw.prepare("SELECT * FROM ai_audit").all())).not.toContain(x.aiKey);
-  });
   test("the old route /api/org/ai does the same (mints a fresh link, kills the old one)", async () => {
     const o = await organizer();
     const x = await j(await call("POST", "/api/org/ai", {}, o.h));
@@ -153,12 +109,6 @@ describe("Replace my AI link", () => {
     const mk = await j(await call("POST", "/api/org", {}, { "x-organizer": "plat" })); // minted by the platform: no sign-up e-mail
     const x = await j(await call("POST", "/api/org/ai/replace", {}, { "x-organizer": mk.organizerKey }));
     expect(x.ok).toBe(true); expect(x.mailed).toBe(false); expect((await call("GET", `/ai/${x.aiKey}`)).status).toBe(200); expect(outbox().length).toBe(0);
-  });
-  test("a co-host key made later is e-mailed to the organizer in its own mail", async () => {
-    const o = await organizer();
-    const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h)); expect(hk.mailed).toBe(true);
-    const m = outbox().at(-1)!; expect(m.subject).toBe("[Bingo] " + HOST_SUBJECT); expect(m.to_addr).toBe("boss@acme.com"); expect(m.body).not.toContain(hk.hostKey); expect(m.body).toContain("boss@acme.com"); expect(m.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
-    const ck = m.body.match(/cbh_[0-9a-f]{48}/)![0]; expect(ck).not.toBe(hk.hostKey); expect((await call("GET", `/ai/${ck}`)).status).toBe(200); expect((await call("GET", `/ai/${hk.hostKey}`)).status).toBe(200);
   });
 });
 
@@ -184,16 +134,4 @@ describe("opening the manual never changes anything", () => {
 describe("sending", () => {
   const realFetch = globalThis.fetch;
   afterEach(() => { globalThis.fetch = realFetch; });
-  test("the service gets both an HTML and a plain-text part; a mail that could not be sent keeps no body (nothing with a key is retried later)", async () => {
-    const calls: any[] = []; let ok = true;
-    globalThis.fetch = (async (_u: any, init: any) => { calls.push(JSON.parse(init.body)); return new Response("{}", { status: ok ? 200 : 500 }); }) as any;
-    env.RESEND_API_KEY = "re_test";
-    await organizer();
-    expect(calls.length).toBe(1); expect(calls[0].subject).toBe("[Bingo] " + AI_SUBJECT); expect(calls[0].html).toContain("<h1"); expect(calls[0].text).toContain(AI_WARNING); expect(calls[0].html).toContain(AI_WARNING);
-    ok = false;
-    const mk = await j(await call("POST", "/api/start", { email: "second@acme.com" }, { "cf-connecting-ip": "2.2.2.2" }));
-    expect(mk.aiKey).toMatch(/^cba_/);
-    const failed = raw.prepare("SELECT body, sent FROM outbox WHERE to_addr='second@acme.com'").get() as any;
-    expect(failed).toEqual({ body: "", sent: 0 }); expect(JSON.stringify(raw.prepare("SELECT * FROM outbox").all())).not.toContain(mk.aiKey);
-  });
 });

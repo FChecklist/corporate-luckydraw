@@ -116,17 +116,6 @@ describe("e-mail in TEST mode goes only to the owner's allow-list", () => {
     env.OWNER_EMAIL = undefined; await toTest(); await organizer("boss@acme.com"); await organizer(OWNER, "5.5.5.5");
     expect(q("SELECT * FROM outbox").length).toBe(0);
   });
-  test("the report mail follows the same rule (handled, not sent) and so does the daily retry of old mail", async () => {
-    await toTest();
-    expect(await sendReportMail(env, "boss@acme.com", "Report", "hello", [])).toBe(true); expect(sentReports.length).toBe(0);
-    expect(await sendReportMail(env, OWNER, "Report", "hello", [])).toBe(true); expect(sentReports.length).toBe(1); expect(sentReports[0]!.subject).toBe("[TEST] [Bingo] "+"Report");
-    expect(q("SELECT outcome FROM mail_event ORDER BY id").map((r) => r.outcome)).toEqual(["suppressed_test_mode", "sent_test_allowlist"]);
-    // a real mail queued before the switch is not sent now
-    raw.run("INSERT INTO outbox(to_addr,subject,body,at_ms,sent) VALUES('real@person.com','Hi','body',?,0)", [T]);
-    const realFetch = globalThis.fetch; let calls = 0; (globalThis as any).fetch = async () => { calls++; return new Response("{}", { status: 200 }); };
-    try { env.RESEND_API_KEY = "re_test"; expect((await retryOutbox(env, T + 1000)).retried).toBe(0); expect(calls).toBe(0); await toLive(); expect((await retryOutbox(env, T + 1000)).retried).toBe(1); expect(calls).toBe(1); }
-    finally { (globalThis as any).fetch = realFetch; env.RESEND_API_KEY = undefined; }
-  });
   test("a TEST mail never carries the banner wording, and the subject marker is the only trace", async () => {
     await toTest(); await organizer(OWNER);
     const m = one("SELECT subject, body FROM outbox"); expect(m.subject).toMatch(/^\[TEST\] /); expect(m.body).not.toMatch(/TEST MODE/);

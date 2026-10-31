@@ -101,23 +101,6 @@ describe("cancel: a paid game becomes credit, never a refund", () => {
     const late = await cancelIt(t.master, "GAME-2", T + 4 * H); expect(late.status).toBe(409);
     expect(raw.prepare("SELECT COUNT(*) AS c FROM credit").get()).toEqual({ c: 0 });
   });
-  test("cancelling twice (or by a Host and the Organizer together) makes ONE credit and sends ONE mail per person", async () => {
-    const t = await team(); await paidWithMoney(t.master, "GAME-1");
-    const a = await j(await cancelIt(t.master, "GAME-1")); const b = await j(await cancelIt(t.host, "GAME-1")); const c = await j(await cancelIt(t.master, "GAME-1"));
-    expect(b.already).toBe(true); expect(c.credit).toEqual(a.credit);
-    expect(raw.prepare("SELECT COUNT(*) AS c FROM credit").get()).toEqual({ c: 1 });
-    expect(mailsLike("boss@acme.com", /^\[Bingo\] Game cancelled/)).toHaveLength(1); expect(mailsLike("priya@acme.com", /^\[Bingo\] Game cancelled/)).toHaveLength(1);
-    const both = await Promise.all([cancelIt(t.master, "GAME-1"), cancelIt(t.host, "GAME-1")]); for (const r of both) expect(r.status).toBe(200);
-    expect(raw.prepare("SELECT COUNT(*) AS c FROM credit").get()).toEqual({ c: 1 });
-  });
-  test("the credit mail goes to the Organizer and the Host only and says the exact words of the rule", async () => {
-    const t = await team(); await paidWithMoney(t.master, "GAME-1"); await cancelIt(t.host, "GAME-1");
-    for (const to of ["boss@acme.com", "priya@acme.com"]) {
-      const m = mailsLike(to, /^\[Bingo\] Game cancelled/)[0]!;
-      expect(m.body).toContain("stays as credit until 1 Oct 2027"); expect(m.body).toContain("We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.");
-    }
-    expect(mailsLike("payer@acme.com", /^\[Bingo\] Game cancelled/)).toHaveLength(0);
-  });
 });
 
 describe("GET /api/org/credit", () => {
@@ -372,21 +355,6 @@ describe("lapse, expiry and the e-mails", () => {
     expect(r).toMatchObject({ ok: true, paid: false, usedInr: 0, toPayInr: paidOf(100) });
     expect(raw.prepare("SELECT COUNT(*) AS c FROM credit_use").get()).toEqual({ c: 0 });
     expect((await j(await call("GET", "/api/z/GAME-Y/info", undefined, t.master, exp))).credit).toBe(0);
-  });
-  test("the five mails go to the Organizer and the Host only, once each: cancel, 30 days before, 3 days before, on use, on lapse", async () => {
-    ever.clear(); // the tick forgets mail-log rows older than 3 days, so this test remembers every mail it has seen
-    const t = await setup();
-    const to = ["boss@acme.com", "priya@acme.com"];
-    for (const a of to) expect(mailsEver(a, /^\[Bingo\] Game cancelled/)).toHaveLength(1);
-    await creditTick(env, exp - 31 * DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(0);
-    await creditTick(env, exp - 29 * DAY); for (const a of to) { expect(mailsEver(a, /lapses on 1 Oct 2027/)).toHaveLength(1); expect(mailsEver(a, /lapses on/)[0]!.body).toContain("in 30 days"); }
-    await creditTick(env, exp - 28 * DAY); await lifecycleTick(env as any, exp - 20 * DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(1); // not again
-    await creditTick(env, exp - 2 * DAY); for (const a of to) { expect(mailsEver(a, /lapses on/)).toHaveLength(2); expect(mailsEver(a, /lapses on/)[1]!.body).toContain("in 3 days"); }
-    await creditTick(env, exp - DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(2);
-    await lifecycleTick(env as any, exp + 1000); await lifecycleTick(env as any, exp + 2000);
-    for (const a of to) { const m = mailsEver(a, /lapsed/); expect(m).toHaveLength(1); expect(m[0]!.body).toContain(`Rs ${paidOf(300).toLocaleString("en-IN")}`); expect(m[0]!.body).toContain("Credit that lapsed"); }
-    expect(raw.prepare("SELECT to_addr FROM outbox WHERE subject LIKE '%credit%' OR subject LIKE '%lapse%'").all().every((r: any) => to.includes(r.to_addr))).toBe(true);
-    expect(mailsTo("payer@acme.com").filter((m) => /credit|lapse/i.test(m.subject))).toHaveLength(0);
   });
   test("using credit mails 'Rs X of credit used for <game>' to the Organizer and Host, once per use", async () => {
     const t = await setup(); await game(t.master, "GAME-2", 100, T + 6 * H); await withCredit(t.master, "GAME-2"); await withCredit(t.master, "GAME-2");

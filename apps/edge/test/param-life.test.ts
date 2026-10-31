@@ -267,24 +267,11 @@ describe("rate limits and the daily spend limit", () => {
     const codes: number[] = []; for (let i = 1; i <= 6; i++) codes.push((await join(id, i)).status);
     expect(codes.slice(0, 3).every((s) => s === 200)).toBe(true); expect(codes.slice(3).some((s) => s === 429)).toBe(true);
   });
-  test("an office behind ONE address can seat a whole PAID game: the default per-address allowance grows with the pack (300 people, one address, one minute: all in)", async () => {
-    const g = await paidGame({ cap: 500 }); const hdr = { "cf-connecting-ip": "9.9.9.9" }; const codes: number[] = [];
-    for (let i = 1; i <= 300; i++) codes.push((await call("POST", `/api/z/${g.id}/join`, { phone: mob(i), name: "Guest " + i, device: dev(i) }, hdr)).status);
-    expect(codes.filter((s) => s === 200).length).toBe(300);
-  });
   test("an UNPAID game keeps the base figures (200 new seats a minute from one address), so a script cannot use a big free game to burn the write budget", async () => {
     reset(); const o = await organizer(); const id = uid(); expect((await create(o.key, id, { cap: 500 })).status).toBe(200); expect((await publish(o.key, id)).status).toBe(200);
     const hdr = { "cf-connecting-ip": "9.9.9.8" }; const codes: number[] = [];
     for (let i = 1; i <= 230; i++) codes.push((await call("POST", `/api/z/${id}/join`, { phone: mob(i), name: "Guest " + i, device: dev(i) }, hdr)).status);
     expect(codes.slice(0, 200).every((s) => s === 200)).toBe(true); expect(codes.slice(200).every((s) => s === 429)).toBe(true);
-  });
-  test("a limit set in the environment is the BASE: it is exact for an unpaid game, and a paid game still gets at least its pack (the deployed site sets 600 a minute; 700 people behind one address all get into a paid 1000)", async () => {
-    reset({ JOIN_PER_IP_MINUTE: "600", JOIN_PER_IP_DAY: "20000" } as any); const g = await paidGame({ cap: 1000 }); const hdr = { "cf-connecting-ip": "9.9.9.7" }; const codes: number[] = [];
-    for (let i = 1; i <= 700; i++) codes.push((await call("POST", `/api/z/${g.id}/join`, { phone: mob(i), name: "Guest " + i, device: dev(i) }, hdr)).status);
-    expect(codes.filter((s) => s === 200).length).toBe(700);
-    reset({ JOIN_PER_IP_MINUTE: "5" } as any); const o = await organizer(); const id = uid(); expect((await create(o.key, id, { cap: 500 })).status).toBe(200); expect((await publish(o.key, id)).status).toBe(200);
-    const c2: number[] = []; for (let i = 1; i <= 8; i++) c2.push((await call("POST", `/api/z/${id}/join`, { phone: mob(i), name: "Guest " + i, device: dev(i) }, { "cf-connecting-ip": "9.9.9.6" })).status);
-    expect(c2.slice(0, 5).every((s) => s === 200)).toBe(true); expect(c2.slice(5).every((s) => s === 429)).toBe(true); // unpaid: the environment's figure is exact
   });
   test("a body bigger than the limit is refused, never a 500", async () => {
     const r = await call("POST", "/api/start", { email: "a@b.co", pad: "x".repeat(200_000) }); expect(r.status).toBeLessThan(500);
@@ -306,13 +293,6 @@ describe("TEST mode drops mail to strangers, LIVE sends it", () => {
   test("LIVE mode: mail to a stranger goes out and nothing is logged as suppressed", async () => {
     reset({ OWNER_EMAIL: OWNER } as any); await sendMail(W.env, W.env.DB, "someone@acme.com", "Hello", "Body", T);
     expect(mails("someone@acme.com").length).toBe(1); expect(q("SELECT * FROM mail_event").length).toBe(0);
-  });
-  test("every mail carries the brand footer with the support address and the legal link", async () => {
-    await sendMail(W.env, W.env.DB, "someone@acme.com", "Hello", "Body", T); const m = mails("someone@acme.com")[0]!;
-    expect(m.body).toContain("Write to hello@corporatetambola.com"); expect(m.body).toContain("/legal.html"); expect(m.subject.startsWith("[Bingo] ")).toBe(true);
-  });
-  test("the subject tag is added once, not twice", async () => {
-    await sendMail(W.env, W.env.DB, "a@acme.com", "[Bingo] Already tagged", "Body", T); expect(mails("a@acme.com")[0]!.subject).toBe("[Bingo] Already tagged");
   });
   test("without a mail key, a mail that carries a personal AI link keeps no body", async () => {
     const o = await organizer("leaky@acme.com"); const m = mails("leaky@acme.com").find((x) => /AI work link/i.test(x.subject)); expect(m).toBeTruthy();

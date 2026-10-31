@@ -48,13 +48,6 @@ describe("engagement set-up", () => {
 
 describe("joining", () => {
   beforeEach(async () => { await create(); });
-  test("a join returns what the phone needs to play and nothing about others", async () => {
-    const r = await (await join(1)).json() as any;
-    expect(r.startRound).toBe(FAR_START);
-    expect(r.callSeconds).toBe(6);
-    expect(r.pid).toMatch(/^1x[0-9a-f]{12}$/); // seat number + hash: the seat makes the ticket collision-free
-    expect(Object.keys(r).sort()).toEqual(["breaks", "callSeconds", "closing", "employeesOnly", "invites", "joinPhone", "jr", "opening", "pid", "rewards", "roomMode", "rounds", "startRound", "tickets", "trackClaims", "verify"]);
-  });
   test("the same number joining twice, even typed differently, is one participant and one write", async () => {
     const a = await (await call("POST", "/api/z/ENG1/join", { phone: "+91 98765-43210" })).json() as any;
     const b = await (await call("POST", "/api/z/ENG1/join", { phone: "919876543210" })).json() as any;

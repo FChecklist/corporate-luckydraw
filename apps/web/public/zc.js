@@ -46,7 +46,7 @@
   /* ---------------- home: your draws ---------------- */
   function homeView() {
     const rows = (S.list || []).map((g) => `<div class="zc-block"><h3>${esc(g.id)}</h3><p class="zc-small">${g.draft ? "Draft" : "Published"} · ${esc(g.startsAtIST || "")} · ${esc(g.participants)} registered</p><div class="zc-chips"><a class="zc-btn zc-btn-s" href="/zc.html?e=${encodeURIComponent(g.id)}" style="min-height:44px">Open</a><button class="zc-btn zc-btn-s zc-btn-alt" data-clone="${esc(g.id)}" style="min-height:44px">New draw like this one</button></div></div>`).join("");
-    return frame(`<div class="zc-block"><h3>Your Lucky Draws</h3><div class="zc-chips"><button class="zc-btn" id="new" style="min-height:48px">Make a new draw</button><button class="zc-btn zc-btn-alt" id="demo" style="min-height:48px">Free demo draw (10 people)</button></div></div>${rows || `<p class="zc-small">No draws yet.</p>`}`);
+    return frame(`<div class="zc-block"><h3>Your Lucky Draws</h3><div class="zc-chips"><button class="zc-btn" id="new" style="min-height:48px">Make a new draw</button><button class="zc-btn zc-btn-alt" id="demo" style="min-height:48px">Free demo draw (10 people)</button></div></div>${rows || `<p class="zc-small">No draws yet.</p>`}${isOrg() ? `<div class="zc-block"><h3>Your account</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="closeacct" style="min-height:44px">Close my account</button><p class="zc-small">Deletes your sign-in and your details. A draw that is running must end first.</p></div>` : ""}`);
   }
 
   /* ---------------- the six steps ---------------- */
@@ -116,6 +116,7 @@
       if (isOrg() && !s.rehearsal && !/draft/.test(s.status || "")) h += `<div class="zc-block"><h3>Try it first</h3><p class="zc-small">A rehearsal has up to 10 people and no prizes. It does not change your real draw.</p><button class="zc-btn zc-btn-s zc-btn-alt" id="rehearse" style="min-height:44px">Start a rehearsal</button>${S.rehLink ? `<p class="zc-small">People link: <code style="word-break:break-all">${esc(S.rehLink)}</code></p>` : ""}</div>`;
     }
     if (d.drawn) h += `<div class="zc-block"><h3>Result</h3>${(d.result || []).map((w) => `<div class="zrow"><span><b>${esc(w.place)}</b> ${esc(w.who)}</span><i>${esc(w.prize)}</i></div>`).join("")}<p class="zc-small">${esc(d.entries)} entries. Beacon round ${esc(d.round)}. ${esc(d.fairness)}</p></div>`;
+    if (isOrg() && !/draft/.test(s.status || "")) h += `<div class="zc-block"><h3>Report</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="newreport" style="min-height:44px">New report link</button>${S.reportUrl ? `<p class="zc-small"><code style="word-break:break-all">${esc(S.reportUrl)}</code></p>` : ""}<p class="zc-small">The report link works for 19 hours after the draw. Making a new link stops the old one.</p></div>`;
     h += `<div class="zc-block"><h3>Next</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="cloneme" style="min-height:44px">New draw like this one</button><p class="zc-small">Copies the settings only: number of winners, prizes, automatic or manual. Never the people, the time or the result.</p><a class="zc-small" href="/zc.html">Your draws</a></div>`;
     return h;
   }
@@ -163,8 +164,10 @@
     on("addhost", async () => { try { const r = await api("POST", "/api/org/host", { label: $("f-hn").value.trim() || "Host", email: $("f-he").value.trim() }); S.hostLink = r.link || ""; S.note = "Host added. Send them their link."; } catch (e) { S.err = e.message; } paint(); });
     on("addcohost", async () => { try { const r = await api("POST", "/api/org/cohost", { label: $("f-cn").value.trim(), phone: $("f-cp").value.trim(), e: eid }); S.coLink = r.link || ""; S.note = "Co-host added. Send them their link."; } catch (e) { S.err = e.message; } paint(); });
     on("copy", async () => { try { await navigator.clipboard.writeText(`${location.origin}/z.html?e=${eid}`); S.note = "Link copied."; } catch (e) { S.note = "Select the link and copy it."; } paint(); });
-    on("drawnow", async () => { if (!confirm("Draw now? Registration closes and the winners are picked.")) return; try { await api("POST", `/api/z/${eid}/drawnow`, {}); S.note = "The draw is done."; try { window.CBReact && window.CBReact.react("winners_drawn"); } catch (e) { /* optional */ } await load(); } catch (e) { S.err = e.message; } paint(); });
+    on("drawnow", async () => { if (!confirm("Draw now? Registration closes and the winners are picked.")) return; try { await api("POST", `/api/z/${eid}/drawnow`, {}); S.note = "The draw is done."; try { window.CBReact && window.CBReact.react("ta_da"); } catch (e) { /* optional */ } await load(); } catch (e) { S.err = e.message; } paint(); });
     on("hkok", async () => { try { const r = await TBControl.hostApprove(eid, { token: secret, base: BASE, prefix: "/api/z" }, S.hkKey); if (!r.ok) throw new Error(r.reason); S.hkKey = ""; S.note = "Host key approved."; } catch (e) { S.err = e.message; } paint(); });
+    on("closeacct", async () => { if (!confirm("Close your account? This removes your sign-in and details. This cannot be undone.")) return; try { await api("POST", "/api/org/close", { confirm: true }); ss.set("cbz-org", ""); S.note = "Your account is closed."; location.href = "/"; } catch (e) { S.err = e.message; paint(); } });
+    on("newreport", async () => { try { const r = await api("POST", `/api/z/${eid}/reportlink`, {}); S.reportUrl = r.url || ""; S.note = "New report link made. The old one stops working."; } catch (e) { S.err = e.message; } paint(); });
     on("pause", () => control("pause"));
     on("resume", () => control("resume"));
     on("rehearse", async () => { try { const r = await api("POST", `/api/z/${eid}/rehearsal`, {}); S.rehLink = r.guestUrl || ""; S.note = r.message || "Rehearsal ready."; } catch (e) { S.err = e.message; } paint(); });
@@ -175,7 +178,7 @@
       const au = { token: secret, base: BASE, prefix: "/api/z" };
       const r = roleOf() === "host" ? await TBControl.hostPublish(eid, au, action) : await TBControl.publish(eid, au, action);
       if (r.status >= 400) throw new Error((r.data && r.data.error) || "Could not " + action + ".");
-      try { window.CBReact && window.CBReact.react(action); } catch (e) { /* optional */ }
+      try { window.CBReact && action === "pause" && window.CBReact.react("hang_on"); } catch (e) { /* optional */ }
       S.note = action === "pause" ? "Pause sent. It starts in about 40 seconds, so every phone stops together." : "Resume sent. It starts in about 40 seconds.";
       await new Promise((ok) => setTimeout(ok, 1500)); await load();
     } catch (e) { S.err = e.message || "Could not " + action + "."; }
