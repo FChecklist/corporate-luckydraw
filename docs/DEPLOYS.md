@@ -22,3 +22,9 @@ What is live, and how to know.
 ## Rollback
 
 Cloudflare dashboard, Workers and Pages, corporate-luckydraw, Deployments: roll back to an earlier deployment. Record the previous deployment id before every deploy.
+
+## Deploys by commit
+
+| Commit | Date | Deployment | Mode |
+|---|---|---|---|
+| 15dd94b | 2026-11-01 | c1a442dc | TEST |
