@@ -94,6 +94,7 @@
     if (!Number.isFinite(startMs)) throw new Error("Pick the date and time of the draw.");
     if (!eid) {
       eid = rid();
+      if (window.CBFunnel) CBFunnel.report("game_created", { size: Number(f.cap) || undefined });
       await api("POST", "/api/z", { id: eid, startRound: roundOf(Math.max(startMs, Date.now() + 120000)), callSeconds: 12, cap: Math.max(1, Math.min(100000, f.cap)), name: f.name || undefined, verify: "id", idKind: f.idKind, whoCanJoin: "anyone" });
       history.replaceState(null, "", "/zc.html?e=" + eid);
     } else {
@@ -158,6 +159,7 @@
         await save();
         try { if (window.TBControl) await TBControl.ensureKey(eid, { token: secret, base: BASE, prefix: "/api/z" }); } catch (e) { /* pause needs this key; the console says so on the day */ }
         const pr = await api("POST", `/api/z/${eid}/publish`, { email: S.f.email, phone: S.f.phone, consent: CBConsent.payload($("app"), "K1") });
+        if (window.CBFunnel) CBFunnel.report("game_published", { mode: S.f.mode === "manual" ? "manual" : "auto" });
         S.editing = false; S.note = pr && pr.needsOrganizer ? "Ready. The organizer must open the link and publish it." : pr.paid ? "Published. Share the link." : "Published. Pay before the draw so it can happen."; await load();
       } catch (e) { return fail(e); }
       S.busy = false; paint();
@@ -214,6 +216,7 @@
     setInterval(async () => { if (eid && S.sum && S.sum.status !== "draft" && !document.hidden && !S.busy) { try { await load(); paint(); } catch (e) { /* next time */ } } }, 15000);
   }
 
+if (window.CBFunnel) CBFunnel.report("viewed");
   (async () => { try { const m = await (await fetch(BASE + "/api/mode", { cache: "no-store" })).json(); if (m && m.mode === "TEST" && !document.getElementById("testmode")) { const b = document.createElement("div"); b.id = "testmode"; b.className = "ztest"; b.setAttribute("role", "status"); b.textContent = "TEST MODE: nothing here is real. No one outside the owner’s test list is e-mailed, and nothing is charged."; const app = document.getElementById("app"); app.parentNode.insertBefore(b, app); } } catch (e) { /* no banner when the mode cannot be read */ } })();
   boot();
 })();

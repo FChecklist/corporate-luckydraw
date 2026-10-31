@@ -65,3 +65,6 @@ Not all removals of the first pass are in the list above (the `pay.test.ts`, `wo
 
 ## Core 0.9.8
 No legal text was replaced and no test was removed for it (owner decision: keep all own legal clauses). The own pages already name the real grievance contact (hello@corporatetambola.com, subject Grievance, Rajat Agarwal).
+
+## Owner wording (auto-deleted / deleted)
+Six cases updated to the new words, not loosened: unplayed.test.ts (3 strings: "auto-deleted"), clone.test.ts (old guest list auto-deleted), ai-enablement.test.ts ("Delete all guest data now"), ai-link.test.ts ("Delete participant data").

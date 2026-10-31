@@ -12,6 +12,7 @@
 //   Winners: nobody posts them. Phones report what they worked out and a result is accepted when several different phones agree (winners.ts, quorumFor).
 //   nobody        - phones: join, send claims, read results counts, read the engagement info and the signed control file.
 
+import { FUNNEL_EVENTS, cleanProps } from "../../../vendor/game-core/packages/core/src/funnel";
 import { MANIFESTS } from "../../../vendor/game-core/packages/manifest/src";
 import { zoneTime, tzOfRow } from "./tz";
 import { accountEmail, refusedMail } from "./emailkey";
@@ -819,7 +820,12 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (a.kind === "host" && !a.viaLink && a.hostReady === false && !(p === "/api/whoami" || p.startsWith("/api/host/setup") || p.startsWith("/api/auth/") || p.startsWith("/api/paylink/") || (p === "/api/notices" && req.method === "GET")))
     return json({ error: "Please finish your setup first: confirm your e-mail address and add your mobile number.", code: "host-setup" }, 403);
 
-  if (req.method === "GET" && p === "/api/game-manifest") return json({ game: "luckydraw", enabled: true, core: "0.3.0", manifest: MANIFESTS.luckydraw }); // what the master console reads: the engine manifest for this game, and that the site is on
+  if (req.method === "POST" && p === "/stats/e") { // funnel events (core 0.9.8): only when FUNNEL=1; fixed fields only, nothing stored, logged for the statistics reader
+    if ((env as any).FUNNEL !== "1") return new Response(null, { status: 204 });
+    try { const b = (await req.json()) as any; if ((FUNNEL_EVENTS as readonly string[]).includes(b?.event)) console.log("funnel", JSON.stringify({ event: b.event, at: Number(b.at) || now, visit: String(b.visit ?? "").slice(0, 16), ...cleanProps(b) })); } catch { /* ignore */ }
+    return new Response(null, { status: 204 });
+  }
+  if (req.method === "GET" && p === "/api/game-manifest") return json({ game: "luckydraw", enabled: true, core: "0.3.0", manifest: MANIFESTS.luckydraw, funnel: (env as any).FUNNEL === "1" }); // what the master console reads: the engine manifest for this game, and that the site is on
   if (req.method === "GET" && p === "/api/z/ai-manifest") return json(AI_MANIFEST);
   { const bm = req.method === "GET" ? p.match(/^\/api\/beacon\/([0-9a-f]{64})\/public\/(latest|\d{1,10})$/) : null; if (bm) return beaconRelay(req, bm[1]!, bm[2]!); }
   { const mr = await modeRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => purgeTestData(env, n)); if (mr) return mr; } // TEST/LIVE switch, allow-list, purge (mode.ts): owner only, except the public read of the word TEST or LIVE

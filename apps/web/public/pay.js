@@ -106,6 +106,7 @@
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { S.err = "Please enter a valid email."; return draw(); }
       if (S.country === "IN" && tax && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(tax)) { S.err = "Please enter a valid 15-character GSTIN, like 27ABCDE1234F1Z5."; return draw(); }
       TB.payer.save(S);
+      if (window.CBFunnel) CBFunnel.report("payment_started");
       S.busy = true; draw();
       try {
         let ref = ""; try { const v = JSON.parse(localStorage.getItem("cbz-ref") || "null"); if (v && Date.now() - v.at < 30 * 86400000) ref = v.code; } catch {}
@@ -115,11 +116,13 @@
         try { CTK.set("cbz-email", email); sessionStorage.setItem("cbz-name", nm); } catch {}
         if (r && r.confirming) r = await waitForConfirm(r); // Razorpay has not confirmed yet: keep asking, never mark it paid early
         S.done = r;
-      } catch (e) { S.err = e.cancelled ? e.message : e.message; }
+        if (window.CBFunnel) CBFunnel.report("payment_succeeded");
+      } catch (e) { if (window.CBFunnel) CBFunnel.report("payment_failed", { reason: e.cancelled ? "cancelled" : "error" }); S.err = e.cancelled ? e.message : e.message; }
       S.busy = false; draw();
     };
   }
 
+  if (window.CBFunnel) CBFunnel.report("payment_page_reached");
   (async () => {
     if (!secret) return draw();
     if (!eid) { S.err = "No engagement was chosen."; return draw(); }
@@ -133,5 +136,6 @@
       }
     } catch (e) { S.err = e.status === 403 || e.status === 404 ? "We could not open this engagement with your sign-in. Open it from your console." : e.message; }
     draw();
+    if (window.CBFunnel) CBFunnel.report("payment_page_opened");
   })();
 })();
