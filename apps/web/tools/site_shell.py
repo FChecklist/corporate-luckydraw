@@ -37,7 +37,9 @@ def esc(s):
 
 
 def sprite():
-    return read(KIT + "/snippets/sprite.html").rstrip("\n")
+    """The kit sprite without the Bingo card symbol (another game's artwork must not ship on this site)."""
+    t = read(KIT + "/snippets/sprite.html").rstrip("\n")
+    return re.sub(r'<symbol id="i-bingo"[\s\S]*?</symbol>', "", t)
 
 
 def css(name):

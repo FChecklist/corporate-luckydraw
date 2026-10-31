@@ -47,7 +47,7 @@
     if (d.drawn) return h + resultView(d);
     if (S.pid) {
       h += `<div class="zbanner ok">You are in the draw.</div>`;
-      h += `<div class="zcard zwait"><h3>${d.paused ? "Paused" : now < d.drawMs ? "Draw in" : "Drawing now"}</h3><div class="zcount" id="cd">${d.paused ? "–" : now < d.drawMs ? left(d.drawMs - now) : "…"}</div><p class="zsmall">${!d.paused && now < d.drawMs && d.drawMs - now <= 120000 ? "<b>Waiting room: the draw starts in under 2 minutes.</b> " : ""}Keep this page open. The result appears here.</p></div>`;
+      h += `<div class="zcard zwait"><h3>${d.paused ? "Paused" : now < d.drawMs ? "Draw in" : "The draw is starting"}</h3><div class="zcount" id="cd">${d.paused ? "–" : now < d.drawMs ? left(d.drawMs - now) : "…"}</div><p class="zsmall">${!d.paused && now < d.drawMs && d.drawMs - now <= 120000 ? "<b>Waiting room: the draw starts in under 2 minutes.</b> " : ""}Keep this page open. The result appears here.${!d.paused && now >= d.drawMs ? " The draw can take a few minutes to start." : ""}</p></div>`;
     } else if (d.closed) {
       h += `<div class="zbanner bad">Registration is closed.</div>`;
     } else {

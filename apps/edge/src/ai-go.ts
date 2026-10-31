@@ -29,7 +29,7 @@ export const OCCASIONS: Record<string, { label: string; code: string }> = {
   family: { label: "Family day", code: "FAMILY-DAY" }, diwali: { label: "Diwali party", code: "DIWALI" }, other: { label: "Corporate event", code: "EVENT" },
 };
 const SLOTS = ["0900", "1000", "1200", "1300", "1500", "1600", "1800", "1900"];
-export const PRESET_MESSAGES = ["Welcome! The draw happens at the published time. Please keep this page open.", "The draw is in about 10 minutes. Please keep this page open.", "Thank you for registering. Good luck, everyone!", "The draw will start soon. Please stay on this page."];
+export const PRESET_MESSAGES = ["Welcome! The draw starts at about the published time, within a few minutes. Please keep this page open.", "The draw is in about 10 minutes. Please keep this page open.", "Thank you for registering. Good luck, everyone!", "The draw will start soon. Please stay on this page."];
 const WINNER_CHOICES = [1, 3, 5, 10];
 
 const pad = (n: number) => String(n).padStart(2, "0");

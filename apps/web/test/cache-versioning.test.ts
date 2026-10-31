@@ -42,7 +42,7 @@ describe("a returning visitor never runs an old script on a new page", () => {
     for (const f of pages) { const html = readFileSync(f, "utf8"); refs += localRefs(html).length; for (const u of unversioned(html, commit)) bad.push(`${relative(OUT, f)}: ${u}`); }
     expect(refs).toBeGreaterThan(50);
     expect(bad).toEqual([]);
-  });
+  }, 60_000); // the test builds the whole site: about 5 s, over the default limit when the suite runs in parallel
 
   test("_headers keeps its no-cache rules for scripts and styles and stays within Cloudflare Pages' limit of 100 rules (more are silently ignored)", () => {
     const text = readFileSync(join(OUT, "_headers"), "utf8").replace(/\r/g, "");
