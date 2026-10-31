@@ -68,3 +68,6 @@ No legal text was replaced and no test was removed for it (owner decision: keep 
 
 ## Owner wording (auto-deleted / deleted)
 Six cases updated to the new words, not loosened: unplayed.test.ts (3 strings: "auto-deleted"), clone.test.ts (old guest list auto-deleted), ai-enablement.test.ts ("Delete all guest data now"), ai-link.test.ts ("Delete participant data").
+
+## Wording sweep (owner rule: no we/our/us in customer text)
+Customer text rewritten to third person on public pages, scripts, e-mails, API messages, report PDF text and legal pages (facts unchanged). Expected strings in tests were changed to the new wording only (consent, pay, unplayed, terms, billing, contact-honest, privacy, rights, branding, account, storage registry). guide.js keeps old message strings as matchers beside the new ones. Two slow tests (gamelog chain, phone-runtime 40 phones) got a 30 s limit.

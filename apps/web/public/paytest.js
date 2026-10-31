@@ -8,11 +8,11 @@
       const d = S.done;
       return `${head}<div class="zcard" style="border:2px solid #2e7d4f"><h2>Payment received. The test worked.</h2>${TB.payReceipt ? TB.payReceipt(d, "Payment test (no game)") : ""}
         <p style="margin:0 0 10px">You paid <b>${esc(TB.money(d.total, d.currency))}</b>. Nothing was bought and nothing else will happen.</p>
-        ${TB.invoiceBox ? TB.invoiceBox(d, S.email) : ""}<p class="zsmall">We also e-mailed it to you.</p>
+        ${TB.invoiceBox ? TB.invoiceBox(d, S.email) : ""}<p class="zsmall">It was also e-mailed to you.</p>
         <button class="zbtn" id="again">Test again</button></div>`;
     }
     const cur = S.country === "IN" ? "INR" : "USD", amt = TB.money(1, cur);
-    return `${head}<div class="zcard"><h2>Test our payment</h2>
+    return `${head}<div class="zcard"><h2>Test the payment</h2>
       <p class="zsmall" style="margin-top:0">This is a real payment of <b>${esc(amt)}</b> (Rs 1 if you are in India, US$ 1 if you are abroad). It buys nothing. You get an invoice, so you can see the whole experience. Anyone can test it, any number of times.</p></div>
       <div class="zcard zform"><h2>Details</h2>
         <label for="nm">Name</label><input id="nm" autocomplete="name" value="${esc(S.name)}" placeholder="Full name">
@@ -25,7 +25,7 @@
         ${CBConsent.html("K3")}
         ${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}${S.busy ? `<div class="zbanner info" role="status">Confirming your payment with Razorpay. Please keep this page open.</div>` : ""}
         <button class="zbtn" id="go" data-needs="K3" disabled aria-disabled="true" ${S.busy ? 'data-hold="1"' : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
-        <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. We keep billing data for audit and tax reasons. No refunds are given for test payments.</p></div>`;
+        <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Billing data is kept for audit and tax reasons. No refunds are given for test payments.</p></div>`;
   }
   const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
   const draw = () => { $app.innerHTML = view(); bind(); CBConsent.wire($app, "K3", S.k3); TB.payer.mark($app); if (S.done && TB.invoiceWire) TB.invoiceWire(S.done); };

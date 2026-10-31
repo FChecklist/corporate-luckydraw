@@ -14,7 +14,7 @@
   const api = async (method, path, body) => {
     let r;
     try { r = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch (e) { throw Object.assign(new Error("We could not reach the service. Check your internet and try again."), { status: 0 }); }
+    catch (e) { throw Object.assign(new Error("The service could not be reached. Check your internet and try again."), { status: 0 }); }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { const err = Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, code: j.code }); if (window.CTG) { try { CTG.wrap(err, { what: method + " " + path.split("?")[0].replace(/\/[A-Za-z0-9_-]{6,}(?=\/|$)/g, "/...") }); } catch (e2) { /* the guide is a help */ } } throw err; }
     return j;

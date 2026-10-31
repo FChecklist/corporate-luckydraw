@@ -6,7 +6,7 @@
 // state         = { phase: "waiting" | "running" | "paused" | "finished", story, joined, waiting, paused: { who, when, restarts }, prizes: [{ id, name, seat, given }] }
 // game.givePrize(id, bool) is optional; the tick "Prize given" shows only when it exists.
 (function (root, factory) { if (typeof module === "object" && module.exports) module.exports = factory(root); else root.CTPack = Object.assign(root.CTPack || {}, factory(root)); })(typeof self !== "undefined" ? self : this, function (root) {
-  var MESSAGES = ["Please take your seats. We start in a minute.", "We are taking a short break.", "Please check your screen.", "Thank you all for joining.", "The game will restart shortly.", "Please stay on this page."];
+  var MESSAGES = ["Please take your seats. The game starts in a minute.", "There is a short break.", "Please check your screen.", "Thank you all for joining.", "The game will restart shortly.", "Please stay on this page."];
   var MAX_LINE = 160;
 
   function mountRunBar(host, game) {

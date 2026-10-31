@@ -65,7 +65,7 @@ export async function mailTeam(env: PayEnv, org: string | null, eid: string | nu
 }
 
 /** The rule in one sentence, for e-mails and pages. */
-export const NO_REFUND_LINE = "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
+export const NO_REFUND_LINE = "There are no refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
 
 // ------------------------------------------------------------------------------------------------ making credit
 /**
@@ -191,7 +191,7 @@ export async function creditTick(env: PayEnv, now: number): Promise<{ lapsed: nu
     const claim = await db.prepare(`UPDATE credit SET ${col}=? WHERE id=? AND ${col} IS NULL`).bind(now, c.id).run();
     if ((claim.meta?.changes ?? 0) === 0) continue;
     if (three && c.mail30_ms === null) await db.prepare("UPDATE credit SET mail30_ms=? WHERE id=? AND mail30_ms IS NULL").bind(now, c.id).run(); // the 3-day mail replaces the 30-day one when we are already that close
-    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it is gone: we do not give refunds.`, now); out.mailed++;
+    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it is gone: there are no refunds.`, now); out.mailed++;
   }
   return out;
 }
@@ -234,7 +234,7 @@ export async function creditRoute(req: Request, env: PayEnv, now: number, spend:
   if (e.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for.", code: "cancelled" }, 409);
   if (e.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);
   const pack = PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null;
-  if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+  if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to the seller." }, 400);
   const bodyText = await req.text(); let b: any = {}; try { b = bodyText ? JSON.parse(bodyText) : {}; } catch { b = {}; }
   const cur = b?.currency === "USD" ? "USD" : "INR";
   const total = price(pack, cur).total;

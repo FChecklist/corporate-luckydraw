@@ -34,7 +34,7 @@
     if (tok) headers.authorization = "Bearer " + tok;
     let res;
     try { res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch (e) { const err = new Error("We could not reach the service. Please check your internet and try again."); err.status = 0; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
+    catch (e) { const err = new Error("The service could not be reached. Please check your internet and try again."); err.status = 0; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
     let data = null;
     try { data = await res.json(); } catch {}
     if (!res.ok) { const err = new Error((data && data.error) || "Something went wrong. Please try again."); err.status = res.status; err.code = data && data.code; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
@@ -152,7 +152,7 @@
     window.addEventListener("message", onMsg); document.body.appendChild(wrap);
   });
   // The payment screens always show who owns the software and who is paid: big brand, small descriptor, owner line.
-  TB.payBrand = () => `<div class="pbrand"><div class="pb-name">CORPORATE LUCKY DRAW</div><div class="pb-sub">(closed-group lucky draw software)</div><div class="pb-pay"><b>&#128274; Safe and secure payment through RAZORPAY</b><span>An RBI-regulated payment gateway trusted by businesses across the world.<br>Your card, UPI or bank details go to Razorpay payment gateway only: we never see or store them.<br>All data handled as required by India's DPDP Act, US Privacy Laws, EU GDPR.</span></div><div class="pb-own"><i>Software owned and made by</i><b>IT SERVICES BY RAJAT AGARWAL</b><em>Your payment is made to IT Services by Rajat Agarwal</em></div></div>`;
+  TB.payBrand = () => `<div class="pbrand"><div class="pb-name">CORPORATE LUCKY DRAW</div><div class="pb-sub">(closed-group lucky draw software)</div><div class="pb-pay"><b>&#128274; Safe and secure payment through RAZORPAY</b><span>An RBI-regulated payment gateway trusted by businesses across the world.<br>Your card, UPI or bank details go to Razorpay payment gateway only: the software never sees or stores them.<br>All data handled as required by India's DPDP Act, US Privacy Laws, EU GDPR.</span></div><div class="pb-own"><i>Software owned and made by</i><b>IT SERVICES BY RAJAT AGARWAL</b><em>Your payment is made to IT Services by Rajat Agarwal</em></div></div>`;
   // After a payment: which game, who was paid, and the two reference numbers the organizer can quote.
   TB.payReceipt = (d, gameId) => { const e = TB.esc, g = gameId || d.eid; return `<div class="prcpt"><b>Payment confirmed</b><p>${g ? `For game ID <b class="mono">${e(g)}</b>, you` : "You"} have made the payment to <b>IT Services by Rajat Agarwal</b> through Razorpay.</p><p>Your Razorpay transaction ID is <b class="mono">${e(d.razorpayPaymentId || "being confirmed, see your e-mail")}</b>.<br>Your Corporate Lucky Draw payment confirmation ID is <b class="mono">${e(d.orderId || "")}</b>.</p></div>`; };
   // The invoice on the payment-done screen: shown in full (inside a shadow root, so its own styles cannot clash with the page), with PDF download, print, WhatsApp, copy link and e-mail.

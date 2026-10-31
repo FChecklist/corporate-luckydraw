@@ -20,7 +20,7 @@
   const api = async (method, path, body) => {
     let r;
     try { r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", "x-organizer": secret }, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch (e) { throw Object.assign(new Error("We could not reach the service. Check your internet and try again."), { status: 0 }); }
+    catch (e) { throw Object.assign(new Error("The service could not be reached. Check your internet and try again."), { status: 0 }); }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { const err = Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, code: j.code, body: j }); if (window.CTG && method !== "GET") { try { CTG.wrap(err, { what: method + " " + path.split("?")[0].replace(/\/[A-Za-z0-9_-]{6,}(?=\/|$)/g, "/...") }); } catch (e2) { /* the guide is a help */ } } throw err; }
     return j;
@@ -169,7 +169,7 @@
     on("addcohost", async () => { try { const r = await api("POST", "/api/org/cohost", { label: $("f-cn").value.trim(), phone: $("f-cp").value.trim(), e: eid }); S.coLink = r.link || ""; S.note = "Co-host added. Send them their link."; } catch (e) { S.err = e.message; } paint(); });
     on("copypay", async () => {
       try { const r = await api("POST", `/api/z/${eid}/paylink`, {}); S.payUrl = r.url || ""; S.note = "Payment link made. It works for 7 days."; if (window.CBFunnel) CBFunnel.report("payment_link_copied"); try { await navigator.clipboard.writeText(S.payUrl); S.note = "Payment link copied. It works for 7 days."; } catch (e) { S.note = "Payment link made. Select it below and copy it."; } }
-      catch (e) { S.err = e.message || "We could not make a payment link. Please try again."; }
+      catch (e) { S.err = e.message || "A payment link could not be made. Please try again."; }
       paint();
     });
     on("copy", async () => { try { await navigator.clipboard.writeText(`${location.origin}/z.html?e=${eid}`); S.note = "Link copied."; } catch (e) { S.note = "Select the link and copy it."; } paint(); });

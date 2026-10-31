@@ -29,7 +29,7 @@
     root.CTLogLoad().then(function (rows) {
       renderLog(host, rows);
       var b = doc.createElement("button"); b.type = "button"; b.className = "ctp-btn"; b.textContent = "Print or save"; b.addEventListener("click", function () { root.print(); }); host.append(b);
-    }).catch(function () { host.textContent = "We could not load the game log. Please try again."; });
+    }).catch(function () { host.textContent = "The game log could not be loaded. Please try again."; });
   }
   if (root.document && root.document.readyState !== "loading") setTimeout(boot, 0); else if (root.document) root.document.addEventListener("DOMContentLoaded", boot);
   return { renderLog: renderLog };

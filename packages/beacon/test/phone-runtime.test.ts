@@ -162,7 +162,7 @@ describe("a crowd and the awkward cases", () => {
     expect(pub.results.length).toBe(4);
     // every phone's own results view agrees
     for (const p of ps) { await step([p], 16000); expect(p.rt.view().results.length).toBe(4); }
-  });
+  }, 30_000); // about 5 s alone; the default 5 s limit is too close when the whole suite runs at once
   test("a phone whose network drops while a claim is sent keeps it and sends it again later, exactly once", async () => {
     let off = false;
     const a = mkPhone(60, { down: () => off }); await a.rt.boot(); await a.rt.join(a.phone);

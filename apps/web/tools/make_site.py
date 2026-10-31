@@ -43,19 +43,19 @@ def landing():
         '<button class="btn" id="payBtn" type="button"><span class="bt">Create your Corporate Lucky Draw</span></button></div></div>\n'
         '<div class="packs" id="packs" aria-live="polite"></div>\n'
         '<p class="pricenote" id="priceNote"></p>\n'
-        '<p class="ck-small">See the <a href="/pricing">full price list</a>. We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for 365 days.</p>\n'
+        '<p class="ck-small">See the <a href="/pricing">full price list</a>. Refunds are not given. If you cancel a paid game before it starts, your payment stays as credit for 365 days.</p>\n'
         '</div></section>')
     ai = (
         '<section class="ck-sec ck-alt" id="ai-host" aria-labelledby="aih"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">Prizes</span>'
         '<h2 id="aih">You choose the prizes. The software keeps it fair.</h2>'
         '<p class="ck-lead">You set how many winners there are and what each prize is. A fixed public rule puts the entries in order, so the same entries and the same public beacon always give the same winners. You provide the prizes.</p></div></div></section>')
     faq_items = [
-        ("How do I set up a game?", "Sign in with your e-mail and use the organizer console to build the draft. Building and publishing are free."),
+        ("How is a game set up?", "Sign in with your e-mail and use the organizer console to build the draft. Building and publishing are free."),
         ("Do players pay or install anything?", "No. Players never pay and there is no app. They open your link, type their ID and are entered."),
-        ("Who gives the prizes?", "You do, the organizer. Corporate Lucky Draw is software only. We never hold or pay prize money."),
+        ("Who gives the prizes?", "You do, the organizer. Corporate Lucky Draw is software only. Prize money is never held or paid out by Corporate Lucky Draw."),
         ("Who decides the winners?", "The software only. The software ranks every entry with a fixed rule and a public random number (the beacon). The same entries and the same beacon give the same winners. Nobody picks a winner by hand."),
         ("How does the draw work?", "You set the winners and prizes and a draw time. People enter once until that time. At the time, or when the Organizer or Host presses Draw, the winners are shown to everyone and e-mailed to winners."),
-        ("What happens to the data?", "Player details are auto-deleted within 24 hours after the game ends. We keep the winners record and the organizer’s details for 365 days. Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
+        ("What happens to the data?", "Player details are auto-deleted within 24 hours after the game ends. The winners record and the organizer’s details are kept for 365 days. Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
     ]
     faq = ('<section class="ck-sec" id="faq" aria-labelledby="fh"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">Questions</span><h2 id="fh">Good to know</h2></div><div class="faq">'
            + "".join(f"<details><summary>{esc(q)}</summary><p>{esc(a)}</p></details>" for q, a in faq_items) + '</div></div></section>')
@@ -96,10 +96,10 @@ def how():
                       f'<div class="ck-btn-row"><a class="ck-btn main" href="{DEMO}">Try a free draw with 10 people</a></div>')
             + f'<section class="ck-sec"><div class="ck-wrap"><ol class="ck-moments ck-steps5">{cards}</ol></div></section>'
             + '<section class="ck-sec ck-wash-teal" aria-labelledby="fp"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">Fair play</span><h2 id="fp">Nobody can pick the winners.</h2></div>'
-              '<ul class="ck-plain"><li>The draw uses a public random number (the beacon). Nobody can choose or predict it, not even us.</li>'
+              '<ul class="ck-plain"><li>The draw uses a public random number (the beacon). Nobody can choose or predict it, not even the seller.</li>'
               '<li>Each person enters once. The same entries and the same public beacon give the same winners.</li>'
               '<li>The software decides every winner. Nobody picks a winner by hand.</li>'
-              '<li>Prizes come from you, the organizer. We never hold or pay prize money.</li></ul></div></section>'
+              '<li>Prizes come from you, the organizer. Prize money is never held or paid out by Corporate Lucky Draw.</li></ul></div></section>'
             + cta_band())
     return page("How Corporate Lucky Draw works | Corporate Lucky Draw", "Corporate Lucky Draw in five steps: create the draw, share one link, people enter once, the draw runs, everyone sees the winners.",
                 "/how-it-works", body, current="/how-it-works", legacy=False)
@@ -110,9 +110,9 @@ GUIDE_SECTIONS = [
     ("invite", "Invite your close group", ["Invite people you know: colleagues, families, customers, partners.", "Never ask for a fee, a purchase or a donation to take part.", "Taking part must be voluntary.", "Players are 18 or older."]),
     ("law", "Check the law", ["Some countries and states restrict games with prizes. You must check yours.", "In the United States, prize promotions above a certain value may need registration. Check your state.", "In India, prizes above INR 10,000 may carry tax deducted at source. Check with your tax adviser.", "You are responsible for tax on the prizes you give."]),
     ("run", "Running the draw", ["Share one link in Slack, Teams, Zoom chat, e-mail or WhatsApp.", "Choose an automatic draw at a set time, or press Draw yourself.", "Entry closes at the draw time. Each person enters once."]),
-    ("prizes", "Prizes", ["You provide the prizes and hand them over.", "Corporate Lucky Draw is software only. We never hold or pay prize money.", "Winners confirm their details on their own phone. Tick “Prize given” in your console."]),
+    ("prizes", "Prizes", ["You provide the prizes and hand them over.", "Corporate Lucky Draw is software only. Prize money is never held or paid out by Corporate Lucky Draw.", "Winners confirm their details on their own phone. Tick “Prize given” in your console."]),
     ("data", "Your players’ data", ["Tell your players what you do with their details.", "Entries are deleted within 24 hours after the game. Your report link works for 19 hours, so open it before then.", "To delete earlier, use your console."]),
-    ("pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is auto-deleted. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]),
+    ("pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is auto-deleted. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "Refunds are not given. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]),
     ("helpdesk", "Someone to set it up for you", ["A Help Desk person can prepare a game in your account. You allow them first, and you can stop them at any time.", "They can create and change the game. They cannot publish, pay, see your sign-in keys or close your account.", "When it is ready they ask you to publish. You get an e-mail with a summary and publish with one tap.", "After you publish, they become a Host of that game. They do not use one of your 5 Host places.", 'Find a helper, or become one: <a href="/helpdesk">Help Desk</a>.']),
 ]
 
@@ -142,7 +142,7 @@ def brochure():
         ("Your message in the game", "A message in the waiting screen and your brand colours."),
         ("Fair for everyone", "The same entries and the same public beacon give the same winners. Nobody picks by hand."),
         ("Your team can help", "You, up to 5 Hosts and any number of Co-hosts. One payment is enough."),
-        ("Players pay nothing", "You give the prizes. We provide the software and never hold or pay prize money."),
+        ("Players pay nothing", "You give the prizes. The software never holds or pays prize money."),
         ("Player details auto-deleted in 24 hours", "Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
     ]
     cards = "".join(f'<li class="ck-card"><h3>{esc(a)}</h3><p>{esc(b)}</p></li>' for a, b in pts)
@@ -156,14 +156,14 @@ def brochure():
 
 # ---------------------------------------------------------------- 404 and offline
 def not_found():
-    body = (slim_hero("404", "We could not find that page", "The link may be mistyped, or a game may have ended and been deleted. Please check the link you were given.",
+    body = (slim_hero("404", "That page could not be found", "The link may be mistyped, or a game may have ended and been deleted. Please check the link you were given.",
                       '<div class="ck-btn-row"><a class="ck-btn main" href="/">Go to Corporate Lucky Draw</a></div>'))
     return page("Page not found | Corporate Lucky Draw", "This page could not be found.", "/404", body, index=False, legacy=False, canonical=False, scripts=[])
 
 
 def offline():
     body = (slim_hero("Offline", "You are offline", "This page needs the internet. Your game is safe: if you were playing, open it again from your link when you are back online.",
-                      '<div class="ck-btn-row"><button class="ck-btn main" type="button" id="again">Try again</button><a class="ck-btn" href="/z.html">Open my last game</a></div>'))
+                      '<div class="ck-btn-row"><button class="ck-btn main" type="button" id="again">Try again</button><a class="ck-btn" href="/z.html">Open your last game</a></div>'))
     return page("You are offline | Corporate Lucky Draw", "You are offline. Your game is safe.", "/offline", body, index=False, legacy=False, canonical=False, bar=False,
                 scripts=["autoupdate.js"], tail_scripts='<script src="/offline.js"></script>')
 

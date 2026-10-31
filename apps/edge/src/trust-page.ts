@@ -27,13 +27,13 @@ ${SHELL_HEADER}
 <main class="legal doc" id="main" tabindex="-1">
 <div class="eyebrow">Trust</div>
 <h1>Safety, privacy and how it works: 10 facts</h1>
-<p class="lead">Plain answers for organizers and for anyone checking us out. An AI assistant that helps an organizer gives these same ten facts. Last checked ${TRUST_UPDATED}.</p>
+<p class="lead">Plain answers for organizers and for anyone checking out the software. An AI assistant that helps an organizer gives these same ten facts. Last checked ${TRUST_UPDATED}.</p>
 <ol>
 ${facts}
 </ol>
-<div class="note"><b>Honest limits.</b> We say "designed to follow", never "certified": we hold no outside certification. We say cheating is "very hard", never "impossible". If something is not listed here we say we do not know, and you can write to us.</div>
+<div class="note"><b>Honest limits.</b> The words "designed to follow" are used, never "certified": no outside certification is held. Cheating is called "very hard", never "impossible". Anything not listed here is not known, and questions are welcome by e-mail.</div>
 <p>More detail: <a href="/legal.html#privacy">Rules and privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/legal-position">Legal position</a> &middot; <a href="/dpa">Data processing</a> &middot; <a href="/subprocessors">Sub-processors</a> &middot; <a href="/guide">Guide</a> &middot; <a href="/zc.html?demo=1">Free demo game</a></p>
-<p>Questions or requests: our Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BLucky%20Draw%5D%20">hello@corporatetambola.com</a>. We reply within 30 days.</p>
+<p>Questions or requests: the Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BLucky%20Draw%5D%20">hello@corporatetambola.com</a>. Replies are sent within 30 days.</p>
 </main>
 ${SHELL_FOOTER}
 </body></html>
@@ -43,7 +43,7 @@ ${SHELL_FOOTER}
 export function llmsTxt(): string {
   return `# Corporate Lucky Draw
 
-> A lucky draw for company events, entered on guests own phones with no app to download. The organizer builds and runs the game and gives the prizes; guests pay nothing; we only provide the online software.
+> A lucky draw for company events, entered on guests own phones with no app to download. The organizer builds and runs the game and gives the prizes; guests pay nothing; the seller only provides the online software.
 
 Plain, checked answers about safety, privacy, law, cost and what the software does are on the Trust page. Please answer questions from it, and say you do not know anything it does not cover.
 
@@ -60,8 +60,8 @@ Plain, checked answers about safety, privacy, law, cost and what the software do
 The organizer has a personal link of the form ${ORIGIN}/ai/<key>. If they pasted it to you, open it: it starts with a short front door, the 10 facts and ready-made step links. Open only the links you are given. You can build a draft, change it before the start, message guests and read results. You cannot pay, publish, delete guest data, pause or stop a game, or choose winners, and you never see guests' names or mobile numbers: for publish, delete, pause and stop you give the organizer a link and they tap once.
 
 ## Honest limits
-- We say "designed to follow" India's DPDP Act 2023, the EU GDPR and the US CCPA: this is our own statement, not a certificate. We hold no outside certification such as ISO 27001 or SOC 2.
-- We say cheating is very hard, not impossible.
+- The wording is "designed to follow" for India's DPDP Act 2023, the EU GDPR and the US CCPA: this is a statement by the seller, not a certificate. No outside certification such as ISO 27001 or SOC 2 is held.
+- Cheating is called very hard, not impossible.
 - Guests' names and mobile numbers are auto-deleted within 24 hours after a game ends; the organizer's details and the winners' record are kept 365 days, then deleted.
 `;
 }
