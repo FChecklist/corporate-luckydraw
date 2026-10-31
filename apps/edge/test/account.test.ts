@@ -97,7 +97,7 @@ describe("wording: third parties, fairness, version", () => {
   });
   test("fairness wording does not overclaim anywhere a customer reads it", () => {
     for (const f of ["index.html", "legal.html", "zc.js", "z.js", "terms.html"]) expect([f, (rd(f).match(/number, twice|every claim is checked|Nobody, including you|not even the organizer|cannot be changed|tamper-proof|unhackable/i) ?? [""])[0], /number, twice|every claim is checked|Nobody, including you|not even the organizer|cannot be changed|tamper-proof|unhackable/i.test(rd(f))]).toEqual([f, "", false]);
-    const man = readFileSync(new URL("../src/ai-link.ts", import.meta.url), "utf8"); expect(man).not.toMatch(/not even the organizer/); expect(man).toContain("Neither the organizer nor the seller can choose or change them in the software.");
+    const man = readFileSync(new URL("../src/ai-link.ts", import.meta.url), "utf8"); expect(man).not.toMatch(/not even the organizer/); expect(man).toContain("the same entries and the same public beacon give the same winners");
     expect(rd("legal.html")).toContain("The same entries and the same public beacon give the same winners.");
   });
 });
