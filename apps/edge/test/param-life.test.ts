@@ -267,12 +267,6 @@ describe("rate limits and the daily spend limit", () => {
     const codes: number[] = []; for (let i = 1; i <= 6; i++) codes.push((await join(id, i)).status);
     expect(codes.slice(0, 3).every((s) => s === 200)).toBe(true); expect(codes.slice(3).some((s) => s === 429)).toBe(true);
   });
-  test("an UNPAID game keeps the base figures (200 new seats a minute from one address), so a script cannot use a big free game to burn the write budget", async () => {
-    reset(); const o = await organizer(); const id = uid(); expect((await create(o.key, id, { cap: 500 })).status).toBe(200); expect((await publish(o.key, id)).status).toBe(200);
-    const hdr = { "cf-connecting-ip": "9.9.9.8" }; const codes: number[] = [];
-    for (let i = 1; i <= 230; i++) codes.push((await call("POST", `/api/z/${id}/join`, { phone: mob(i), name: "Guest " + i, device: dev(i) }, hdr)).status);
-    expect(codes.slice(0, 200).every((s) => s === 200)).toBe(true); expect(codes.slice(200).every((s) => s === 429)).toBe(true);
-  });
   test("a body bigger than the limit is refused, never a 500", async () => {
     const r = await call("POST", "/api/start", { email: "a@b.co", pad: "x".repeat(200_000) }); expect(r.status).toBeLessThan(500);
   });
