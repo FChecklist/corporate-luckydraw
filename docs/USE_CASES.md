@@ -84,8 +84,8 @@ Building and publishing are free. The organizer pays before the start time. If i
 | UC-47 | Housekeeping fails | Never breaks a user request |
 | UC-48 | Oversized body, malformed JSON | Refused cleanly |
 | UC-49 | Organizer A reads or changes organizer B's engagement | Refused |
-| UC-50 | The AI key tries to publish, pay, erase, settle, manage keys | Refused (it can only hand over the link) |
-| UC-51 | Erase all participant data | Done on request; 365-day purge also removes flags and contact details |
+| UC-50 | The AI key tries to publish, pay, delete, settle, manage keys | Refused (it can only hand over the link) |
+| UC-51 | Delete all participant data | Done on request; 365-day purge also removes flags and contact details |
 | UC-52 | Claim for something not completed | Not accepted |
 
 ## G. Pages (browser)
@@ -106,7 +106,7 @@ Building and publishing are free. The organizer pays before the start time. If i
 | UC-72 | Size raised to another profile before any pause was sent | The unused key is forgotten and the console registers the right one; after a pause was sent it stays | usecases.test.ts |
 | UC-73 | Request budget | A phone of an unpausable engagement asks at most about 3 times in 20 minutes; a 800-person profile about every 30 s | phone-runtime.test.ts |
 | UC-80 | Announcement | Reaches phones inside the pause check they already make; new message has a new id; clear removes it; cleaned and cut; rate limited; not for drafts, the AI or strangers; shown, spoken and dismissible on the phone; big banner on the big screen | usecases, phone-runtime, pages tests |
-| UC-81 | Co-host | Can watch and message only; cannot change, publish, pay, erase, make keys or create engagements; at most five; retiring stops it at once; its link keeps the key out of the address bar | usecases, pages tests |
+| UC-81 | Co-host | Can watch and message only; cannot change, publish, pay, delete, make keys or create engagements; at most five; retiring stops it at once; its link keeps the key out of the address bar | usecases, pages tests |
 | UC-82 | Scratch card | A lucky draw can be a scratch card; only lucky draws have the style; winner scratches to reveal; opens by itself after 45 s; non-winner sees "Not this time" | usecases, pages tests |
 | UC-83 | Waiting room | Before the first number: countdown, what can be won, how it works, sound check, add to calendar; never mentions money | pages tests |
 | UC-90 | Console pages in a DOM | Home options first; draft to publish with confirmation; invalid details; held state; wrong sign-in never freezes; announcements; co-host screen; break editor | pages.test.ts |
@@ -174,7 +174,7 @@ Run: `bun test packages apps tools/control-worker` gives **479 passing, 0 failin
 | UC-105 | Browse-only AI performs an action | `GET .../path?_method=POST\|PATCH&_body=<URL-encoded JSON>` (body at most 6 KB, rosters about 20 people at a time); rejected on the normal `/api` routes, for other methods and when too long |
 | UC-106 | Unknown, mistyped, revoked, sign-in (`cbk_`) or platform key in an address | Identical plain `404 Not found.`; nothing recorded; the key is never echoed |
 | UC-107 | Organizer's AI does what an organizer does in the console | Announce to guests, invitation policy, mark seats, change of phone, prize-given ticks, prizes (mobile numbers cut to the last two digits), results/life/claims, create co-host key, read its own audit trail |
-| UC-108 | Organizer's AI tries payment, publish, erase, pause/stop, key management, winners | Refused or hand-over only (publish returns the console link; erase/pause are requests the organizer approves); the report address is never given to the AI |
+| UC-108 | Organizer's AI tries payment, publish, delete, pause/stop, key management, winners | Refused or hand-over only (publish returns the console link; erase/pause are requests the organizer approves); the report address is never given to the AI |
 | UC-109 | Co-host key (`cbh_`) through the link | A narrower manual; may watch, announce and tick prizes; everything else 403; its calls are audited too |
 | UC-110 | Organizer signs up | One dedicated mail: HTML + plain text, red do-not-forward warning top and bottom, steps, a "Show my AI work link" button (sign-in page, no secret in the address), and the paste as plain text in a box using a separate key that works 24 hours; says how long it works and how to get a fresh one |
 | UC-111 | Organizer publishes | The publish mail (share link, pay link) carries no AI link or key and is safe to forward; reminders, "could not begin", invoices, report-link, partner mails and report PDFs never carry one |

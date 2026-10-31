@@ -73,7 +73,7 @@ export async function cloneGame(env: Env, e: any, b: any, now: number, origin: s
   if (b?.withPeople === true) {
     const r = await copyPeople(env, e.id, id, e.cap, now, spend);
     peopleCopied = r.copied;
-    if (!r.copied) peopleNote = r.busy ? "It is very busy right now. Add your people again in a few minutes." : "The old guest list has been erased, so add your people again.";
+    if (!r.copied) peopleNote = r.busy ? "It is very busy right now. Add your people again in a few minutes." : "The old guest list has been auto-deleted, so add your people again.";
   }
   { const d = await db.prepare("SELECT winners, prizes, mode, ref FROM draw WHERE eid=?").bind(e.id).first<any>().catch(() => null); // Lucky Draw: the settings come along (winners, prizes, automatic or manual); never the people, the time or the result
     if (d) await db.prepare("INSERT OR IGNORE INTO draw(eid,winners,prizes,mode,ref,set_ms) VALUES(?,?,?,?,?,?)").bind(id, d.winners, d.prizes, d.mode, d.ref, now).run(); }

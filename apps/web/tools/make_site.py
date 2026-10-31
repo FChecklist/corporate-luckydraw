@@ -55,7 +55,7 @@ def landing():
         ("Who gives the prizes?", "You do, the organizer. Corporate Lucky Draw is software only. We never hold or pay prize money."),
         ("Who decides the winners?", "The software only. The software ranks every entry with a fixed rule and a public random number (the beacon). The same entries and the same beacon give the same winners. Nobody picks a winner by hand."),
         ("How does the draw work?", "You set the winners and prizes and a draw time. People enter once until that time. At the time, or when the Organizer or Host presses Draw, the winners are shown to everyone and e-mailed to winners."),
-        ("What happens to the data?", "Player details are erased within 24 hours after the game ends. We keep the winners record and the organizer’s details for 365 days. Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
+        ("What happens to the data?", "Player details are auto-deleted within 24 hours after the game ends. We keep the winners record and the organizer’s details for 365 days. Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
     ]
     faq = ('<section class="ck-sec" id="faq" aria-labelledby="fh"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">Questions</span><h2 id="fh">Good to know</h2></div><div class="faq">'
            + "".join(f"<details><summary>{esc(q)}</summary><p>{esc(a)}</p></details>" for q, a in faq_items) + '</div></div></section>')
@@ -112,7 +112,7 @@ GUIDE_SECTIONS = [
     ("run", "Running the draw", ["Share one link in Slack, Teams, Zoom chat, e-mail or WhatsApp.", "Choose an automatic draw at a set time, or press Draw yourself.", "Entry closes at the draw time. Each person enters once."]),
     ("prizes", "Prizes", ["You provide the prizes and hand them over.", "Corporate Lucky Draw is software only. We never hold or pay prize money.", "Winners confirm their details on their own phone. Tick “Prize given” in your console."]),
     ("data", "Your players’ data", ["Tell your players what you do with their details.", "Entries are deleted within 24 hours after the game. Your report link works for 19 hours, so open it before then.", "To delete earlier, use your console."]),
-    ("pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is erased. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]),
+    ("pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is auto-deleted. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]),
     ("helpdesk", "Someone to set it up for you", ["A Help Desk person can prepare a game in your account. You allow them first, and you can stop them at any time.", "They can create and change the game. They cannot publish, pay, see your sign-in keys or close your account.", "When it is ready they ask you to publish. You get an e-mail with a summary and publish with one tap.", "After you publish, they become a Host of that game. They do not use one of your 5 Host places.", 'Find a helper, or become one: <a href="/helpdesk">Help Desk</a>.']),
 ]
 
@@ -143,7 +143,7 @@ def brochure():
         ("Fair for everyone", "The same entries and the same public beacon give the same winners. Nobody picks by hand."),
         ("Your team can help", "You, up to 5 Hosts and any number of Co-hosts. One payment is enough."),
         ("Players pay nothing", "You give the prizes. We provide the software and never hold or pay prize money."),
-        ("Player details erased in 24 hours", "Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
+        ("Player details auto-deleted in 24 hours", "Designed to follow the EU GDPR, US privacy laws and India’s DPDP Act."),
     ]
     cards = "".join(f'<li class="ck-card"><h3>{esc(a)}</h3><p>{esc(b)}</p></li>' for a, b in pts)
     body = (slim_hero("Brochure", "Corporate Lucky Draw on one page.", "Print it, send it to your team, or keep it for your next event.",

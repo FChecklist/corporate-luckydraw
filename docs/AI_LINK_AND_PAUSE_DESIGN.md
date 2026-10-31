@@ -27,7 +27,7 @@ No model runs on our servers. I searched `apps/`, `packages/` and `tools/` for a
 | Invitation message, Host and Team Lead messages | Organizer | `get_share_info` gives ready text; the AI rewrites it in the organizer's voice; the organizer sends it (the AI cannot send) |
 | Day of the event: admit people, phone alerts | Organizer / Host | `admit_waiting`, `decline_waiting`, `resolve_phone_alert` |
 | Emergency pause / resume / stop | Organizer | **Draft only** (`request_control`); the organizer's own browser signs (Part B) |
-| Start, End, remove people, erase saved details, raise limit | Organizer | **Draft only**; organizer opens the confirm link and taps Confirm |
+| Start, End, remove people, delete saved details, raise limit | Organizer | **Draft only**; organizer opens the confirm link and taps Confirm |
 | After: report in plain words, thank-you note, summary for leadership | Organizer reads the report | `get_report` (read) then the AI writes the words; nothing is applied |
 | Surprise moments (lucky draw, scratch card) | System draws at random | `update_settings.surprise` (before Start), `start_moment` (only when set to manual; the system picks winners, the AI cannot) |
 | `tools/sim/ai-persona.ts` | Test harness playing "the organizer's AI" | Not a product feature |
@@ -51,7 +51,7 @@ DPDP's `dpdp-ai-link` was the model (read `README.md`, `manual.ts`, `router.ts` 
 
 | The AI may do directly | The AI may only DRAFT (organizer confirms on a page while signed in) | The AI can never do (no tool exists) |
 |---|---|---|
-| settings, rewards, brand breaks (before Start), add/reuse people, roles, passes, admit/decline, phone alerts, manual draw, start a manual moment | Start, End, remove people, erase saved details, raise limit (money), **request_control** (pause/resume/extend/stop; needs the organizer's signature as well) | claims, winners, numbers, rules after Start, payment, sign-in, code changes, signing anything |
+| settings, rewards, brand breaks (before Start), add/reuse people, roles, passes, admit/decline, phone alerts, manual draw, start a manual moment | Start, End, remove people, delete saved details, raise limit (money), **request_control** (pause/resume/extend/stop; needs the organizer's signature as well) | claims, winners, numbers, rules after Start, payment, sign-in, code changes, signing anything |
 
 ### A.3 What was added in this branch
 

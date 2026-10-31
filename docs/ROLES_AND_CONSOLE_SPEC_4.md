@@ -24,7 +24,7 @@ Show a small box under the talking line of each open step, **12 px, grey-brown t
 
 8 Game day: "Run the game from here. Pause, resume or end it. Send a message to every phone. Tick a prize when you hand it over. Only the Organizer and Host can remove a person during the game."
 
-9 After the game: "About 3 minutes after the game, a report link is e-mailed to the Organizer. Guest names and numbers are erased within 24 hours. We keep the winners and the Organizer's and Hosts' details for 365 days. You can erase guest data earlier."
+9 After the game: "About 3 minutes after the game, a report link is e-mailed to the Organizer. Guest names and numbers are auto-deleted within 24 hours. We keep the winners and the Organizer's and Hosts' details for 365 days. You can delete guest data earlier."
 
 Also: **Your account** section: "These are for the Organizer only: your AI link, sign-in keys and records. Closing your account deletes your games." **Co-host steps** (My page): step 1 "You can see the game and what you may do."; step 2 "Add your people. Each gets their own WhatsApp link. You can bring up to your limit."; step 3 "One payment is enough. If someone has paid, you will see Paid." Check every line against the code before shipping; correct the line, not the code, if the code says something different, and tell me.
 

@@ -10,7 +10,7 @@ Bingo differences that drive the ADAPTED / NOT APPLICABLE rows: card patterns (L
 | 4 | Email cleaner (case-insensitive) | ADOPTED | email-key tests; f2b452f, 68712b6 |
 | 5 | Email ID list criterion (Employee ID or Email ID, list decides) | ADOPTED | idKind in config, join + list upload, z.js/zc.js; email-id.test.ts (4 pass, planted break 2 fail); organizer add-box placeholder still says Employee ID |
 | 6 | Same person after cleaning flagged in list check | ADOPTED | sameAfterCleaning (171392c); reply test TODO |
-| 7 | Game log kept 365 days, personal data erased within 24 h | ADOPTED | gamelog.ts (B26) kept on purpose |
+| 7 | Game log kept 365 days, personal data auto-deleted within 24 h | ADOPTED | gamelog.ts (B26) kept on purpose |
 | 8 | 5 organizer steps + Game dashboard | ADAPTED (opt-in, untested) | shared pack vendored from the console repo; Bingo descriptor zc-flow-game.js; ?flow=new |
 | 9 | Game ID always shown; status pills with plain banners | TODO | |
 | 10 | Host and Co-host sign-in, roles, limits | ADAPTED (partial) | Host/Co-host keys exist; zc-flow-roles.js rules ported; approvals.ts port TODO | Bingo has Host/Co-host keys today (hostsetup.ts); screens TODO |
@@ -24,7 +24,7 @@ Bingo differences that drive the ADAPTED / NOT APPLICABLE rows: card patterns (L
 | 18 | Claims, claim pause, heartbeat/claim signal | TODO | |
 | 19 | Prizes: tags, 1-5 wins, gift, worth | ADAPTED | Bingo prizes are patterns; mapping TODO |
 | 20 | Full House 1st-5th, Super Bumper, A/B ticket | NOT APPLICABLE | Bingo has one card and no housie houses |
-| 21 | 24 h erase | ADOPTED | lifecycle.ts |
+| 21 | 24 h delete | ADOPTED | lifecycle.ts |
 | 22 | Thank-you and Game completed pages (Share + WhatsApp) | TODO | |
 | 23 | Rules row only inside the game | TODO | |
 | 24 | Retro / Modern minimal player look | TODO | |

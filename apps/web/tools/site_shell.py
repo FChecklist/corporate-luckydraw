@@ -23,7 +23,8 @@ NAV = [("How it works", "/how-it-works", ""), ("Free demo game", "/zc.html?demo=
 
 def read(path):
     with open(path, encoding="utf8", newline="") as f:
-        return f.read().replace("\r\n", "\n")
+        # owner wording rule: never "erase" (the shared kit snippets still say it)
+        return f.read().replace("\r\n", "\n").replace("are erased within", "are auto-deleted within").replace("is erased within", "is auto-deleted within")
 
 
 def write(path, text):

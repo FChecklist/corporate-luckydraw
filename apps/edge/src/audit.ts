@@ -361,7 +361,7 @@ export function maskedAggregate(rows: OpenRow[]) {
     clientClockOffMoreThan5Min: skewBig, busiestHourUtc: Object.entries(hour).sort((x, y) => y[1] - x[1])[0]?.[0] ?? null,
   };
   const findings: string[] = [];
-  if (agg.deniedAiAttempts) findings.push(`${agg.deniedAiAttempts} attempt(s) by an AI key to publish, pay, erase, pause or settle were refused.`);
+  if (agg.deniedAiAttempts) findings.push(`${agg.deniedAiAttempts} attempt(s) by an AI key to publish, pay, delete, pause or settle were refused.`);
   if (agg.aiVendorMismatches) findings.push(`${agg.aiVendorMismatches} AI call(s) declared a model from a different vendor than the program that fetched them.`);
   if (agg.failedLogins >= 5) findings.push(`${agg.failedLogins} failed sign-in attempts.`);
   if (agg.devicesSeenFromSeveralNetworks) findings.push(`${agg.devicesSeenFromSeveralNetworks} device(s) were seen from more than one network.`);
