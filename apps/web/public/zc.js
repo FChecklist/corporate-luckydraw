@@ -40,6 +40,7 @@
 
   /* ---------------- sign in ---------------- */
   function signinView() {
+    if (!S.su) { S.su = 1; if (window.CBFunnel) CBFunnel.report("signup_started"); }
     return frame(`<div class="zc-block"><h3>Sign in to make a Lucky Draw</h3><p>It is free to build and free to publish. You pay before the draw.</p><button class="zc-btn" id="si" style="min-height:48px">Sign in</button></div>`);
   }
 
@@ -108,7 +109,7 @@
   function dayView() {
     const s = S.sum, d = s.draw || {}, origin = location.origin, link = `${origin}/z.html?e=${eid}`;
     let h = `<div class="zc-block"><h3>${esc(s.name || s.id)}</h3><p>${esc(s.participants)} registered${s.limit ? " of " + Number(s.limit).toLocaleString("en-IN") : ""}. ${d.drawn ? "The draw is done." : d.closed ? "Registration is closed." : "Registration is open."}</p><p class="zc-small">Draw time: ${esc(fmt(s.startMs))} · ${d.mode === "manual" ? "manual: the Organizer or a Host presses Draw" : "automatic"}</p></div>`;
-    if (s.status && /NOT PAID|payment due/.test(s.status)) h += `<div class="zc-alert"><h3>Pay before the draw</h3><p>The draw does not happen until it is paid for.</p><a class="zc-btn" href="${esc(s.payUrl || "/pay.html?e=" + eid)}" style="min-height:48px">Pay now</a></div>`;
+    if (s.status && /NOT PAID|payment due/.test(s.status)) h += `<div class="zc-alert"><h3>Pay before the draw</h3><p>The draw does not happen until it is paid for.</p><a class="zc-btn" href="${esc(s.payUrl || "/pay.html?e=" + eid)}" style="min-height:48px">Pay now</a> <button class="zc-btn zc-btn-s" id="copypay" style="min-height:44px">Copy payment link</button>${S.payUrl ? `<p class="zc-small">Send this link to whoever pays: <code style="word-break:break-all">${esc(S.payUrl)}</code></p>` : ""}</div>`;
     h += `<div class="zc-block"><h3>Share this link</h3><p><code style="word-break:break-all">${esc(link)}</code></p><button class="zc-btn zc-btn-s" id="copy" style="min-height:44px">Copy link</button></div>`;
     if (canRun() && !d.drawn) {
       h += `<div class="zc-block"><h3>Controls</h3><div class="zc-chips">${d.mode === "manual" ? `<button class="zc-btn" id="drawnow" style="min-height:48px"${d.paused ? " disabled" : ""}>Draw now</button>` : ""}${d.paused ? `<button class="zc-btn zc-btn-alt" id="resume" style="min-height:48px">Resume</button>` : `<button class="zc-btn zc-btn-alt" id="pause" style="min-height:48px">Pause</button>`}</div>${d.paused ? `<p class="zc-small"><b>Paused.</b> Nothing registers and nothing is drawn. The draw time waits.</p>` : ""}${S.ctlErr ? `<p class="zc-small">${esc(S.ctlErr)}</p>` : ""}<p class="zc-small">Only the Organizer and the Host can press Draw, Pause or Resume. Each is logged with the role.</p></div>`;
@@ -146,7 +147,7 @@
     on("cloneme", () => cloneGame(eid));
     document.querySelectorAll("[data-step]").forEach((b) => (b.onclick = () => { readStep(); S.step = Number(b.dataset.step); S.err = ""; paint(); }));
     document.querySelectorAll("[data-idk]").forEach((b) => (b.onclick = () => { readStep(); S.f.idKind = b.dataset.idk; paint(); }));
-    document.querySelectorAll("[data-cap]").forEach((b) => (b.onclick = () => { readStep(); S.f.cap = Number(b.dataset.cap); paint(); }));
+    document.querySelectorAll("[data-cap]").forEach((b) => (b.onclick = () => { readStep(); if (window.CBFunnel) CBFunnel.report("size_chosen", { size: Number(b.dataset.cap) || undefined }); S.f.cap = Number(b.dataset.cap); paint(); }));
     document.querySelectorAll("[data-dmode]").forEach((b) => (b.onclick = () => { readStep(); S.f.mode = b.dataset.dmode; paint(); }));
     document.querySelectorAll("[data-color]").forEach((b) => (b.onclick = () => { readStep(); S.f.brandColor = b.dataset.color; paint(); }));
     on("back", () => { readStep(); S.step -= 1; S.err = ""; paint(); });
@@ -166,6 +167,11 @@
     });
     on("addhost", async () => { try { const r = await api("POST", "/api/org/host", { label: $("f-hn").value.trim() || "Host", email: $("f-he").value.trim() }); S.hostLink = r.link || ""; S.note = "Host added. Send them their link."; } catch (e) { S.err = e.message; } paint(); });
     on("addcohost", async () => { try { const r = await api("POST", "/api/org/cohost", { label: $("f-cn").value.trim(), phone: $("f-cp").value.trim(), e: eid }); S.coLink = r.link || ""; S.note = "Co-host added. Send them their link."; } catch (e) { S.err = e.message; } paint(); });
+    on("copypay", async () => {
+      try { const r = await api("POST", `/api/z/${eid}/paylink`, {}); S.payUrl = r.url || ""; S.note = "Payment link made. It works for 7 days."; if (window.CBFunnel) CBFunnel.report("payment_link_copied"); try { await navigator.clipboard.writeText(S.payUrl); S.note = "Payment link copied. It works for 7 days."; } catch (e) { S.note = "Payment link made. Select it below and copy it."; } }
+      catch (e) { S.err = e.message || "We could not make a payment link. Please try again."; }
+      paint();
+    });
     on("copy", async () => { try { await navigator.clipboard.writeText(`${location.origin}/z.html?e=${eid}`); S.note = "Link copied."; } catch (e) { S.note = "Select the link and copy it."; } paint(); });
     on("drawnow", async () => { if (!confirm("Draw now? Registration closes and the winners are picked.")) return; try { await api("POST", `/api/z/${eid}/drawnow`, {}); S.note = "The draw is done."; try { window.CBReact && window.CBReact.react("ta_da"); } catch (e) { /* optional */ } await load(); } catch (e) { S.err = e.message; } paint(); });
     on("hkok", async () => { try { const r = await TBControl.hostApprove(eid, { token: secret, base: BASE, prefix: "/api/z" }, S.hkKey); if (!r.ok) throw new Error(r.reason); S.hkKey = ""; S.note = "Host key approved."; } catch (e) { S.err = e.message; } paint(); });

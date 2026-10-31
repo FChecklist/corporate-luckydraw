@@ -121,7 +121,7 @@
       S.err = S.err && !I ? S.err : S.err;
       if (D) { // one short word at the big moments, only when this page saw the change happen
         if (S.wasPaused === false && D.paused) rx("hang_on");
-        if (S.wasDrawn === false && D.drawn) { rx("ta_da"); if (D.mine) setTimeout(() => rx("champion", 1), 2700); }
+        if (S.wasDrawn === false && D.drawn) { if (window.CBFunnel) CBFunnel.report("game_completed"); rx("ta_da"); if (D.mine) setTimeout(() => rx("champion", 1), 2700); }
         S.wasPaused = !!D.paused; S.wasDrawn = !!D.drawn;
       }
     } catch (e) { if (!I) { I = e.status === 404 ? { draft: false } : null; S.err = e.status === 404 ? "This link is not valid. Ask the organizer to send it again." : e.message; if (e.status === 404) { D = null; I = { name: "" }; } } }
@@ -131,7 +131,7 @@
     clearInterval(timer);
     timer = setInterval(() => {
       const cd = document.getElementById("cd");
-      if (cd && D && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("tick_tock"); } }
+      if (cd && D && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("tick_tock"); if (window.CBFunnel) CBFunnel.report("game_started"); } }
       S.tick++;
       const near = D && !D.drawn && Date.now() + (S.skew || 0) >= D.drawMs - 120000;
       if (!document.hidden && !document.getElementById("reg") && (near ? S.tick % 3 === 0 : S.tick % 15 === 0)) refresh();
