@@ -12,7 +12,7 @@ mode = "smart"
 [[d1_databases]]
 binding = "DB"
 database_name = "corporate-luckydraw"
-database_id = "f2d1ed1b-77cd-401a-af4c-4c02724688ef"
+database_id = "REPLACE-WITH-NEW-D1-ID" # was Bingo's database id by copy: NEVER deploy with that. Create the Lucky Draw database (see docs/CLOUDFLARE_SETUP.md) and put its id here.
 
 [vars]
 DAILY_WRITE_BUDGET = "2000000"   # a runaway guard only: the account is on the paid Workers plan (owner, 2026-10-27), which has no daily limit on D1 writes

@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]   # billing uses node:crypto HMAC
 [[d1_databases]]
 binding = "DB"
 database_name = "corporate-luckydraw"
-database_id = "f2d1ed1b-77cd-401a-af4c-4c02724688ef"
+database_id = "REPLACE-WITH-NEW-D1-ID" # Bingo's id by copy: never deploy with it; see docs/CLOUDFLARE_SETUP.md
 migrations_dir = "migrations"
 
 [triggers]
