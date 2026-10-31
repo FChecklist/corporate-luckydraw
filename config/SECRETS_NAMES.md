@@ -54,3 +54,4 @@ Where things are set:
 | `ANALYZE_AI_MODEL` | Model name for that endpoint | Optional Pages variable | setting |
 | `TARGET` | The scheduled job: the web address it calls | `apps/cron/wrangler.toml` | setting |
 | `AI_LINK_MAIL_AT_SIGNUP` | Switch for the AI work-link welcome e-mail sent when an account is made; the live site turns it off because the AI link is hidden in the console | wrangler var | setting |
+| `FUNNEL` | "1" turns on funnel events: POST /stats/e logs fixed fields only; off when unset | Optional Pages variable | setting |

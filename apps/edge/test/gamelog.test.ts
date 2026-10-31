@@ -66,7 +66,7 @@ describe("through the real lifecycle", () => {
     expect(JSON.stringify(q("SELECT * FROM game_log WHERE eid=?", id))).not.toMatch(/@|98765|Guest/);
     W.raw.prepare("UPDATE game_log SET text='tampered' WHERE eid=? AND seq=5").run(id); // a changed line breaks the chain
     expect(await gameLogChainHolds(id, await readGameLog(W.env as any, id))).toBe(false);
-  });
+  }, 30_000); // hashing 70+ chained lines takes ~1 s alone and can pass the 5 s default when the whole suite runs at once
   test("the organizer reads it (JSON and CSV); a stranger and an anonymous caller cannot; it survives the players' data and goes with the game at 365 days", async () => {
     const o = await organizer("boss@acme.com"); const id = uid("LOG");
     expect((await create(undefined, id, { startRound: startIn(-2 * HOUR), callSeconds: 6, cap: 5000 })).status).toBe(200); // made by the platform key (a past start is refused for an organizer), then handed to the organizer
