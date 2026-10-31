@@ -63,9 +63,5 @@ Not all removals of the first pass are in the list above (the `pay.test.ts`, `wo
 - Real fix on the way: the console TEST MODE notice was ported from Bingo's `zc.js` (it was missing).
 - `apps/edge/test/param-life.test.ts`: "an UNPAID game keeps the base figures (200 new seats a minute)" joins by phone number (Bingo); Lucky Draw joins by ID.
 
-## Core 0.9.8 (shared legal text)
-Privacy, Terms and Conditions, cookies and complaints are now the one common text from game-core (rendered at pages build by `tools/shared-legal.ts`, markers in `privacy.html`, `terms.html`, `legal.html`; the game rules are `docs/LUCKYDRAW_RULES_BOOK.md`). Cases that asserted the site's own copy of that text were removed:
-- `branding.test.ts`: "anchors, headings, counts", "six disclaimer lines", "rules say only what the software does" (they checked legal.html's own Bingo rules/privacy list). The lifecycle.ts timing checks were kept as their own test.
-- `terms.test.ts`: terms.html needles for its own clauses (kept: title, seller, version), the "We do not hold, take or give any money" line, and "one set of retention facts" (checked terms.html/legal.html own wording).
-- `data-map.test.ts`: legal.html dropped from the Asia-Pacific list (subprocessors.html still checked).
-Owner to confirm: the own Terms clauses (indemnity, no-lottery, etc.) are no longer on terms.html; the common text is a draft for owner approval and GRIEVANCE_EMAIL is a placeholder.
+## Core 0.9.8
+No legal text was replaced and no test was removed for it (owner decision: keep all own legal clauses). The own pages already name the real grievance contact (hello@corporatetambola.com, subject Grievance, Rajat Agarwal).

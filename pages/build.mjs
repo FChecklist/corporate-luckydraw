@@ -15,8 +15,6 @@ for (const f of FILES) {
   if (f.endsWith(".js")) { const src = readFileSync(join(SRC, f), "utf8"); let out = src; try { out = transpiler.transformSync(src); } catch (e) { throw new Error("minify " + f + ": " + e.message); } if (f === "autoupdate.js") { const re = /(["'`])__BUILT__\1/; if (!re.test(out)) throw new Error("autoupdate.js lost its __BUILT__ placeholder"); out = out.replace(re, JSON.stringify(BUILT_SIG)); } writeFileSync(join(OUT, f), NOTICE + out); }
   else cpSync(join(SRC, f), join(OUT, f));
 }
-import { inject } from "../tools/shared-legal";
-for (const f of ["privacy.html", "terms.html", "legal.html"]) writeFileSync(join(OUT, f), inject(readFileSync(join(OUT, f), "utf8"))); // the common legal text comes from game-core, never from this repo
 for (const d of ["fonts", "img"]) cpSync(join(SRC, d), join(OUT, d), { recursive: true });
 // security headers; styles allow inline because the pages set a few style attributes, scripts stay locked to our own files
 const CSP = "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://cloudflareinsights.com https://api.drand.sh https://api2.drand.sh https://api3.drand.sh https://drand.cloudflare.com https://checkout.razorpay.com https://api.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://itservices-rajat-agarwal.pages.dev; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";

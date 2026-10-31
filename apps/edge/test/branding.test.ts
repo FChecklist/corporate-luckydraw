@@ -98,8 +98,24 @@ describe("pages: one title pattern, icons, manifest, theme colour", () => {
   });
 });
 
-describe("the retention promises match what the code does", () => {
-  test("the privacy timings match lifecycle.ts", () => {
+describe("the legal page carries the owner's final text, and each line matches what the code does", () => {
+  const html = read("apps/web/public/legal.html");
+  const sec = (id: string) => { const m = html.match(new RegExp(`<section id="${id}"[\\s\\S]*?</section>`)); expect(m).toBeTruthy(); return m![0]; };
+  const items = (id: string) => [...sec(id).matchAll(/<li>([\s\S]*?)<\/li>/g)].map((x) => x[1]!.replace(/<[^>]+>/g, "").replace(/&rsquo;/g, "’").replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”").replace(/&amp;/g, "&"));
+  test("anchors, headings, counts, and one short line each", () => {
+    for (const id of ["rules", "privacy", "disclaimer"]) expect(html).toContain(`<section id="${id}"`);
+    expect(html).toContain(">Rules</h2>"); expect(html).toContain(">Privacy &amp; Data Policy</h2>"); expect(html).toContain(">Disclaimer</h2>");
+    expect(items("rules").length).toBe(12); expect(items("privacy").length).toBe(18); expect(items("disclaimer").length).toBe(6);
+    for (const id of ["rules", "privacy", "disclaimer"]) for (const l of items(id)) expect(l.split(/\s+/).length).toBeLessThanOrEqual(30);
+    expect(html).toMatch(/<p class="muted">[^<]{1,80}<\/p>/);
+  });
+  test("the six disclaimer lines, word for word", () => {
+    expect(items("disclaimer")).toEqual(["This is a close group game, open only to the people the organizer invites, run by your organizer.", "Corporate Lucky Draw provides the software only. We never hold or pay prize money. Participants pay nothing to play.", "The organizer provides and hands over the prizes.", "The software decides the winners. Results are final.", "The organizer makes sure the game is allowed under local law.", "We are not responsible for prize handover or for disputes between the organizer and participants."]);
+  });
+  test("the rules say only what the software does (no claims, no manual cutting, no blocking), and the privacy timings match lifecycle.ts", () => {
+    const r = items("rules").join(" ");
+    expect(r).not.toMatch(/Cut your own|Late claims|wrong claim|block your ticket|for fun/i);
+    expect(r).toContain("The 75 numbers come from a public random beacon (drand)."); expect(r).not.toMatch(/No one can choose or change|not even the organizer|twice|every claim is checked/); expect(r).toContain("The game ends when every prize is won or all 75 numbers are called."); expect(r).toContain("You get one card per phone."); expect(r).not.toMatch(/ticket|Full House|Tambola|housie/i);
     const lc = read("apps/edge/src/lifecycle.ts");
     expect(lc).toMatch(/PURGE_AFTER_MS = 20 \* 3_600_000/); // 20 h (the job may run 3 h late) is inside "within 24 hours"
     expect(lc).toMatch(/endMs \+ 365 \* DAY/); expect(lc).toMatch(/DELETE FROM prize WHERE eid=\?/); // prize details go with the 365-day deletion
