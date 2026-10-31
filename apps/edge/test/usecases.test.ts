@@ -497,19 +497,18 @@ describe("F. exceptions: what can go wrong", () => {
 
 /* ============================== G. the organizer's AI (found by the simulated external AI) ============================== */
 describe("G. the organizer's AI", () => {
-  test("UC-60 the manifest teaches the AI the conversation, the packs, the lucky draw, one reward line per winner, and the payment rules", async () => {
+  test("UC-60 the manifest teaches the AI the conversation, the packs, the draw settings (winners and prizes), and the payment rules", async () => {
     const m = await j(await call("GET", "/api/z/ai-manifest"));
     expect(m.conversation.length).toBe(12); expect(m.packs.length).toBeGreaterThan(5);
     const text = JSON.stringify(m);
-    expect(text).toMatch(/lucky/); expect(text).toMatch(/winners\?: 1\|3\|5\|10/); expect(text).toMatch(/ONE winner of ONE house/); expect(text).toMatch(/GET \/api\/z\/\{id\}\/summary/);
+    expect(text).toMatch(/drawset/); expect(text).toMatch(/winners, prizes: \[text/); expect(text).toMatch(/same entries and the same public beacon give the same winners/); expect(text).toMatch(/GET \/api\/z\/\{id\}\/summary/);
     expect(m.payment_faq.join(" ")).toMatch(/late/i); expect(m.payment_faq.join(" ")).toMatch(/nothing is owed|no penalty/i); expect(m.payment_faq.join(" ")).toMatch(/limit does not have to match/i);
   });
-  test("UC-61 the worked example in the manifest is accepted exactly as written (lucky draw, three full-house lines, two-ticket house)", async () => {
+  test("UC-61 the worked examples in the manifest are accepted exactly as written (settings, then winners and prizes)", async () => {
     const o = await organizer(); await call("POST", "/api/z", eng("EXAMPLE-1", { cap: 250 }), o.ai);
-    const body = { startRound: START + 100, callSeconds: 9, cap: 250, tickets: 2, rounds: 1,
-      rewards: [{ pattern: "line", ordinal: 1, text: "Gift hamper" }, { pattern: "blackout", ordinal: 1, text: "Voucher 50" }, { pattern: "blackout", ordinal: 2, text: "Voucher 30" }, { pattern: "corners", ordinal: 1, text: "Tablet" }],
-      breaks: [{ after: 30, seconds: 90, kind: "youtube", title: "Anniversary film", mediaUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ" }, { after: 60, seconds: 60, kind: "lucky", title: "Lucky draw", winners: 3 }] };
+    const body = { startRound: START + 100, cap: 250, brand: { name: "Acme", color: "#0B3D91" }, opening: [{ kind: "speech", title: "The draw is at 4 pm. Good luck!" }] };
     const r = await call("PATCH", "/api/z/EXAMPLE-1/settings", body, o.ai); expect(r.status).toBe(200);
+    const d = await call("POST", "/api/z/EXAMPLE-1/drawset", { winners: 3, prizes: ["Smart watch", "Gift voucher", "Coffee mug"], mode: "auto" }, o.ai); expect(d.status).toBe(200);
   });
   test("UC-62 the summary reads everything back (time, speed, limit, rewards, breaks, status) so the AI can confirm it; strangers and other organizers get nothing", async () => {
     const o = await organizer(), other = await organizer();

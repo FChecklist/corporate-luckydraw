@@ -62,7 +62,7 @@ export const LOGO_MIN_SIDE = 64;
 export const LOGO_MAX_RATIO = 4;
 export const LOGO_STORED_MIN_SIDE = 48;
 export const LOGO_STORED_MAX_SIDE = 192;
-export const LOGO_RULES_TEXT = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. It is shrunk to fit (30 KB, 192 pixels) and show it 30 pixels high on every ticket, in the browser and in the installed app.";
+export const LOGO_RULES_TEXT = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. It is shrunk to fit (30 KB, 192 pixels) and shown 30 pixels high on every participant screen, in the browser and in the installed app.";
 /** Width and height of a PNG, JPEG or WebP from its first bytes (a string of raw characters), or null when they cannot be read. */
 export function logoSize(raw: string, kind: string): { w: number; h: number } | null {
   const b = (i: number) => raw.charCodeAt(i);
@@ -170,19 +170,19 @@ export const isTimeZone = (z: unknown): z is string => { if (typeof z !== "strin
 export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown; idKind?: unknown; roomMode?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
   const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}), ...(base.idKind === "email" ? { idKind: "email" as const } : {}), ...(base.roomMode ? { roomMode: true as const } : {}) };
   if (input.rounds !== undefined) {
-    if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `An engagement has 1 to ${MAX_ROUNDS} rounds.` };
+    if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `A Lucky Draw has one draw and no rounds. Leave rounds out.` };
     cfg.rounds = input.rounds as number;
   }
   if (input.tickets !== undefined) {
-    if (input.tickets !== 1 && input.tickets !== 2) return { ok: false, error: "Each participant gets 1 or 2 cards." };
+    if (input.tickets !== 1 && input.tickets !== 2) return { ok: false, error: "A Lucky Draw has no cards: each person registers once." };
     cfg.tickets = input.tickets;
   }
   if (input.rewards !== undefined) {
-    if (!Array.isArray(input.rewards) || input.rewards.length < 1 || input.rewards.length > MAX_REWARD_LINES) return { ok: false, error: `Add between 1 and ${MAX_REWARD_LINES} rewards.` };
+    if (!Array.isArray(input.rewards) || input.rewards.length < 1 || input.rewards.length > MAX_REWARD_LINES) return { ok: false, error: `Add between 1 and ${MAX_REWARD_LINES} prize lines. Winners and prizes are normally saved with the draw settings.` };
     const out: RewardLine[] = []; const seen = new Set<string>();
     for (const r of input.rewards as any[]) {
       const pattern = r?.pattern as HouseId; const scope: Scope = "ticket"; const ordinal = r?.ordinal === undefined ? 1 : r.ordinal;
-      if (!HOUSE_ORDER.includes(pattern)) return { ok: false, error: "Unknown house in the rewards." };
+      if (!HOUSE_ORDER.includes(pattern)) return { ok: false, error: "Unknown prize type in the rewards." };
       if (!Number.isInteger(ordinal) || ordinal < 1) return { ok: false, error: "A winner number must be 1 or more." };
       const most = Math.max(maxWinnersFor(pattern), opts.stored ? LEGACY_MAX_ORDINAL : 0);
       const kept = base.rewards.some((x) => x.pattern === pattern && x.scope === scope && x.ordinal === ordinal); // already saved in this game: it stays
@@ -192,18 +192,18 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       seen.add(id);
       out.push({ pattern, scope, ordinal, text: cleanText(r?.text, 80) });
     }
-    for (const l of out) if (l.ordinal > 1 && !out.some((x) => x.pattern === l.pattern && x.scope === l.scope && x.ordinal === l.ordinal - 1)) return { ok: false, error: "A 2nd, 3rd... reward needs the one before it. Note that sending rewards REPLACES the whole list, so send every reward line each time, with ordinals starting at 1 for each house." };
+    for (const l of out) if (l.ordinal > 1 && !out.some((x) => x.pattern === l.pattern && x.scope === l.scope && x.ordinal === l.ordinal - 1)) return { ok: false, error: "A 2nd, 3rd... reward needs the one before it. Note that sending rewards REPLACES the whole list, so send every reward line each time, with ordinals starting at 1 for each prize type." };
     cfg.rewards = out;
   }
   if (cfg.rewards.length === 0) cfg.rewards = defaultRewards();
   if (input.breaks !== undefined) {
-    if (!Array.isArray(input.breaks) || input.breaks.length > maxMidFor(cfg.tickets)) return { ok: false, error: `At most ${maxMidFor(cfg.tickets)} brand moments during the game with ${cfg.tickets} card${cfg.tickets === 1 ? "" : "s"} per person (lucky draws count too).` };
+    if (!Array.isArray(input.breaks) || input.breaks.length > maxMidFor(cfg.tickets)) return { ok: false, error: `At most ${maxMidFor(cfg.tickets)} brand moments during the draw (lucky draws count too).` };
     const out: BreakCfg[] = [];
     for (const b of input.breaks as any[]) {
       // No number typed (or `auto: true` from an earlier save): the software places it, evenly spread among the automatic ones, and it lasts 60 s unless told otherwise.
       const auto = b?.auto === true || b?.after === undefined || b?.after === null || b?.after === "";
       const after = auto ? 0 : b?.after, seconds = auto && (b?.seconds === undefined || b?.seconds === null || b?.seconds === "") ? 60 : b?.seconds, kind = b?.kind;
-      if (!auto && (!Number.isInteger(after) || after < 1 || after > MAX_CALLS - 1)) return { ok: false, error: `A break starts after 1 to ${MAX_CALLS - 1} numbers have been called.` };
+      if (!auto && (!Number.isInteger(after) || after < 1 || after > MAX_CALLS - 1)) return { ok: false, error: `A break must start at a whole step from 1 to ${MAX_CALLS - 1} of the draw.` };
       if (!Number.isInteger(seconds) || seconds < 15 || seconds > 600 || seconds % 3) return { ok: false, error: "A break lasts 15 to 600 seconds, in steps of 3." };
       if (!KINDS.has(kind)) return { ok: false, error: "A break is a file, a YouTube link, slides, a speech or a lucky draw." };
       const winners = kind === "lucky" ? (b?.winners === undefined ? 3 : b.winners) : undefined;
@@ -225,10 +225,10 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     }
     { const nAuto = out.filter((x) => x.auto).length; let k = 0; for (const x of out) if (x.auto) x.after = autoAfter(nAuto, ++k); }
     out.sort((a, b) => a.after - b.after);
-    for (let i = 1; i < out.length; i++) if (out[i]!.after === out[i - 1]!.after) return { ok: false, error: "Two breaks cannot start at the same number." };
+    for (let i = 1; i < out.length; i++) if (out[i]!.after === out[i - 1]!.after) return { ok: false, error: "Two breaks cannot start at the same step." };
     cfg.breaks = out;
   }
-  if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is \"auto\" (squares light up by themselves) or \"tap\" (guests tap to daub)." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
+  if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
   if (input.join !== undefined) { if (input.join !== "name" && input.join !== "phone") return { ok: false, error: "Joining is \"name\" (guests type their name) or \"phone\" (guests also give a mobile number)." }; if (input.join === "phone") cfg.join = "phone"; else delete cfg.join; }
   if (input.tz !== undefined) { if (input.tz === null || input.tz === "") delete cfg.tz; else if (isTimeZone(input.tz)) { if (input.tz === DEFAULT_TZ) delete cfg.tz; else cfg.tz = input.tz; } else return { ok: false, error: "That time zone is not known. Use a name such as America/New_York or Asia/Kolkata." }; }
   if (input.name !== undefined) { const nm = cleanText(input.name, 60); if (nm) cfg.name = nm; else delete cfg.name; }
@@ -247,10 +247,10 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       cfg.brand = { name: nm, color, ...(logo ? { logo } : {}) };
     }
   }
-  for (const [field, label, max, isOpening] of [["opening", "before the game starts", maxEdgeFor(cfg.tickets), true], ["closing", "at the end of the game", maxEdgeFor(cfg.tickets), false]] as const) {
+  for (const [field, label, max, isOpening] of [["opening", "while people wait", maxEdgeFor(cfg.tickets), true], ["closing", "at the end", maxEdgeFor(cfg.tickets), false]] as const) {
     const raw = (input as any)[field];
     if (raw === undefined) continue;
-    if (!Array.isArray(raw) || raw.length > max) return { ok: false, error: `At most ${max} brand moment${max === 1 ? "" : "s"} ${label} with ${cfg.tickets} card${cfg.tickets === 1 ? "" : "s"} per person.` };
+    if (!Array.isArray(raw) || raw.length > max) return { ok: false, error: `At most ${max} brand moment${max === 1 ? "" : "s"} ${label}.` };
     const slots: BrandSlot[] = [];
     for (const b of raw as any[]) {
       const kind = b?.kind;
@@ -272,13 +272,13 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       }
       slots.push({ kind, title, ...(mediaUrl ? { mediaUrl } : {}), ...(seconds !== undefined ? { seconds } : {}) });
     }
-    if (isOpening && slots.reduce((t, x) => t + (x.seconds ?? 0), 0) > OPENING_WINDOW_SECONDS) return { ok: false, error: `Openings must fit together in the ${OPENING_WINDOW_SECONDS / 60} minutes before the first number. An opening with no time counts as 60 seconds.` };
+    if (isOpening && slots.reduce((t, x) => t + (x.seconds ?? 0), 0) > OPENING_WINDOW_SECONDS) return { ok: false, error: `Openings must fit together in the ${OPENING_WINDOW_SECONDS / 60} minutes before the draw. An opening with no time counts as 60 seconds.` };
     if (isOpening) cfg.opening = slots; else cfg.closing = slots;
   }
   { // the allowance follows the tickets: changing from 2 tickets to 1 must not leave more than one ticket's worth switched on
     const t = cfg.tickets;
     if (cfg.breaks.length > maxMidFor(t) || cfg.opening.length > maxEdgeFor(t) || cfg.closing.length > maxEdgeFor(t))
-      return { ok: false, error: `With ${t} card${t === 1 ? "" : "s"} per person you can use ${brandMomentsFor(t)} brand moments: ${maxEdgeFor(t)} before the game, ${maxMidFor(t)} during it and ${maxEdgeFor(t)} at the end. Please switch some off.` };
+      return { ok: false, error: `You can use ${brandMomentsFor(t)} brand moments: ${maxEdgeFor(t)} while people wait, ${maxMidFor(t)} during the draw and ${maxEdgeFor(t)} at the end. Please switch some off.` };
   }
   if (input.verify !== undefined) {
     if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, mobile number or employee ID, or both." };

@@ -61,7 +61,7 @@ describe("the front door", () => {
 });
 
 describe("the guided path, followed like an outside AI", () => {
-  test("new game: day, time, occasion, size, how it plays, prizes, extras, read-back, save: only links it was given, nothing saved before the yes", async () => {
+  test("new game: day, time, occasion, size, who can join, winners, how the draw starts, read-back, save: only links it was given, nothing saved before the yes", async () => {
     const o = await organizer(); given.clear();
     let t = (await open(`${o.base}/go`)).text; expect(t).toMatch(/Hello! I can set up or manage/);
     t = await pick(t, /Start a new game/); expect(t).toMatch(/Which time zone/); t = await pick(t, /^India time/); expect(t).toMatch(/Which day/); expect(t).toMatch(/Tomorrow, Fri 2 Oct/);
@@ -69,37 +69,35 @@ describe("the guided path, followed like an outside AI", () => {
     t = await pick(t, /^4 pm/); expect(t).toMatch(/What is the occasion/);
     t = await pick(t, /Diwali party/); expect(t).toMatch(/How many people at most/); expect(t).toMatch(/Rs 2,399 \(about US\$/); // price from the software's own list
     t = await pick(t, /Up to 250/); expect(t).toMatch(/recommended choices/);
-    t = await pick(t, /2 cards/); expect(t).toMatch(/2 cards per person/); // a toggle: same screen, changed
-    t = await pick(t, /Looks good/); expect(t).toMatch(/Which prizes/);
-    t = await pick(t, /^Classic/); expect(t).toMatch(/lucky draw/);
-    t = await pick(t, /Add one lucky draw/);
-    expect(t).toMatch(/clear yes/); expect(t).toMatch(/Nothing has been saved yet/); expect(t).toMatch(/Fri 2 Oct, 4 pm India time/); expect(t).toMatch(/up to 250/);
+    t = await pick(t, /Invite-only/); expect(t).toMatch(/Invite-only\./); // a toggle: same screen, changed
+    t = await pick(t, /Looks good/); expect(t).toMatch(/How many winners/);
+    t = await pick(t, /^5 winners/); expect(t).toMatch(/How should the draw start/);
+    t = await pick(t, /^Manual/);
+    expect(t).toMatch(/clear yes/); expect(t).toMatch(/Nothing has been saved yet/); expect(t).toMatch(/Fri 2 Oct, 4 pm India time/); expect(t).toMatch(/up to 250/); expect(t).toMatch(/Winners: 5/); expect(t).toMatch(/press Draw now/);
     expect((await j(await call("GET", `/ai/${o.key}/history`))).engagements.length).toBe(0); // the read-back saved nothing
     t = await pick(t, /Yes, save my draft/); expect(t).toMatch(/Your draft is saved\. Its code is DIWALI-1002/); expect(t).toMatch(/Nobody else can see it/);
     expect(t).toContain(`${ORIGIN}/zc.html?e=DIWALI-1002&do=publish`); // the one-tap hand-over for publishing
     expect(t).toMatch(/I never pay/);
     const sm = await j(await call("GET", `/ai/${o.key}/z/DIWALI-1002/summary`));
-    expect(sm).toMatchObject({ id: "DIWALI-1002", name: "Diwali party, Fri 2 Oct", tickets: 2, tz: "Asia/Kolkata", limit: 250, callSeconds: 12, rounds: 1, closed: false, status: "draft" }); // B02: the guided path makes a new game, which runs at 12 seconds
+    expect(sm).toMatchObject({ id: "DIWALI-1002", name: "Diwali party, Fri 2 Oct", tz: "Asia/Kolkata", limit: 250, closed: true, status: "draft", draw: { winners: 5, mode: "manual", prizes: [] } }); // the guided path saves the winners and the draw mode
     expect(sm.startMs).toBe(Date.UTC(2026, 9, 2, 10, 30)); // 4 pm India time tomorrow
-    expect(sm.rewards.map((r: any) => r.pattern)).toEqual(["line", "corners", "x", "blackout"]);
-    expect(sm.breaks).toMatchObject([{ kind: "lucky", winners: 1, after: 38 }]); // placed by the software
     expect(sm.links.publishHandover).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=publish`); expect(sm.links.console).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002`);
     expect(sm.nextSteps.map((s: any) => s.step)).toEqual(["Name the prizes", expect.stringMatching(/^Publish/), "Pay (the game does not begin until it is paid)", "Share the guest link and load the guest list"]);
     expect(sm.nextSteps.every((s: any) => s.done === false)).toBe(true);
   });
   test("a second game on the same day gets its own code, never overwriting the first", async () => {
     const o = await organizer();
-    const run = async () => { let t = (await open(`${o.base}/go/new`)).text; t = await pick(t, /^India time/); t = await pick(t, /^Tomorrow/); t = await pick(t, /^4 pm/); t = await pick(t, /Diwali/); t = await pick(t, /Up to 100/); t = await pick(t, /Looks good/); t = await pick(t, /^Simple/); t = await pick(t, /No lucky draw/); return pick(t, /Yes, save/); };
+    const run = async () => { let t = (await open(`${o.base}/go/new`)).text; t = await pick(t, /^India time/); t = await pick(t, /^Tomorrow/); t = await pick(t, /^4 pm/); t = await pick(t, /Diwali/); t = await pick(t, /Up to 100/); t = await pick(t, /Looks good/); t = await pick(t, /^1 winner/); t = await pick(t, /^Automatic/); return pick(t, /Yes, save/); };
     expect(await run()).toMatch(/code is DIWALI-1002\./); expect(await run()).toMatch(/code is DIWALI-1002-2\./);
   });
   test("existing game: only games not yet started are listed; change the time, links, who joined, helper link, message (after publishing only), and the one-tap hand-overs", async () => {
     const o = await organizer(); given.clear();
-    let t = (await open(`${o.base}/go/new`)).text; t = await pick(t, /^India time/); t = await pick(t, /^Tomorrow/); t = await pick(t, /^4 pm/); t = await pick(t, /Diwali/); t = await pick(t, /Up to 100/); t = await pick(t, /Looks good/); t = await pick(t, /^Classic/); t = await pick(t, /No lucky draw/); await pick(t, /Yes, save/);
+    let t = (await open(`${o.base}/go/new`)).text; t = await pick(t, /^India time/); t = await pick(t, /^Tomorrow/); t = await pick(t, /^4 pm/); t = await pick(t, /Diwali/); t = await pick(t, /Up to 100/); t = await pick(t, /Looks good/); t = await pick(t, /^3 winners/); t = await pick(t, /^Automatic/); await pick(t, /Yes, save/);
     const start = (await open(`${o.base}/go`)).text;
     let g = await pick(start, /Change a game that has not started/); expect(g).toMatch(/DIWALI-1002/); expect(g).toMatch(/\(draft\)/);
     g = await pick(g, /DIWALI-1002/); expect(g).toMatch(/Game DIWALI-1002: draft/); expect(g).toMatch(/Publish \(free\)/);
-    const menu = g; expect(menu).not.toMatch(/Send a message to every guest/); // nobody can see a draft
-    expect(choicesOf(menu).find((c) => /Delete all guest data now/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=erase`);
+    const menu = g; expect(menu).not.toMatch(/Send a message to every participant/); // nobody can see a draft
+    expect(choicesOf(menu).find((c) => /Delete all participant data now/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=erase`);
     expect(choicesOf(menu).find((c) => /Pause or stop/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=pause`);
     const links = await pick(menu, /Show the links/); expect(links).toContain(`${ORIGIN}/zc.html?e=DIWALI-1002`); expect(links).toMatch(/appear after you publish/);
     expect(await pick(menu, /How many have joined/)).toMatch(/0 people have joined DIWALI-1002/);
@@ -145,7 +143,7 @@ describe("the third route: any AI that searches the web", () => {
   test("the facts never boast: no 'best', '100% safe', 'fully compliant', 'unhackable', 'cheat-proof' or 'certified' as a claim, and the honest limits are present", () => {
     const all = FACTS.map((f) => f.say).join(" ") + " " + llmsTxt();
     expect(all).not.toMatch(/best|100% safe|fully compliant|unhackable|cheat-proof|certified/i);
-    expect(all).toMatch(/not a certificate/); expect(all).toMatch(/ISO 27001 or SOC 2/); expect(all).toMatch(/very hard, not impossible/); expect(all).toMatch(/designed to follow/i);
+    expect(all).toMatch(/not a certificate/); expect(all).toMatch(/ISO 27001 or SOC 2/); expect(all).toMatch(/same entries and the same public beacon give the same winners/); expect(all).toMatch(/designed to follow/i);
     expect(FACTS.length).toBe(10); expect(new Set(FACTS.map((f) => f.topic)).size).toBe(10); // ten facts, each its own topic
   });
   test("the Trust page and llms.txt are served as public pages (build list, headers, sitemap, not blocked for crawlers)", () => {

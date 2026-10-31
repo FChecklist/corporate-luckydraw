@@ -380,7 +380,7 @@ describe("organizers, their AI assistant, and what the AI may not do", () => {
     const r = await (await call("POST", "/api/z/MINE1/erase", {}, asA())).json() as any;
     expect(r.error).toMatch(/AI assistant may not/);
     const mf = await (await call("GET", "/api/z/ai-manifest")).json() as any;
-    expect(JSON.stringify(mf.you_cannot)).toMatch(/Choose, publish, change or remove winners/);
+    expect(JSON.stringify(mf.you_cannot)).toMatch(/Choose, change or remove winners, or press Draw now/);
     expect(JSON.stringify(mf)).not.toMatch(/lottery|bogey|player\b|prize\b|admin/i);
   });
   test("a new AI key replaces the old one; revoking stops it at once; the master key is unaffected", async () => {
@@ -957,7 +957,7 @@ describe("brand moments: five for each ticket, placed by the software", () => {
   test("the AI manual teaches the new rules and no longer says breaks repeat in every round", async () => {
     const { manualText } = await import("../src/ai-link");
     const t = manualText("https://x.example", "cba_" + "a".repeat(48), "ai", T);
-    expect(t).toContain("5 for each card"); expect(t).toContain("ROUND 1 only"); expect(t).toContain("opening"); expect(t).toContain("closing");
+    expect(t).toContain("no breaks"); expect(t).not.toContain("ROUND 1 only"); expect(t).toContain("opening");
     expect(t).not.toContain("breaks repeat in every round");
   });
 });

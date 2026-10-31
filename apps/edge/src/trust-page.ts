@@ -8,7 +8,7 @@ const ORIGIN = "https://luckydraw.corporatetambola.com";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 export const TRUST_UPDATED = "2026-10-07";
 const TITLE = "Safety, privacy and how it works: 10 facts | Corporate Lucky Draw";
-const DESC = "Ten plain facts about Corporate Lucky Draw: who runs the game, unique cards, guest data auto-deleted within 24 hours, encryption, fair winners, the laws it is designed to follow, the AI assistant and money.";
+const DESC = "Ten plain facts about Corporate Lucky Draw: who runs the game, one entry per person, guest data auto-deleted within 24 hours, encryption, fair winners, the laws it is designed to follow, the AI assistant and money.";
 
 export function trustHtml(): string {
   const facts = FACTS.map((f) => `<li><b>${esc(f.topic)}.</b> ${esc(f.say)}</li>`).join("\n");
@@ -61,7 +61,7 @@ The organizer has a personal link of the form ${ORIGIN}/ai/<key>. If they pasted
 
 ## Honest limits
 - The wording is "designed to follow" for India's DPDP Act 2023, the EU GDPR and the US CCPA: this is a statement by the seller, not a certificate. No outside certification such as ISO 27001 or SOC 2 is held.
-- Cheating is called very hard, not impossible.
+- The fairness rule is: the same entries and the same public beacon give the same winners.
 - Guests' names and mobile numbers are auto-deleted within 24 hours after a game ends; the organizer's details and the winners' record are kept 365 days, then deleted.
 `;
 }
