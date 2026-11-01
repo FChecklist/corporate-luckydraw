@@ -46,7 +46,7 @@ describe("E9: the owner is told of each paid order", () => {
     expect(ownerMails().length).toBe(0); // an order that is only opened is not a paid order
     expect((await verify(o.paymentId, o.razorpay.orderId)).status).toBe(200);
     const m = ownerMails(); expect(m.length).toBe(1);
-    const txn = (raw.query("SELECT txn_id FROM payment").get() as any).txn_id as string; expect(txn).toMatch(/^BNG-/);
+    const txn = (raw.query("SELECT txn_id FROM payment").get() as any).txn_id as string; expect(txn).toMatch(/^LDR-/);
     expect(m[0]!.subject).toContain("Paid order"); expect(m[0]!.subject).toContain("Corporate Lucky Draw");
     for (const part of ["Game: Corporate Lucky Draw", "up to 500", txn, "Asha Rao", "asha@acme.com", "Rs"]) expect(m[0]!.body).toContain(part);
   });
@@ -63,7 +63,7 @@ describe("E9: the owner is told of each paid order", () => {
   });
   test("the claim is one row per payment, so two calls at the same instant cannot both send", async () => {
     const sent: string[] = [];
-    const order = { gameLabel: "Corporate Lucky Draw", paymentId: "pay_same", txnId: "BNG-pay_same", planLabel: "up to 500 players", amountText: "Rs 100", organizerName: "Asha", organizerEmail: "asha@acme.com" };
+    const order = { gameLabel: "Corporate Lucky Draw", paymentId: "pay_same", txnId: "LDR-pay_same", planLabel: "up to 500 players", amountText: "Rs 100", organizerName: "Asha", organizerEmail: "asha@acme.com" };
     const results = await Promise.all([1, 2, 3].map(() => notifyOwnerOfPaidOrder(async (subject) => { sent.push(subject); return true; }, env.DB, order, T)));
     expect(results.filter(Boolean).length).toBe(1); expect(sent.length).toBe(1);
     expect((raw.query("SELECT COUNT(*) c FROM kv WHERE k LIKE 'ownerpaid/%'").get() as any).c).toBe(1);

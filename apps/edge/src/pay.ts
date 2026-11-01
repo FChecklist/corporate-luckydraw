@@ -400,8 +400,9 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!row || !m.paytest) return json({ error: "Not found" }, 404);
     return row.status === "paid" ? json(JSON.parse(row.result)) : json({ confirming: true }, 202);
   }
-  if (req.method === "POST" && p === "/api/payments/paytest") { // Payment Testing: Rs 1 from India, US$ 1 from abroad; buys nothing; anyone, any number of times
+  if (req.method === "POST" && p === "/api/payments/paytest") { // Payment Testing: Rs 1 from India, US$ 1 from abroad; buys nothing; owner only (x-organizer = owner key), any number of times
     if (!rzp || (await getMode(env)) === "TEST") return json({ error: "Online payments are not switched on." }, 503);
+    { const k = req.headers.get("x-organizer") ?? ""; if (!env.ORGANIZER_SECRET || k !== env.ORGANIZER_SECRET) return json({ error: "The payment test is for the owner only." }, 403); } // owner order 2026-11-01: owner key only
     const b = await body(req);
     if (!b || typeof b.email !== "string" || refusedMail(b.email) === null) return json({ error: "Enter a valid e-mail address." }, 400);
     { const cm = consentMissing(b, "K3"); if (cm) return cm; } // K3: also before the Rs 1 test payment

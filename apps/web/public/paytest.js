@@ -1,7 +1,7 @@
-/* Corporate Lucky Draw: Payment testing. A real payment of Rs 1 (India) or US$ 1 (abroad) that buys nothing, so anyone can see that paying and the invoice work. Any number of times. */
+/* Corporate Lucky Draw: Payment testing. A real payment of Rs 1 (India) or US$ 1 (abroad) that buys nothing, owner-only: it needs the owner key. Any number of times. */
 (function () {
   const TB = window.TB, esc = TB.esc, $app = document.getElementById("app");
-  const S = { k3: {}, country: "IN", pcode: "91", err: "", busy: false, done: null, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })() };
+  const S = { k3: {}, key: "", country: "IN", pcode: "91", err: "", busy: false, done: null, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })() };
   const head = `<div class="zhead"><b>Corporate Lucky Draw · Payment testing</b><a class="zsnd" href="/" style="text-decoration:none">Home</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
   function view() {
     if (S.done) {
@@ -13,8 +13,9 @@
     }
     const cur = S.country === "IN" ? "INR" : "USD", amt = TB.money(1, cur);
     return `${head}<div class="zcard"><h2>Test the payment</h2>
-      <p class="zsmall" style="margin-top:0">This is a real payment of <b>${esc(amt)}</b> (Rs 1 if you are in India, US$ 1 if you are abroad). It buys nothing. You get an invoice, so you can see the whole experience. Anyone can test it, any number of times.</p></div>
+      <p class="zsmall" style="margin-top:0">This is a real payment of <b>${esc(amt)}</b> (Rs 1 if you are in India, US$ 1 if you are abroad). It buys nothing. You get an invoice, so you can see the whole experience. Only the owner can run it (the owner key is needed), any number of times.</p></div>
       <div class="zcard zform"><h2>Details</h2>
+        <label for="ok">Owner key</label><input id="ok" type="password" autocomplete="off" value="${esc(S.key)}" placeholder="Owner key (not saved)">
         <label for="nm">Name</label><input id="nm" autocomplete="name" value="${esc(S.name)}" placeholder="Full name">
         <label for="em">Email (your invoice comes here)</label><input id="em" type="email" autocomplete="email" value="${esc(S.email)}" placeholder="Email">
         <label for="ph">Mobile <span class="zsmall" style="display:inline">(optional)</span></label>
@@ -27,7 +28,7 @@
         <button class="zbtn" id="go" data-needs="K3" disabled aria-disabled="true" ${S.busy ? 'data-hold="1"' : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
         <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Billing data is kept for audit and tax reasons. No refunds are given for test payments.</p></div>`;
   }
-  const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
+  const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { key: g("ok"), name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
   const draw = () => { $app.innerHTML = view(); bind(); CBConsent.wire($app, "K3", S.k3); TB.payer.mark($app); if (S.done && TB.invoiceWire) TB.invoiceWire(S.done); };
   async function waitForConfirm(paymentId) {
     const t0 = Date.now();
@@ -45,6 +46,7 @@
       keep(); S.err = "";
       if (!CBConsent.all($app, "K3")) { S.err = "Please tick the box to continue."; return draw(); }
       const consent = CBConsent.payload($app, "K3");
+      if (!(S.key || "").trim()) { S.err = "Please enter the owner key."; return draw(); }
       if ((S.name || "").trim().length < 2) { S.err = "Please enter your name."; return draw(); }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((S.email || "").trim())) { S.err = "Please enter a valid email."; return draw(); }
       const taxId = (S.tax || "").trim().toUpperCase();
@@ -52,7 +54,7 @@
       TB.payer.save(S);
       S.busy = true; draw();
       try {
-        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode });
+        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode }, { headers: { "x-organizer": (S.key || "").trim() } });
         let res = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
         if (res && res.confirming) res = await waitForConfirm(r.paymentId);
         S.done = res;

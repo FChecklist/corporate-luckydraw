@@ -423,7 +423,7 @@ describe("invoice carries Razorpay's own record (owner list 2026-10-10)", () => 
 });
 
 describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
-  const start = (o: Record<string, unknown> = {}) => call("POST", "/api/payments/paytest", { name: "Asha Rao", email: "asha@acme.in", country: "IN", ...o });
+  const start = (o: Record<string, unknown> = {}) => call("POST", "/api/payments/paytest", { name: "Asha Rao", email: "asha@acme.in", country: "IN", ...o }, { "x-organizer": "plat" });
   const payIt = async (r: any, payId = "pay_T1") => {
     rz.payments[payId] = { id: payId, order_id: r.razorpay.orderId, status: "captured", amount: r.razorpay.amount, currency: r.razorpay.currency, method: "upi", vpa: "asha@okicici", created_at: Math.floor(T / 1000) };
     return call("POST", "/api/payments/verify", { paymentId: r.paymentId, razorpay_order_id: r.razorpay.orderId, razorpay_payment_id: payId, razorpay_signature: hmac("sek", `${r.razorpay.orderId}|${payId}`) });
@@ -500,7 +500,7 @@ describe("central payments (every order opens through IT Services by Rajat Agarw
     expect(central.orders[0].payment_ref).toMatch(/^pay_[0-9a-f]{16}$/);
   });
   test("the payment test is the payment_test plan", async () => {
-    const r = await call("POST", "/api/payments/paytest", { email: "a@b.co", name: "Asha Rao", country: "IN" });
+    const r = await call("POST", "/api/payments/paytest", { email: "a@b.co", name: "Asha Rao", country: "IN" }, { "x-organizer": "plat" });
     expect(r.status).toBe(200);
     expect(central.orders[0]).toMatchObject({ plan: "payment_test", amount_minor: 100 });
   });
@@ -521,5 +521,19 @@ describe("central payments (every order opens through IT Services by Rajat Agarw
     env.PAY_SERVICE_KEY = undefined;
     expect((await buy()).status).toBe(200);
     expect(central.orders).toHaveLength(0);
+  });
+});
+
+describe("Payment Testing is owner-only (owner order 2026-11-01)", () => {
+  const body = { name: "Asha Rao", email: "asha@acme.in", country: "IN" };
+  test("without the owner key, with a wrong key, or with an organizer key it opens no order", async () => {
+    for (const h of [{}, { "x-organizer": "nope" }, { "x-organizer": "" }]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(403); }
+    expect(raw.query("SELECT COUNT(*) c FROM payment WHERE product_type='payment_test'").get()).toEqual({ c: 0 });
+  });
+  test("with the owner key it opens a Rs 1 order whose id starts with LDR-", async () => {
+    const r = await call("POST", "/api/payments/paytest", body, { "x-organizer": "plat" });
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as any; expect(j.razorpay.amount).toBe(100);
+    expect((raw.query("SELECT txn_id FROM payment WHERE id=?").get(j.paymentId) as any).txn_id).toBe(`LDR-${j.paymentId}`);
   });
 });
