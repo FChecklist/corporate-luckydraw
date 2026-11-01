@@ -38,7 +38,7 @@ describe("the dedicated mail builders", () => {
   test("organizer mail: own subject, warning at the top and the bottom, plain-text part, numbered steps, the paste as plain text (no hyperlink)", () => {
     const m = aiLinkMail(ORIGIN, KEY, "start", T + 86_400_000);
     expect(m.subject).toBe(AI_SUBJECT); expect(m.subject).toMatch(/personal AI work link/i);
-    expect(AI_WARNING).toBe("DO NOT FORWARD: this email holds your personal AI work link"); expect(AI_WARNING.length).toBeLessThan(70); // one line
+    expect(AI_WARNING).toBe("PLEASE KEEP SAFE: this email holds your personal AI work link"); expect(AI_WARNING.length).toBeLessThan(70); // one line
     expect(m.text.startsWith(AI_WARNING)).toBe(true); expect(m.text.replace(footerText(ORIGIN), "").trim().endsWith(AI_WARNING)).toBe(true); // plain-text part, warning top and bottom
     expect(m.text.split(AI_WARNING).length).toBe(3);
     const h = m.html; const first = h.indexOf(AI_WARNING), last = h.lastIndexOf(AI_WARNING);
@@ -65,7 +65,7 @@ describe("the dedicated mail builders", () => {
     expect(m.text.startsWith(HOST_WARNING)).toBe(true); expect(m.text.replace(footerText(ORIGIN), "").trim().endsWith(HOST_WARNING)).toBe(true); expect(m.html.split(HOST_WARNING).length).toBe(3);
     expect(m.text).toContain("boss@acme.com"); expect(m.text).toMatch(/watch and announce/i); expect(m.text).toMatch(/host/i);
     expect([...m.html.matchAll(/href\s*=\s*"([^"]*)"/gi)].map((x) => x[1]).filter((h) => !/^mailto:|legal.html$/.test(h!))).toEqual([`${ORIGIN}/zc.html`]); expect(m.text).toContain(`${ORIGIN}/ai/${k}`);
-    expect(m.text).toMatch(/cannot change settings/);
+    expect(m.text).toMatch(/not for changing settings/);
   });
 });
 
