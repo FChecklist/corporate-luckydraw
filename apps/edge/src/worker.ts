@@ -771,7 +771,7 @@ export const AI_MANIFEST = {
     { do: "See the winners to hand prizes to, by entry number (names and numbers stay in the console), and tick each one as given", call: "GET /api/z/{id}/prizes ; POST /api/z/{id}/prizegiven {round, pattern, ordinal, seat, given} (copy the values from the prizes list; in a Lucky Draw round is 1 and pattern is lucky)" },
     { do: "Change of phone: let one person move their entry to a new phone", call: "POST /api/z/{id}/unbind {seat} (the entry number; the console takes a mobile number, an AI never does)" },
     { do: "Flag an entry as Organizer, Host or Co-host", call: "POST /api/z/{id}/mark {seat, role: organizer|host|co-host|none} (the entry number; an AI never names a mobile number)" },
-    { do: "Invitations: settle how many people each participant may invite and which kinds of people, before the draw", call: "PATCH /api/z/{id}/settings {invites: {on, per: 1-10, cats}}" },
+    { do: "Invitations: settle how many people each participant may invite and which kinds of people, before the draw", call: "PATCH /api/z/{id}/settings {invites: {on, per: 1-4, cats}}" },
     { do: "Create a Host key (up to 5 Hosts; through an AI link a Host may only watch, announce and tick prizes given)", call: "POST /api/org/host {label, email?, mobile?} (at least one of email or mobile) -> {hostKey, manualUrl, id, label}. The AI cannot call it (403). A Host must have an e-mail address or a mobile number (the owner gives it); their own one-time console link (7 days) is e-mailed to the Host, or sent by the owner on WhatsApp" },
     { do: "Co-hosts (unlimited; a Co-host has a name and a mobile number, no e-mail, belongs to one game, only invites people with an own link and pays) are added by the Organizer or a Host in the console, never through an AI link", call: "The people on the team: GET /api/org/team (or GET /api/org/team?e={game id}); remove one: POST /api/org/team/retire {id}" },
     { do: "Read the audit trail of AI calls, when the game ends, and whether the report is ready (the report address itself goes only to the organizer)", call: "GET /api/org/ai/audit ; GET /api/z/{id}/life ; GET /api/z/{id}/reportlink" },
@@ -1426,7 +1426,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!ID.test(b.id ?? "")) return json({ error: "The game code can use letters, numbers, - and _ only (3 to 40 characters)." }, 400);
     if (!Number.isInteger(b.startRound)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(b.callSeconds) || b.callSeconds % 3 || b.callSeconds < 6) return json({ error: GAP_MSG }, 400);
-    if (!Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000) return json({ error: "Please enter the number of people as a whole number from 1 up." }, 400);
+    if (!Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000) return json({ error: "Please enter the number of people as a whole number from 1 to 100,000." }, 400);
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     let createCap = now + MAX_AHEAD_MS; // with a pack already bought (an entitlement) the engagement is paid for by the organizer: up to 365 days from that payment
     if (!a.plat && a.org) { const en = await env.DB.prepare("SELECT id FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(a.org, b.cap).first<{ id: string }>(); const end = en ? await entitlementWindowEndMs(env.DB, en.id) : null; if (end) createCap = end - 1; }
@@ -2127,7 +2127,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (only12(env) && next.call_seconds !== 12 && next.call_seconds !== e.call_seconds) return json({ error: ONLY_12S_MSG }, 400); // an older game keeps its own speed; nothing new may pick another
     if (!Number.isInteger(next.start_round)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(next.call_seconds) || next.call_seconds % 3 || next.call_seconds < 6) return json({ error: GAP_MSG }, 400);
-    if (!Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "Please enter the number of people as a whole number from 1 up." }, 400);
+    if (!Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "Please enter the number of people as a whole number from 1 to 100,000." }, 400);
     if (isDemo(e) && next.cap > 10) return json({ error: "A demo game is for up to 10 people." }, 400);
     if (roundMs(next.start_round) <= now) return json({ error: "Pick a start time in the future." }, 400);
     if (next.start_round !== e.start_round) { // an unpaid game: at most 30 days ahead. A paid game (not yet started): any day while its credit lasts, up to 365 days from the payment

@@ -170,7 +170,7 @@ async function callerOf(c: Ctx, bodyMe?: unknown, bodyDevice?: unknown): Promise
   if (seat.role) return { res: c.json({ error: "Your team seat invites through the console, not through the card." }, 403) };
   if (seat.inv !== null) return { res: c.json({ error: "Guests invited by a guest can play but cannot invite more people." }, 403) };
   if (!c.invites.on) return { res: c.json({ error: "The organizer has not switched on guest invitations for this game." }, 403) };
-  return { who: { id: "s:" + seat.seq, kind: "guest", all: false, limit: c.invites.per, label: "Guest", seat: seat.seq } };
+  return { who: { id: "s:" + seat.seq, kind: "guest", all: false, limit: Math.min(c.invites.per, 4), label: "Guest", seat: seat.seq } };
 }
 
 /** The labels the console shows for inviter ids: Organizer, Host <label>, Co-host <label>, Guest (card n). */
@@ -204,7 +204,7 @@ export async function limitOfInviter(c: { env: Env; eid: string; e: any; invites
   if (inviter.startsWith("c:")) return c.e.cohost_limit ?? COHOST_LIMIT_DEFAULT;
   if (inviter.startsWith("s:")) {
     const s = await c.env.DB.prepare("SELECT role FROM seat WHERE eid=? AND seq=?").bind(c.eid, Number(inviter.slice(2))).first<{ role: string | null }>();
-    return s?.role ? null : c.invites.per;
+    return s?.role ? null : Math.min(c.invites.per, 4); // you and up to 4 family members, also for games saved with a larger number
   }
   return null;
 }
