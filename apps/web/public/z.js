@@ -24,7 +24,7 @@
   const when = (ms) => { try { return new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch (e) { return new Date(ms).toISOString(); } };
   const left = (ms) => { let s = Math.max(0, Math.round(ms / 1000)); const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60; return (d ? d + "d " : "") + (d || h ? h + "h " : "") + m + "m " + s + "s"; };
   const brandHead = (I) => { const b = I.brand; if (!b || !b.name) return ""; const c = /^#[0-9a-fA-F]{6}$/.test(b.color || "") ? b.color : "#0B3D91"; return `<div class="zbanner" style="background:${c};color:#fff;display:flex;align-items:center;gap:10px">${b.logo && /^data:image\/(png|jpeg|webp);base64,/.test(b.logo) ? `<img src="${esc(b.logo)}" alt="" style="height:28px;max-width:96px;background:#fff;border-radius:6px;padding:2px">` : ""}<span>${esc(b.name)}</span></div>`; };
-  const head = (I) => `<div class="zhead"><b>Corporate Lucky Draw</b></div>${brandHead(I)}`;
+  const head = (I) => `<div class="zhead"><b>Corporate Lucky Draw</b>${I && (I.demo || /^Demo: /.test(I.name || "")) ? ` <span class="zdemotag">Demo</span>` : ""}</div>${brandHead(I)}`;
   let I = null, D = null, timer = null, S = { pid: store.get("ld-pid-" + EID) || "", err: "", busy: false, won: false, prize: null, prizeDone: false, tick: 0 };
 
   const prizeList = (d) => { const rows = []; for (let i = 0; i < d.winners && i < 12; i++) rows.push(`<li><b>${["1st", "2nd", "3rd"][i] || i + 1 + "th"}</b>${d.prizes[i] ? " " + esc(d.prizes[i]) : ""}</li>`); return `<ul class="zlist">${rows.join("")}${d.winners > 12 ? `<li>and ${d.winners - 12} more places</li>` : ""}</ul>`; };

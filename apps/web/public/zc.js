@@ -35,7 +35,8 @@
   const rid = () => "LD-" + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
   const chip = (on, attr, label) => `<button type="button" class="zc-chip${on ? " on" : ""}" ${attr} aria-pressed="${on ? "true" : "false"}" style="min-height:44px">${label}</button>`;
   const bar = () => `<header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="36" height="36"> <b class="zc-name"><i>Corporate</i> <span>Lucky Draw</span></b></span>${S.who ? `<span class="zc-pill zc-pill-role">${esc(({ organizer: "Organizer", host: "Host", cohost: "Co-host" })[roleOf()])}</span>` : ""}</header>`;
-  const frame = (inner) => `<div class="zc-frame">${bar()}<div class="zc-main">${S.note ? `<div class="zc-alert" role="status"><p>${esc(S.note)}</p></div>` : ""}${S.err ? `<div class="zc-alert zc-alert-bad" role="alert"><p>${esc(S.err)}</p></div>` : ""}${inner}<p class="zc-small">${PRIVACY}</p></div></div>`;
+  const isDemo = () => !!(S.sum && (S.sum.demo || /^Demo: /.test(S.sum.name || "")));
+  const frame = (inner) => `<div class="zc-frame">${bar()}<div class="zc-main">${isDemo() ? `<div class="zc-alert" role="status"><p><b>Demo.</b> Up to 10 people. No payment. Everything is deleted within 24 hours.</p></div>` : ""}${S.note ? `<div class="zc-alert" role="status"><p>${esc(S.note)}</p></div>` : ""}${S.err ? `<div class="zc-alert zc-alert-bad" role="alert"><p>${esc(S.err)}</p></div>` : ""}${inner}<p class="zc-small">${PRIVACY}</p></div></div>`;
   const fail = (e) => { S.err = e && e.message ? e.message : "Something went wrong. Please try again."; S.busy = false; if (eid && !S.sum) load().then(paint, paint); else paint(); };
 
   /* ---------------- sign in ---------------- */
@@ -47,7 +48,7 @@
   /* ---------------- home: your draws ---------------- */
   function homeView() {
     const rows = (S.list || []).map((g) => `<div class="zc-block"><h3>${esc(g.id)}</h3><p class="zc-small">${g.draft ? "Draft" : "Published"} · ${esc(g.startsAtIST || "")} · ${esc(g.participants)} registered</p><div class="zc-chips"><a class="zc-btn zc-btn-s" href="/zc.html?e=${encodeURIComponent(g.id)}" style="min-height:44px">Open</a><button class="zc-btn zc-btn-s zc-btn-alt" data-clone="${esc(g.id)}" style="min-height:44px">New draw like this one</button></div></div>`).join("");
-    return frame(`<div class="zc-block"><h3>Your Lucky Draws</h3><div class="zc-chips"><button class="zc-btn" id="new" style="min-height:48px">Make a new draw</button><button class="zc-btn zc-btn-alt" id="demo" style="min-height:48px">Free demo draw (10 people)</button></div></div>${rows || `<p class="zc-small">No draws yet.</p>`}${isOrg() ? `<div class="zc-block"><h3>Your account</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="closeacct" style="min-height:44px">Close my account</button><p class="zc-small">Deletes your sign-in and your details. A draw that is running must end first.</p></div>` : ""}`);
+    return frame(`<div class="zc-block"><h3>Your Lucky Draws</h3><div class="zc-chips"><button class="zc-btn" id="new" style="min-height:48px">Make a new draw</button>${S.demoOn ? `<button class="zc-btn zc-btn-alt" id="demo" style="min-height:48px">Free demo draw (10 people)</button>` : ""}</div></div>${rows || `<p class="zc-small">No draws yet.</p>`}${isOrg() ? `<div class="zc-block"><h3>Your account</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="closeacct" style="min-height:44px">Close my account</button><p class="zc-small">Deletes your sign-in and your details. A draw that is running must end first.</p></div>` : ""}`);
   }
 
   /* ---------------- the six steps ---------------- */
@@ -141,7 +142,7 @@
     on("si", () => { try { sessionStorage.setItem("cbz-next", "/zc.html"); } catch (e) { /* the sign-in page still returns here */ } location.href = "/#login"; });
     on("new", () => { S.f = formFromSum({}); S.step = 1; S.note = ""; S.err = ""; paint(); });
     on("demo", async () => {
-      try { S.busy = true; const id = rid(), t = Date.now() + 3600000; await api("POST", "/api/z", { id, startRound: roundOf(t), callSeconds: 12, cap: 10, name: "Free demo draw", verify: "id", idKind: "emp", whoCanJoin: "anyone" }); await api("POST", `/api/z/${id}/drawset`, { winners: 1, prizes: [], mode: "manual" }); location.href = "/zc.html?e=" + id; } catch (e) { fail(e); }
+      try { S.busy = true; const id = rid(), t = Date.now() + 3600000; await api("POST", "/api/z", { id, demo: true, startRound: roundOf(t), callSeconds: 12, cap: 10, name: "Free demo draw", verify: "id", idKind: "emp", whoCanJoin: "anyone" }); await api("POST", `/api/z/${id}/drawset`, { winners: 1, prizes: [], mode: "manual" }); location.href = "/zc.html?e=" + id; } catch (e) { fail(e); }
     });
     document.querySelectorAll("[data-clone]").forEach((b) => (b.onclick = () => cloneGame(b.dataset.clone)));
     on("cloneme", () => cloneGame(eid));
@@ -215,9 +216,10 @@
     if (!secret) return;
     try { S.who = await api("GET", "/api/whoami"); }
     catch (e) { if (e.status === 401 || e.status === 403) { secret = ""; ss.set("cbz-org", ""); } else S.err = e.message; return paint(); }
-    if (!S.who.email && q.get("demo") === "1") { /* host/cohost have no e-mail */ }
+    try { S.demoOn = !!(await api("GET", "/api/game-manifest")).demo; } catch (e) { S.demoOn = false; }
+    if (q.get("demo") === "1" && !S.demoOn) S.note = "The free demo is not switched on yet.";
     try { if (!eid) { S.list = (await api("GET", "/api/history")).engagements || []; if (q.get("new") === "1" || q.get("demo") === "1") { S.f = formFromSum({}); } } else await load(); } catch (e) { S.err = e.message; }
-    if (q.get("demo") === "1" && !eid) { document.getElementById("demo") && document.getElementById("demo").click(); }
+    if (q.get("demo") === "1" && !eid && S.demoOn) { document.getElementById("demo") && document.getElementById("demo").click(); }
     paint();
     setInterval(async () => { if (eid && S.sum && S.sum.status !== "draft" && !document.hidden && !S.busy) { try { await load(); paint(); } catch (e) { /* next time */ } } }, 15000);
   }

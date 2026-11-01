@@ -527,7 +527,7 @@ describe("central payments (every order opens through IT Services by Rajat Agarw
 describe("Payment Testing is owner-only (owner order 2026-11-01)", () => {
   const body = { name: "Asha Rao", email: "asha@acme.in", country: "IN" };
   test("without the owner key, with a wrong key, or with an organizer key it opens no order", async () => {
-    for (const h of [{}, { "x-organizer": "nope" }, { "x-organizer": "" }]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(403); }
+    for (const h of [{}, { "x-organizer": "nope" }, { "x-organizer": "" }] as Record<string, string>[]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(403); }
     expect(raw.query("SELECT COUNT(*) c FROM payment WHERE product_type='payment_test'").get()).toEqual({ c: 0 });
   });
   test("with the owner key it opens a Rs 1 order whose id starts with LDR-", async () => {
