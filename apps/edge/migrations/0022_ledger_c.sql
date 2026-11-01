@@ -11,7 +11,7 @@ ALTER TABLE payment ADD COLUMN bank TEXT;
 ALTER TABLE payment ADD COLUMN card_network TEXT;
 ALTER TABLE payment ADD COLUMN card_type TEXT;
 ALTER TABLE payment ADD COLUMN rrn TEXT;
-UPDATE payment SET txn_id='BNG-' || id WHERE txn_id IS NULL;
+UPDATE payment SET txn_id='LDR-' || id WHERE txn_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS payment_txn ON payment (txn_id) WHERE txn_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS payment_attempt (rzp_payment_id TEXT PRIMARY KEY, payment_id TEXT, rzp_order_id TEXT, txn_id TEXT, status TEXT NOT NULL, currency TEXT, amount_minor INTEGER, method TEXT, bank TEXT, card_network TEXT, card_type TEXT, card_last4 TEXT, vpa_masked TEXT, rrn TEXT, error_code TEXT, error_description TEXT, error_reason TEXT, fee_minor INTEGER, tax_minor INTEGER, authorized_ms INTEGER, captured_ms INTEGER, failed_ms INTEGER, event_ms INTEGER, created_ms INTEGER, updated_ms INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS payment_attempt_payment ON payment_attempt (payment_id);

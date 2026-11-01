@@ -19,6 +19,7 @@ Where things are set:
 | `INBOUND_SECRET` | Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion) | Pages secret | secret |
 | `VISIT_KEY` | Key that hashes network addresses for first-party public-page visit counts | Pages secret | secret |
 | `VISIT_DAILY_WRITES` | Most visit-count writes per day (a cap) | Optional Pages variable | setting |
+| `DEMO_GAME` | Set to 1 to switch on the free demo game (up to 10 people, no payment); off when empty | Optional Pages variable | setting |
 | `REPORT_KEY` | Key to read the first-party error and speed reports (`/api/telemetry`) | Pages secret | secret |
 | `RESEND_API_KEY` | Sends e-mail through the mail service (sign-in codes, invoices, reports, notes to the owner) | Pages secret | secret |
 | `RESEND_WEBHOOK_SECRET` | Checks the signature of the mail service's bounce / complaint / delivery webhook (`POST /api/mail/events`); with no value that address answers 404 | Pages secret | secret |

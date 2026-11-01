@@ -81,3 +81,12 @@ describe("free demo game, switched off (the default)", () => {
     expect((await j(await call("GET", "/api/game-manifest"))).demo).toBe(false);
   });
 });
+
+describe("a demo has no rehearsal", () => {
+  beforeEach(() => make(true));
+  test("the server refuses a rehearsal for a demo, and a real game still gets one", async () => {
+    const key = await organizer("boss@acme.com");
+    await demo(key, "DEMO-R"); const r = await call("POST", "/api/z/DEMO-R/rehearsal", {}, key);
+    expect(r.status).toBe(409); expect((await j(r)).code).toBe("demo-no-rehearsal");
+  });
+});

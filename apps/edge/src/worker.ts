@@ -785,7 +785,7 @@ export const AI_MANIFEST = {
     "No payment, no game. There is no separate payment cut-off: the game can be paid at any time until the guests' data is auto-deleted (within 24 hours after the game was meant to end). Until it is paid the Organizer and Hosts see \"Payment pending for this game\" and everyone else sees \"Waiting for the Organizer or Host to start the game.\" Nothing is charged and there is no penalty.",
     "If the organizer pays late, even hours later, the draw time moves to 2 minutes after the payment is confirmed, for everyone already waiting, and they can also choose a new draw time first (at most 30 days ahead while it is not paid for). After the participant data is auto-deleted the game is closed (\"This game did not start. Your details have been auto-deleted.\"): nobody can register or pay, and the Organizer can create a new draw like it.",
     "If they never pay, nothing is owed. They can create a new engagement whenever they like. The settings of a game that did not start stay for 30 days, then they are forgotten (as unpublished drafts are).",
-    "There are no refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The credit stays in the organizer's account. Unused places are not credited once the game has started. Payments go only to IT Services by Rajat Agarwal. Rules and privacy are at /legal.html.",
+    "If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The credit stays in the organizer's account. Unused places are not credited once the game has started. Payments go only to IT Services by Rajat Agarwal. Rules and privacy are at /legal.html.",
   ],
   suggestions_rules: "Describe the need and the benefit, not code. Never include names, phone numbers, e-mail addresses or anything about specific people. Suggestions are visible to all organizers' AI assistants without saying who wrote them. IT Services by Rajat Agarwal reviews them and marks each one new, under_review, planned, shipped or declined.",
   you_cannot: [
@@ -1347,10 +1347,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (b.action === "erase") { // the AI may ASK to delete all participant data; only the organizer's own confirmation in their console does it
         await nudge(env, cid!, `delreq-${day(now)}`, now, `Your AI assistant asked to delete all participant data: engagement ${cid}`, `Your AI assistant asked to delete all participant data for ${cid}. Nothing is deleted yet.\n\nTo confirm, press Confirm in your console: ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${cid}\n\nNot you? Press Dismiss.`);
         await env.DB.prepare("INSERT INTO cbl_request(eid,action,note,at_ms,open) VALUES(?,?,?,?,1)").bind(cid, "erase", typeof b.note === "string" ? b.note.replace(/[<>`]/g, "").slice(0, 200) : null, now).run();
-        return json({ ok: true, message: "Nothing has been deleted yet. The organizer has been asked and must confirm in their console (they have also been e-mailed). Tell them to open the console and press Confirm." });
+        return json({ ok: true, message: "Nothing has been deleted yet. The organizer has been asked to confirm in their console (they have also been e-mailed). Tell them to open the console and press Confirm." });
       }
       await env.DB.prepare("INSERT INTO cbl_request(eid,action,note,at_ms,open) VALUES(?,?,?,?,1)").bind(cid, b.action, typeof b.note === "string" ? b.note.replace(/[<>`]/g, "").slice(0, 200) : null, now).run();
-      return json({ ok: true, message: "The organizer has been asked and must approve it in their console." });
+      return json({ ok: true, message: "The organizer has been asked to approve it in their console." });
     }
     if (sub === "/request" && req.method === "GET") {
       if (!can(a, ce)) return deny(a);
@@ -1426,7 +1426,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!ID.test(b.id ?? "")) return json({ error: "The game code can use letters, numbers, - and _ only (3 to 40 characters)." }, 400);
     if (!Number.isInteger(b.startRound)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(b.callSeconds) || b.callSeconds % 3 || b.callSeconds < 6) return json({ error: GAP_MSG }, 400);
-    if (!Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000) return json({ error: "The number of people must be a whole number from 1 up. Please check it." }, 400);
+    if (!Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000) return json({ error: "Please enter the number of people as a whole number from 1 up." }, 400);
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     let createCap = now + MAX_AHEAD_MS; // with a pack already bought (an entitlement) the engagement is paid for by the organizer: up to 365 days from that payment
     if (!a.plat && a.org) { const en = await env.DB.prepare("SELECT id FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(a.org, b.cap).first<{ id: string }>(); const end = en ? await entitlementWindowEndMs(env.DB, en.id) : null; if (end) createCap = end - 1; }
@@ -1446,7 +1446,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (wantDemo) { // at most DEMO_PER_DAY demo games per organizer account (their e-mail or employee ID) and per network address, per day
       const d = day(now), ipk = `demo/${d}/ip/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
       demoKeys = [ipk, ...(a.org ? [`demo/${d}/org/${a.org}`] : [])];
-      for (const k of demoKeys) if (Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0) >= DEMO_PER_DAY) return json({ error: `At most ${DEMO_PER_DAY} free demo games a day. Please try again tomorrow.`, code: "demo-limit" }, 429);
+      for (const k of demoKeys) if (Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0) >= DEMO_PER_DAY) return json({ error: `At most 3 free demo games a day. Please try again tomorrow.`, code: "demo-limit" }, 429);
     }
     if (!wantDemo && !a.plat && a.org) { try { await ownerTestGrant(env, a.org, b.cap, now); } catch { /* no grant: the game is a draft as for everybody */ } }
     const ent = a.plat || wantDemo ? null : await env.DB.prepare("SELECT id, pack FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(a.org, b.cap).first<{ id: string; pack: number }>();
@@ -2127,7 +2127,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (only12(env) && next.call_seconds !== 12 && next.call_seconds !== e.call_seconds) return json({ error: ONLY_12S_MSG }, 400); // an older game keeps its own speed; nothing new may pick another
     if (!Number.isInteger(next.start_round)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(next.call_seconds) || next.call_seconds % 3 || next.call_seconds < 6) return json({ error: GAP_MSG }, 400);
-    if (!Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "The number of people must be a whole number from 1 up. Please check it." }, 400);
+    if (!Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "Please enter the number of people as a whole number from 1 up." }, 400);
     if (isDemo(e) && next.cap > 10) return json({ error: "A demo game is for up to 10 people." }, 400);
     if (roundMs(next.start_round) <= now) return json({ error: "Pick a start time in the future." }, 400);
     if (next.start_round !== e.start_round) { // an unpaid game: at most 30 days ahead. A paid game (not yet started): any day while its credit lasts, up to 365 days from the payment
