@@ -42,7 +42,7 @@
   /* ---------------- sign in ---------------- */
   function signinView() {
     if (!S.su) { S.su = 1; if (window.CBFunnel) CBFunnel.report("signup_started"); }
-    return frame(`<div class="zc-block"><h3>Sign in to make a Lucky Draw</h3><p>It is free to build and free to publish. You pay before the draw.</p><button class="zc-btn" id="si" style="min-height:48px">Sign in</button></div>`);
+    return frame(`<div class="zc-block"><h3>Sign in to make a Lucky Draw</h3><p>It is free to build and free to publish. You pay before the draw.</p><button class="zc-btn" id="si" style="min-height:48px">Sign in</button><p class="zc-small zc-muted" id="toConsole">Organizers can also sign in on the <a href="https://console.corporatetambola.com/">console</a>, where all their games sit together.</p></div>`);
   }
 
   /* ---------------- home: your draws ---------------- */
