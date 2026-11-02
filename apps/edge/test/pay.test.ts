@@ -531,11 +531,11 @@ describe("central payments (every order opens through IT Services by Rajat Agarw
   });
 });
 
-describe("Payment Testing is owner-only (owner order 2026-11-01)", () => {
+describe("Payment Testing is open to everybody (owner order 2 Nov 2026: no owner key)", () => {
   const body = { name: "Asha Rao", email: "asha@acme.in", country: "IN" };
-  test("without the owner key, with a wrong key, or with an organizer key it opens no order", async () => {
-    for (const h of [{}, { "x-organizer": "nope" }, { "x-organizer": "" }] as Record<string, string>[]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(403); }
-    expect(raw.query("SELECT COUNT(*) c FROM payment WHERE product_type='payment_test'").get()).toEqual({ c: 0 });
+  test("without any key, with a wrong key, or with an organizer key it opens a Rs 1 order (the key is not looked at)", async () => {
+    for (const h of [{}, { "x-organizer": "nope" }, { "x-organizer": "" }] as Record<string, string>[]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(200); expect(((await r.json()) as any).razorpay.amount).toBe(100); }
+    expect(raw.query("SELECT COUNT(*) c FROM payment WHERE product_type='payment_test'").get()).toEqual({ c: 3 });
   });
   test("with the owner key it opens a Rs 1 order whose id starts with LDR-", async () => {
     const r = await call("POST", "/api/payments/paytest", body, { "x-organizer": "plat" });
