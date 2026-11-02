@@ -31,7 +31,7 @@
   const style = () => {
     if (document.getElementById("cbc-style")) return;
     const s = document.createElement("style"); s.id = "cbc-style";
-    s.textContent = ".cbc{margin:12px 0;text-align:left}.cbc-row{display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:14px;line-height:1.45}.cbc-row input{flex:0 0 auto;width:22px;height:22px;margin:1px 0 0;accent-color:#0B5D5B}.cbc-row label{flex:1 1 auto;margin:0;font-weight:400;cursor:pointer}.cbc-row a{text-decoration:underline}button[aria-disabled=true]{opacity:.55;cursor:not-allowed}";
+    s.textContent = ".cbc{margin:12px 0;text-align:left}.cbc-row{display:flex;gap:12px;align-items:center;margin:4px 0;min-height:48px;font-size:14px;line-height:1.45}.cbc-row input{flex:0 0 auto;width:24px;height:24px;margin:0;accent-color:#0B5D5B}.cbc-row label{flex:1 1 auto;margin:0;padding:8px 0;font-weight:400;cursor:pointer}.cbc-row a{display:inline-block;padding:12px 0;margin:-12px 0}.cbc-row a{text-decoration:underline}button[aria-disabled=true]{opacity:.55;cursor:not-allowed}";
     document.head.appendChild(s);
   };
   /** The rows of one point, as HTML. Nothing is ticked. */
