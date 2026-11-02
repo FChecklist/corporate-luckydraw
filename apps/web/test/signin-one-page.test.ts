@@ -100,6 +100,12 @@ describe("plain e-mail words", () => {
     expect(hits).toEqual([]);
   });
 
+  test("no example company address (like name@company.com or host@example.com) in any page, script or server message of this website", () => {
+    const EX = /@(company|example|yourcompany|acme|mycompany|domain)\.(com|org|net)/i;
+    const shown = files.filter(([name]) => name.startsWith("public/") || name === "edge/worker.ts");
+    expect(shown.filter(([, text]) => EX.test(text)).map(([name]) => name)).toEqual([]);
+  });
+
   test("the Guide still recognises the OLD messages too (a page or server still showing the old words gets the same plain help), and the new plain message", () => {
     const g = read(PUB, "guide.js");
     expect(g).toContain('"Please enter a valid work email"');
