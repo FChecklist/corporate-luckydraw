@@ -76,7 +76,7 @@ const summaryLines = (q: URLSearchParams): string[] => {
   const v = Number(q.get("v")) || 0, j = q.get("j") === "c";
   const pk = packFor(c);
   return [`Game: ${o!.label}`, `Draw day and time: ${dayLabel(d)}, ${timeLabel(t)} ${zoneLabel(q)} (registration closes then)`, `People: up to ${c}${pk ? ` (${money(pk)})` : ""}`,
-    "Each person registers once, with an ID", j ? "Invite-only: only people on your list can register" : "Anyone with the link can register",
+    "Each person registers once, with an Employee ID or an Email ID", j ? "Invite-only: only people on your list can register" : "Anyone with the link can register",
     v ? `Each participant may invite up to ${v} more people` : "Participants may not invite others", `Winners: ${w} (you name the prizes next)`, manual ? "The draw starts when you or a Host press Draw now" : "The draw runs by itself at the draw time", "Nothing is charged until you pay, before the start time."];
 };
 const consoleOf = (ctx: GoCtx, id: string, act = "") => `${ctx.origin}/zc.html?e=${encodeURIComponent(id)}${act ? "&do=" + act : ""}`;
@@ -95,7 +95,7 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
     case "size": return { say: "How many people at most? Choose a little above your headcount (people invited by your guests count too). The price follows the size and is paid only when you are ready, before the start.", choices: choices(PACKS.map(([n]) => [`Up to ${n} people: ${money(n, zoneKey(q) === "in" || !zoneKey(q))}`, L("play", { c: String(n) }), n === 250] as [string, string, boolean?])), ifWrong: WRONG };
     case "play": {
       const j = q.get("j") === "c", v = Number(q.get("v")) || 0;
-      const lines = `Here is how it will work: each person registers once, with an ID. ${j ? "Invite-only." : "Open to anyone with the link."} ${v ? `Participants may invite up to ${v} more people each.` : "Participants may not invite others."}`;
+      const lines = `Here is how it will work: each person registers once, with an Employee ID or an Email ID. ${j ? "Invite-only." : "Open to anyone with the link."} ${v ? `Participants may invite up to ${v} more people each.` : "Participants may not invite others."}`;
       return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [j ? "Open to anyone with the link" : "Invite-only (only people on my list)", L("play", { j: j ? "o" : "c" })], [v ? "Participants may not invite others" : "Let each participant invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
     }
     case "prizes": return { say: "How many winners? (You give the prizes; only the software is provided. You name each prize afterwards. The software picks the winners at draw time.)", choices: choices(WINNER_CHOICES.map((n) => [`${n} winner${n === 1 ? "" : "s"}`, L("extras", { w: String(n) }), n === 3] as [string, string, boolean?])), ifWrong: WRONG };
