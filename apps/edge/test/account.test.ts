@@ -91,13 +91,13 @@ describe("the notification question", () => {
 });
 
 describe("wording: third parties, fairness, version", () => {
-  test("the privacy policy names drand and YouTube in one line, with a version date; the sub-processor page says the phone contacts them", () => {
-    const l = rd("legal.html"); expect(l).toContain("Your phone contacts drand for public random numbers, and YouTube (privacy mode) only if your organizer adds a video."); expect(l).toContain("Version 2026-10-05.");
-    const s = rd("subprocessors.html"); expect(s).toContain("drand: public random numbers. Your phone contacts it"); expect(s).toContain("YouTube (privacy mode)");
+  test("the one document names the public source of random values and YouTube in one line, with a version date; the sub-processor page points to it", () => {
+    const l = rd("terms.html"); expect(l).toContain("A public source of random values is used for draws, and YouTube in privacy mode only if an Organizer adds a video."); expect(l).toContain("Version 2026-11-01");
+    const s = rd("subprocessors.html"); expect(s).toContain('href="/terms#processors"');
   });
   test("fairness wording does not overclaim anywhere a customer reads it", () => {
     for (const f of ["index.html", "legal.html", "zc.js", "z.js", "terms.html"]) expect([f, (rd(f).match(/number, twice|every claim is checked|Nobody, including you|not even the organizer|cannot be changed|tamper-proof|unhackable/i) ?? [""])[0], /number, twice|every claim is checked|Nobody, including you|not even the organizer|cannot be changed|tamper-proof|unhackable/i.test(rd(f))]).toEqual([f, "", false]);
     const man = readFileSync(new URL("../src/ai-link.ts", import.meta.url), "utf8"); expect(man).not.toMatch(/not even the organizer/); expect(man).toContain("the same entries and the same public beacon give the same winners");
-    expect(rd("legal.html")).toContain("The same entries and the same public beacon give the same winners.");
+    expect(rd("terms.html")).toContain("so anyone with the entries and the value gets the same winners");
   });
 });
