@@ -97,7 +97,7 @@
           const body = { empId: id, name: name || undefined, device: device(), consent: CBConsent.payload(reg, "K4"), ...(TOKEN ? { token: TOKEN } : {}) };
           let r; try { r = await api("POST", `/api/z/${EID}/join`, body); } catch (e) { if (e && e.status) throw e; await new Promise((ok) => setTimeout(ok, 1500)); r = await api("POST", `/api/z/${EID}/join`, body); } // a join call lost on a slow network is asked once more by itself
           S.pid = r.pid; store.set(pidKey(), r.pid); rx("hello");
-        } catch (e) { S.err = e.code === "draw-closed" ? e.message : e.code === "device-used" ? "This phone has already registered. One entry for each person." : e.status === 423 ? "This ID is already in the draw from another phone." : e.status === 409 ? "The draw is full." : e.status === 429 ? "It is busy right now. Please try again in a few minutes." : e.message; }
+        } catch (e) { S.err = e.code === "draw-closed" ? e.message : e.code === "device-used" ? "This phone has already registered. One entry for each person." : e.status === 423 ? "This Employee ID or Email ID is already in the draw from another phone." : e.status === 409 ? "The draw is full." : e.status === 429 ? "It is busy right now. Please try again in a few minutes." : e.message; }
         S.busy = false; await refresh();
       };
     }

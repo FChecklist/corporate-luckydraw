@@ -25,7 +25,7 @@ def landing():
         '<section class="ck-hero g-draw"><div class="ck-wrap ck-hero-in"><div>\n'
         '<span class="ck-kicker">For HR teams and managers</span>\n'
         '<h1>This week, which teams will you engage with <span class="ck-hl">Corporate Lucky Draw?</span></h1>\n'
-        '<p class="ck-lead">Everyone enters once with their ID. At the draw time the software picks the winners from the public beacon, and everyone sees the result.</p>\n'
+        '<p class="ck-lead">Everyone enters once with their Employee ID. At the draw time the software picks the winners from the public beacon, and everyone sees the result.</p>\n'
         f'<div class="ck-btn-row"><a class="ck-btn main" href="{DEMO}">Try a free draw with 10 people</a><a class="ck-btn" href="/how-it-works">See how it works</a></div>\n'
         '<p class="ck-hero-contact">Talk to a person: <a href="tel:+919650397480">(+91) 96503 97480</a> or <a href="mailto:hello@corporatetambola.com?subject=%5BLucky%20Draw%5D%20">hello@corporatetambola.com</a></p>\n'
         '</div>\n'
@@ -51,7 +51,7 @@ def landing():
         '<p class="ck-lead">You set how many winners there are and what each prize is. A fixed public rule puts the entries in order, so the same entries and the same public beacon always give the same winners. You provide the prizes.</p></div></div></section>')
     faq_items = [
         ("How is a game set up?", "Sign in with your e-mail and use the organizer console to build the draft. Building and publishing are free."),
-        ("Do players pay or install anything?", "No. Players never pay and there is no app. They open your link, type their ID and are entered."),
+        ("Do players pay or install anything?", "No. Players never pay and there is no app. They open your link, type their Employee ID and are entered."),
         ("Who gives the prizes?", "You do, the organizer. Corporate Lucky Draw is software only. Prize money is never held or paid out by Corporate Lucky Draw."),
         ("Who decides the winners?", "The software only. The software ranks every entry with a fixed rule and a public random number (the beacon). The same entries and the same beacon give the same winners. Nobody picks a winner by hand."),
         ("How does the draw work?", "You set the winners and prizes and a draw time. People enter once until that time. At the time, or when the Organizer or Host presses Draw, the winners are shown to everyone and e-mailed to winners."),
@@ -138,7 +138,7 @@ def organizer_guide_pointer():
 def brochure():
     pts = [
         ("Ready in minutes", "Pick the time, the number of winners and the prizes. Start free. Change anything until the draw."),
-        ("Everyone enters on their phone", "One link. One ID. No app to install."),
+        ("Everyone enters on their phone", "One link. One Employee ID. No app to install."),
         ("Your message in the game", "A message in the waiting screen and your brand colours."),
         ("Fair for everyone", "The same entries and the same public beacon give the same winners. Nobody picks by hand."),
         ("Your team can help", "You, up to 5 Hosts and any number of Co-hosts. One payment is enough."),
