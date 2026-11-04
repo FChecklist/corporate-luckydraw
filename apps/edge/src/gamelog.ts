@@ -44,7 +44,7 @@ function luckyDrawLogEvents(g: LogInput): LogEvent[] {
   const won = g.winners.filter((w) => w.pattern === "lucky").sort((a, b) => a.ordinal - b.ordinal || a.seat - b.seat);
   for (const w of won) ev.push({ at: g.endMs, kind: "win", text: `${ordinalOf(w.ordinal)} place was won by seat ${w.seat}.` });
   const byOrganizer = g.st?.stopRound !== null && g.st?.stopRound !== undefined && roundMs(g.st.stopRound) <= g.endMs + 60_000;
-  ev.push({ at: g.endMs, kind: "end", text: won.length === 0 ? `The draw was not made. The game ended at ${T(g.endMs)}.` : `The draw was made (${won.length} winners). The game ended${byOrganizer ? " by the organizer" : ""} at ${T(g.endMs)}.` });
+  ev.push({ at: g.endMs, kind: "end", text: won.length === 0 ? `The draw was not made. The game ended at ${T(g.endMs)}.` : `The draw was made (${won.length} ${won.length === 1 ? "winner" : "winners"}). The game ended${byOrganizer ? " by the organizer" : ""} at ${T(g.endMs)}.` });
   return ev.map((e, i) => ({ e, i })).sort((a, b) => a.e.at - b.e.at || ORDER.indexOf(a.e.kind) - ORDER.indexOf(b.e.kind) || a.i - b.i).map((x) => x.e);
 }
 

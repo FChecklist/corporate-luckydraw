@@ -29,7 +29,7 @@ describe("the events of a finished Lucky Draw (pure)", () => {
   });
   test("after a Stop the end line says it was ended by the organizer", () => {
     const ev = gameLogEvents({ ...base, winners: [lw(1, 5)], st: { intervals: [], stopRound: 990 } });
-    expect(ev[ev.length - 1]!.text).toBe(`The draw was made (1 winners). The game ended by the organizer at ${TT(endMs)}.`);
+    expect(ev[ev.length - 1]!.text).toBe(`The draw was made (1 winner). The game ended by the organizer at ${TT(endMs)}.`);
   });
   test("no call lines, no 'All prizes' sentence, no public-round wording", () => {
     const text = gameLogEvents({ ...base, winners: [lw(1, 5)] }).map((e) => e.text).join("\n");
