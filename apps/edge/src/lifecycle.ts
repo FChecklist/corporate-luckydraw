@@ -70,9 +70,10 @@ async function callTimeMs(env: Env, e: any, round: number, idx: number, sch?: Aw
 async function keepGameLog(env: Env, e: any, life: any, now: number): Promise<void> {
   try {
     const sch = await schedule(env, e);
-    const w = (await env.DB.prepare("SELECT round, pattern, ordinal, seat, idx FROM winner WHERE eid=? AND pattern<>'lucky' ORDER BY round, idx, ordinal, seat").bind(e.id).all<any>()).results ?? [];
+    const isDraw = !!(await env.DB.prepare("SELECT 1 AS x FROM draw WHERE eid=?").bind(e.id).first().catch(() => null)); // a Lucky Draw keeps its own short log (LD-41); the 'lucky' winners are its winners
+    const w = (await env.DB.prepare(isDraw ? "SELECT round, pattern, ordinal, seat, idx FROM winner WHERE eid=? AND pattern='lucky' ORDER BY ordinal, seat" : "SELECT round, pattern, ordinal, seat, idx FROM winner WHERE eid=? AND pattern<>'lucky' ORDER BY round, idx, ordinal, seat").bind(e.id).all<any>()).results ?? [];
     const lines: Record<string, number> = {}; for (const r of sch.cfg.rewards) lines[r.pattern] = (lines[r.pattern] ?? 0) + 1;
-    await writeGameLog(env, { id: e.id, tz: sch.cfg.tz, startRound: e.start_round, callSeconds: e.call_seconds, rounds: sch.cfg.rounds, st: sch.st, breaks: sch.cfg.breaks, endMs: life.end_ms, endSrc: life.end_src, winners: w, lines }, now);
+    await writeGameLog(env, { id: e.id, tz: sch.cfg.tz, startRound: e.start_round, callSeconds: e.call_seconds, rounds: sch.cfg.rounds, st: sch.st, breaks: sch.cfg.breaks, endMs: life.end_ms, endSrc: life.end_src, winners: w, lines, ...(isDraw ? { lucky: { dueMs: roundMs(callRoundR(sch.st, e.start_round, 1, [], 1, 0) ?? e.start_round) } } : {}) }, now);
   } catch { /* the log is a help, never a reason to stop the lifecycle */ }
 }
 /** When the game will have ended if nobody ends it sooner: the last call of the last round, or the organizer's stop. */
@@ -456,9 +457,12 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
 
 export { INVITE_CATEGORIES };
 
-/** Lucky Draw timing: the draw round (the published time, moved later by the Organizer's or Host's pauses) and whether the game is paused right now. */
-export async function drawTiming(env: Env, e: any, now: number): Promise<{ drawRound: number; paused: boolean }> {
+/** Lucky Draw timing: the draw round (the published time, moved later by the Organizer's or Host's pauses), whether the game is paused right now, and whether the Organizer Stopped the game before the draw.
+ * After a Stop there is no automatic draw at the old time: `stopped` is true, `drawRound` is Infinity (never reached) and the draw is made by hand. */
+export async function drawTiming(env: Env, e: any, now: number): Promise<{ drawRound: number; paused: boolean; stopped: boolean }> {
   const f = await readPublished(d1kv(env), e.id);
   const st = f ? resolveControl(controlCfg(f), f.messages) : null;
-  return { drawRound: callRoundR(st, e.start_round, 1, [], 1, 0) ?? e.start_round, paused: st ? pausedAt(st, roundAt(now)) : false };
+  const r = callRoundR(st, e.start_round, 1, [], 1, 0);
+  const stopped = !!st && r === null;
+  return { drawRound: stopped ? Infinity : r ?? e.start_round, paused: st ? pausedAt(st, roundAt(now)) : false, stopped };
 }

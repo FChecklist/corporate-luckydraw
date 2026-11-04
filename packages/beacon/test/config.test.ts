@@ -9,8 +9,11 @@ const rnd = (k: number) => createHash("sha256").update("cfg" + k).digest("hex");
 const E = "ENG-CFG";
 const LOG = deriveCalls(E, Array.from({ length: 75 }, (_, k) => rnd(k)));
 const pids = Array.from({ length: 400 }, (_, i) => "q" + i);
-const ok = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); if (!v.ok) throw new Error(v.error); return v.cfg; };
-const bad = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); expect(v.ok).toBe(false); return (v as any).error as string; };
+// LD-21: NEW input may not ask for 2 cards, rounds or tap-marking; a game read back from storage may keep them. The helpers below stand in for stored games when the input uses those old settings,
+// so the older tests keep exercising the old shapes; the LD-21 tests at the end of this file call validateCfg directly, without `stored`.
+const legacy = (i: any) => (i && (i.tickets === 2 || (typeof i.rounds === "number" && i.rounds > 1) || i.mark === "tap") ? { stored: true } : {});
+const ok = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base, legacy(i)); if (!v.ok) throw new Error(v.error); return v.cfg; };
+const bad = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base, legacy(i)); expect(v.ok).toBe(false); return (v as any).error as string; };
 
 describe("engagement settings", () => {
   test("nothing set gives one card, the four default houses with no text, auto marking and no breaks", () => {
@@ -180,8 +183,8 @@ describe("rounds", () => {
 describe("five brand moments for each ticket: openings, during the game, closings", () => {
   const msg = (o: Record<string, unknown> = {}) => ({ kind: "speech", title: "Welcome from Acme", ...o });
   const mid = (o: Record<string, unknown> = {}) => ({ kind: "speech", title: "A word from Acme", ...o });
-  const good = (i: any, base?: any) => { const v = validateCfg(i, base); if (!v.ok) throw new Error(v.error); return v.cfg; };
-  const refused = (i: any, base?: any) => { const v = validateCfg(i, base); expect(v.ok).toBe(false); return v.ok ? "" : v.error; };
+  const good = (i: any, base?: any) => { const v = validateCfg(i, base, legacy(i)); if (!v.ok) throw new Error(v.error); return v.cfg; };
+  const refused = (i: any, base?: any) => { const v = validateCfg(i, base, legacy(i)); expect(v.ok).toBe(false); return v.ok ? "" : v.error; };
 
   test("even spread: the k-th of n moments goes after round(75 x k / (n + 1)), for n = 1 to 6", () => {
     const table: Record<number, number[]> = { 1: [38], 2: [25, 50], 3: [19, 38, 56], 4: [15, 30, 45, 60], 5: [13, 25, 38, 50, 63], 6: [11, 21, 32, 43, 54, 64] };
@@ -272,5 +275,25 @@ describe("guest invitations: you and up to 4 family members (1 to 4 people, defa
     const r5: any = validateCfg({ invites: { on: true, per: 5, cats: ["family"] } }); expect(r5.ok).toBe(false); expect(r5.error).toContain("you and up to 4 family members");
     for (const per of [0, 5, 10, 2.5]) expect(validateCfg({ invites: { on: true, per, cats: ["family"] } }).ok).toBe(false);
     expect(defaultCfg().invites!.per).toBe(4);
+  });
+});
+
+describe("LD-21: a new Lucky Draw has one draw, one entry each and no tap-marking; stored games are read back unchanged", () => {
+  test("new input: rounds other than 1, tickets other than 1 and mark tap are refused in plain words", () => {
+    for (const r of [2, 3, 5]) { const v: any = validateCfg({ rounds: r }); expect(v.ok).toBe(false); expect(v.error).toBe("A Lucky Draw has one draw and no rounds. Leave rounds out."); }
+    const t: any = validateCfg({ tickets: 2 }); expect(t.ok).toBe(false); expect(t.error).toBe("A Lucky Draw has no cards: each person registers once.");
+    const m: any = validateCfg({ mark: "tap" }); expect(m.ok).toBe(false); expect(m.error).toBe("Marking is not used in a Lucky Draw. Leave it out.");
+  });
+  test("new input that is plain is still accepted (rounds 1, tickets 1, mark auto)", () => {
+    const v: any = validateCfg({ rounds: 1, tickets: 1, mark: "auto" }); expect(v.ok).toBe(true); expect(v.cfg.rounds).toBe(1); expect(v.cfg.tickets).toBe(1); expect(v.cfg.mark).toBeUndefined();
+  });
+  test("a game read back from storage (stored: true) keeps rounds 2..5, tickets 2 and tap exactly as saved", () => {
+    const v: any = validateCfg({ rounds: 3, tickets: 2, mark: "tap" }, undefined, { stored: true });
+    expect(v.ok).toBe(true); expect(v.cfg.rounds).toBe(3); expect(v.cfg.tickets).toBe(2); expect(v.cfg.mark).toBe("tap");
+  });
+  test("stored games still refuse nonsense (rounds 6, tickets 3, mark never)", () => {
+    expect((validateCfg({ rounds: 6 }, undefined, { stored: true }) as any).ok).toBe(false);
+    expect((validateCfg({ tickets: 3 }, undefined, { stored: true }) as any).ok).toBe(false);
+    expect((validateCfg({ mark: "never" }, undefined, { stored: true }) as any).ok).toBe(false);
   });
 });

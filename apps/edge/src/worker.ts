@@ -1725,7 +1725,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     }
     // A NEW person cannot take a place when the game could not begin because payment is due (a person who already holds a card is handled above and keeps it).
     // (A person who opens the link AFTER the game is over still gets a card: the page then shows "Game complete", the thank-you and the share button. That is designed, so there is no "ended" refusal here.)
-    { const dr = await drawRow(env.DB, eid!); if (dr) { const t = await drawTiming(env, e, now); if (registrationClosed(dr, now, roundMs(t.drawRound), t.paused)) return json({ error: dr.drawn_ms !== null ? "The draw is done." : "Registration is closed.", code: "draw-closed" }, 403); } } // Lucky Draw: registering closes at draw time
+    { const dr = await drawRow(env.DB, eid!); if (dr) { const t = await drawTiming(env, e, now); if (registrationClosed(dr, now, roundMs(t.drawRound), t.paused, t.stopped)) return json({ error: dr.drawn_ms !== null ? "The draw is done." : "Registration is closed.", code: "draw-closed" }, 403); } } // Lucky Draw: registering closes at draw time
     if (locked) return json({ error: "This game could not begin because the organizer's payment is not complete. Please ask your organizer.", code: "locked" }, 403);
     let pr = await personByPhone(env, eid!, ph); // is this number (or employee ID) on any list of the game?
     const admitted = vf.mode !== "mobile" && !!pr && !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=? AND status='admitted'").bind(eid, ph).first()); // the organizer already said yes to this person: the ID typed is not checked again, or they would wait for ever
@@ -1893,7 +1893,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (action === "drawset" && (req.method === "POST" || req.method === "PATCH")) { // the Organizer's draw settings (winners, prizes, automatic or manual), until the draw
     if (!can(a, e)) return deny(a);
     const dr = await drawRow(env.DB, e.id), t = await drawTiming(env, e, now);
-    if (dr && registrationClosed(dr, now, roundMs(t.drawRound), t.paused)) return json({ error: "The draw is closed, so it can no longer be changed." }, 409);
+    if (dr && registrationClosed(dr, now, roundMs(t.drawRound), t.paused, t.stopped)) return json({ error: "The draw is closed, so it can no longer be changed." }, 409);
     const ck = checkDrawSettings(await body(req), e.cap, !!e.rehearsal_of);
     if (!ck.ok) return json({ error: ck.error }, 400);
     if (!(await spend(env, now))) return BUSY();

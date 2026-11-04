@@ -513,9 +513,9 @@ describe("G. the organizer's AI", () => {
   test("UC-62 the summary reads everything back (time, speed, limit, rewards, breaks, status) so the AI can confirm it; strangers and other organizers get nothing", async () => {
     const o = await organizer(), other = await organizer();
     await call("POST", "/api/z", eng("SUM-1", { cap: 250 }), o.ai);
-    await call("PATCH", "/api/z/SUM-1/settings", { callSeconds: 9, tickets: 2, rewards: [{ pattern: "blackout", ordinal: 1, text: "TV" }], breaks: [{ after: 60, seconds: 60, kind: "lucky", title: "Lucky draw", winners: 3 }] }, o.ai);
+    await call("PATCH", "/api/z/SUM-1/settings", { callSeconds: 9, tickets: 1, rewards: [{ pattern: "blackout", ordinal: 1, text: "TV" }], breaks: [{ after: 60, seconds: 60, kind: "lucky", title: "Lucky draw", winners: 3 }] }, o.ai);
     let s = await j(await call("GET", "/api/z/SUM-1/summary", undefined, o.ai));
-    expect(s.status).toBe("draft"); expect(s.limit).toBe(250); expect(s.callSeconds).toBe(9); expect(s.tickets).toBe(2); expect(s.rewards.length).toBe(1); expect(s.breaks[0].kind).toBe("lucky"); expect(s.startsAtIST).toMatch(/IST/); expect(s.shareUrl).toBeUndefined();
+    expect(s.status).toBe("draft"); expect(s.limit).toBe(250); expect(s.callSeconds).toBe(9); expect(s.tickets).toBe(1); expect(s.rewards.length).toBe(1); expect(s.breaks[0].kind).toBe("lucky"); expect(s.startsAtIST).toMatch(/IST/); expect(s.shareUrl).toBeUndefined();
     await call("POST", "/api/z/SUM-1/publish", contact, o.h);
     s = await j(await call("GET", "/api/z/SUM-1/summary", undefined, o.ai));
     expect(s.status).toMatch(/payment due before the start/); expect(s.shareUrl).toContain("/z.html?e=SUM-1"); expect(s.payUrl).toContain("/pay.html?e=SUM-1");
@@ -549,11 +549,11 @@ describe("G2. the organizer's AI: round 2 findings", () => {
   test("UC-66 the summary says what is due: pack, price, pay-before time, paid flag and the game length", async () => {
     const o = await organizer();
     await call("POST", "/api/z", eng("DUE-1", { cap: 480, callSeconds: 12 }), o.ai);
-    await call("PATCH", "/api/z/DUE-1/settings", { rounds: 2, breaks: [{ after: 20, seconds: 120, kind: "speech", title: "MD address" }] }, o.ai);
+    await call("PATCH", "/api/z/DUE-1/settings", { breaks: [{ after: 20, seconds: 120, kind: "speech", title: "MD address" }] }, o.ai);
     await call("POST", "/api/z/DUE-1/publish", contact, o.h);
     const s = await j(await call("GET", "/api/z/DUE-1/summary", undefined, o.ai));
     expect(s.paid).toBe(false); expect(s.pack).toBe(500); expect(s.priceInr).toBeGreaterThan(1000); expect(s.payUntil).toMatch(/IST/);
-    expect(s.gameMinutes).toBe(Math.round((75 * 12 * 2 + 120 + 90) / 60)); // two rounds of 75 calls, one break, one intermission
+    expect(s.gameMinutes).toBe(Math.round((75 * 12 + 120) / 60)); // one round of 75 calls and one break (LD-21: new games have one round)
   });
   test("UC-67 the manifest says: no writes before the yes, rewards replace the list, what skipped/invalid mean, and does not ask for the speed in the schedule call", async () => {
     const t = JSON.stringify(await j(await call("GET", "/api/z/ai-manifest")));

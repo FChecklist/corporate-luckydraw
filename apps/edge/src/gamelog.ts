@@ -7,6 +7,7 @@
 import { callRoundR } from "../../../packages/beacon/src/game";
 import { GRACE_ROUNDS, PRIZE_HOUSES } from "../../../packages/beacon/src/config";
 import type { ControlState } from "../../../packages/beacon/src/control";
+import { ordinalOf } from "../../../vendor/game-core/packages/luckydraw/src";
 import { DEFAULT_TZ, zoneFull } from "./tz";
 import type { D1, Env } from "./worker";
 
@@ -32,11 +33,24 @@ export interface LogInput {
   st: Pick<ControlState, "intervals" | "stopRound"> | null; breaks: unknown[];
   endMs: number; endSrc: string; winners: { round: number; pattern: string; ordinal: number; seat: number; idx: number | null }[];
   lines: Record<string, number>; // prize lines per house (to say "2nd Line" only when there are several)
+  lucky?: { dueMs: number }; // a Lucky Draw: no numbers are called, so the log is the draw time, one line per winner and the end (LD-41); `winners` then holds the draw's places (pattern "lucky", ordinal = place)
 }
 const ORDER = ["start", "restart", "call", "win", "pause", "stop", "end"];
 
+/** The events of a finished Lucky Draw (LD-41, owner-approved wording): when the draw was due, one line per winner (seat only), and how it ended. No call lines. */
+function luckyDrawLogEvents(g: LogInput): LogEvent[] {
+  const tz = g.tz ?? DEFAULT_TZ, T = (ms: number) => zoneFull(ms, tz);
+  const ev: LogEvent[] = [{ at: roundMs(g.startRound), kind: "start", text: `Game ${g.id}: the draw is due at ${T(g.lucky!.dueMs)}.` }];
+  const won = g.winners.filter((w) => w.pattern === "lucky").sort((a, b) => a.ordinal - b.ordinal || a.seat - b.seat);
+  for (const w of won) ev.push({ at: g.endMs, kind: "win", text: `${ordinalOf(w.ordinal)} place was won by seat ${w.seat}.` });
+  const byOrganizer = g.st?.stopRound !== null && g.st?.stopRound !== undefined && roundMs(g.st.stopRound) <= g.endMs + 60_000;
+  ev.push({ at: g.endMs, kind: "end", text: won.length === 0 ? `The draw was not made. The game ended at ${T(g.endMs)}.` : `The draw was made (${won.length} winners). The game ended${byOrganizer ? " by the organizer" : ""} at ${T(g.endMs)}.` });
+  return ev.map((e, i) => ({ e, i })).sort((a, b) => a.e.at - b.e.at || ORDER.indexOf(a.e.kind) - ORDER.indexOf(b.e.kind) || a.i - b.i).map((x) => x.e);
+}
+
 /** The events of a finished game, in time order. Pure: no database, no clock. */
 export function gameLogEvents(g: LogInput): LogEvent[] {
+  if (g.lucky) return luckyDrawLogEvents(g);
   const tz = g.tz ?? DEFAULT_TZ, T = (ms: number) => zoneFull(ms, tz);
   const start = g.startRound + GRACE_ROUNDS, stride = g.callSeconds / 3;
   const ev: LogEvent[] = [];

@@ -247,15 +247,18 @@ describe("brand moments: kinds, limits, bad links", () => {
   for (const [seconds, ok] of [[15, true], [OPENING_WINDOW_SECONDS, true], [OPENING_WINDOW_SECONDS + 3, false], [14, false], [16, false]] as [number, boolean][]) {
     test(`an opening moment of ${seconds} seconds is ${ok ? "accepted" : "refused"}`, async () => { expect((await mk({ opening: [{ kind: "speech", title: "Welcome all", seconds }] })).r.status).toBe(ok ? 200 : 400); });
   }
-  test("openings must fit together in the two minutes before the first number", async () => { expect((await mk({ tickets: 2, opening: [{ kind: "speech", title: "One one", seconds: 90 }, { kind: "speech", title: "Two two", seconds: 90 }] })).r.status).toBe(400); });
+  test("two openings are refused (one entry each, LD-21); two tickets are refused for a new game", async () => {
+    expect((await mk({ opening: [{ kind: "speech", title: "One one", seconds: 90 }, { kind: "speech", title: "Two two", seconds: 90 }] })).r.status).toBe(400);
+    expect((await mk({ tickets: 2, opening: [{ kind: "speech", title: "One one", seconds: 30 }] })).r.status).toBe(400);
+  });
   test("a lucky draw cannot be an opening or a closing moment", async () => {
     expect((await mk({ opening: [{ kind: "lucky", title: "Draw" }] })).r.status).toBe(400);
     expect((await mk({ closing: [{ kind: "lucky", title: "Draw" }] })).r.status).toBe(400);
   });
-  test("one card: at most one opening and one closing moment; two tickets: two each", async () => {
+  test("one entry each: at most one opening and one closing moment; two tickets are no longer offered (LD-21)", async () => {
     const two = [{ kind: "speech", title: "Aa one" }, { kind: "speech", title: "Bb two" }];
     expect((await mk({ closing: two })).r.status).toBe(400);
-    expect((await mk({ tickets: 2, closing: two })).r.status).toBe(200);
+    expect((await mk({ tickets: 2, closing: two })).r.status).toBe(400);
   });
 });
 

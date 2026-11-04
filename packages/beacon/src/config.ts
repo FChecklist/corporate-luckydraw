@@ -170,11 +170,11 @@ export const isTimeZone = (z: unknown): z is string => { if (typeof z !== "strin
 export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown; idKind?: unknown; roomMode?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
   const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}), ...(base.idKind === "email" ? { idKind: "email" as const } : {}), ...(base.roomMode ? { roomMode: true as const } : {}) };
   if (input.rounds !== undefined) {
-    if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `A Lucky Draw has one draw and no rounds. Leave rounds out.` };
+    if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS || (!opts.stored && input.rounds !== 1)) return { ok: false, error: `A Lucky Draw has one draw and no rounds. Leave rounds out.` }; // LD-21: new input must be 1; a game read back from storage keeps what it had
     cfg.rounds = input.rounds as number;
   }
   if (input.tickets !== undefined) {
-    if (input.tickets !== 1 && input.tickets !== 2) return { ok: false, error: "A Lucky Draw has no cards: each person registers once." };
+    if ((input.tickets !== 1 && input.tickets !== 2) || (!opts.stored && input.tickets !== 1)) return { ok: false, error: "A Lucky Draw has no cards: each person registers once." }; // LD-21: new input must be 1; stored games keep 2
     cfg.tickets = input.tickets;
   }
   if (input.rewards !== undefined) {
@@ -228,7 +228,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     for (let i = 1; i < out.length; i++) if (out[i]!.after === out[i - 1]!.after) return { ok: false, error: "Two breaks cannot start at the same step." };
     cfg.breaks = out;
   }
-  if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
+  if (input.mark !== undefined) { if ((input.mark !== "auto" && input.mark !== "tap") || (!opts.stored && input.mark === "tap")) return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; // LD-21: "tap" only for a stored game if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
   if (input.join !== undefined) { if (input.join !== "name" && input.join !== "phone") return { ok: false, error: "Joining is \"name\" (guests type their name) or \"phone\" (guests also give a mobile number)." }; if (input.join === "phone") cfg.join = "phone"; else delete cfg.join; }
   if (input.tz !== undefined) { if (input.tz === null || input.tz === "") delete cfg.tz; else if (isTimeZone(input.tz)) { if (input.tz === DEFAULT_TZ) delete cfg.tz; else cfg.tz = input.tz; } else return { ok: false, error: "That time zone is not known. Use a name such as America/New_York or Asia/Kolkata." }; }
   if (input.name !== undefined) { const nm = cleanText(input.name, 60); if (nm) cfg.name = nm; else delete cfg.name; }

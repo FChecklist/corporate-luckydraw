@@ -259,9 +259,10 @@ describe("the most winners per house, and the settings that carry them", () => {
     expect(validateCfg({ rewards: [{ pattern: "line", ordinal: 2 }] }).ok).toBe(false); // a 2nd needs a 1st
     expect(linesFor(everyHouse(), "line").map((l) => l.ordinal)).toEqual([1, 2, 3]);
   });
-  test("marking: auto is the default, tap is cosmetic and is kept; anything else is refused", () => {
+  test("marking: auto is the default, tap is kept only for a stored game (LD-21: new input refuses it); anything else is refused", () => {
     expect(defaultCfg().mark).toBeUndefined();
-    const t = validateCfg({ mark: "tap" }); expect(t.ok && t.cfg.mark).toBe("tap");
+    expect(validateCfg({ mark: "tap" }).ok).toBe(false);
+    const t = validateCfg({ mark: "tap" }, undefined, { stored: true }); expect(t.ok && t.cfg.mark).toBe("tap");
     const a = validateCfg({ mark: "auto" }, t.ok ? t.cfg : undefined); expect(a.ok && a.cfg.mark).toBeUndefined();
     expect(validateCfg({ mark: "sometimes" }).ok).toBe(false);
   });

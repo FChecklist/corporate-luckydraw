@@ -56,7 +56,7 @@ describe("the settings", () => {
     await keep("after setup");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, rewards: [{ pattern: "line", ordinal: 1, text: "" }] }, t.master)).status).toBe(200); await keep("after the prizes");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, opening: [], breaks: [], closing: [] }, t.master)).status).toBe(200); await keep("after the brand moments");
-    expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 2 }, t.master)).status).toBe(200); await keep("after the rounds");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 1 }, t.master)).status).toBe(200); await keep("after the rounds"); // LD-21: a new Lucky Draw has one round
     expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "mobile", employeesOnly: false }, t.master)).status).toBe(200); // choosing differently still works
     const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([s.verify, s.employeesOnly]).toEqual(["mobile", false]);
   });

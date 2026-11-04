@@ -41,9 +41,10 @@ export async function saveDrawSettings(db: D1, eid: string, s: { winners: number
 }
 
 /** True when registering has closed: the draw time has come (automatic), Draw was pressed (manual) or the draw is done. A paused draw does not close. `drawMs` is the draw time on the game clock (pauses already added). */
-export function registrationClosed(d: DrawRow | null, now: number, drawMs: number, paused: boolean): boolean {
+export function registrationClosed(d: DrawRow | null, now: number, drawMs: number, paused: boolean, stopped = false): boolean {
   if (!d) return false;
   if (d.drawn_ms !== null || d.closing_ms !== null) return true;
+  if (stopped) return true; // the Organizer stopped the game before the draw: registering is closed and the draw is made by hand
   return d.mode === "auto" && !paused && now >= drawMs;
 }
 
@@ -56,13 +57,14 @@ const mask = (name: string | null | undefined, emp: string | null | undefined, n
 };
 
 /** What every screen shows: the settings, the state and (after the draw) the result. `pid` adds `mine` for that participant (the "You won" button). */
-export async function drawFacts(env: Env & PiiEnv, e: any, now: number, t: { drawRound: number; paused: boolean }, pid?: string | null) {
+export async function drawFacts(env: Env & PiiEnv, e: any, now: number, t: { drawRound: number; paused: boolean; stopped?: boolean }, pid?: string | null) {
   const d = await drawRow(env.DB, e.id);
   if (!d) return { draw: null };
-  const drawMs = roundMs(t.drawRound);
+  const stopped = !!t.stopped && d.drawn_ms === null;
+  const drawMs: number | null = stopped || !Number.isFinite(t.drawRound) ? null : roundMs(t.drawRound); // after a Stop there is no draw time: null (the pages say "the organizer presses Draw")
   const prizes: string[] = JSON.parse(d.prizes || "[]");
-  const closed = registrationClosed(d, now, drawMs, t.paused);
-  const base = { winners: d.winners, mode: d.mode, prizes, drawMs, paused: t.paused, closed, drawn: d.drawn_ms !== null, drawnMs: d.drawn_ms, entries: d.entries, rehearsal: !!e.rehearsal_of, fairness: DRAW_FAIRNESS, privacy: NO_PERSONAL_LINE };
+  const closed = registrationClosed(d, now, drawMs ?? Infinity, t.paused, stopped);
+  const base = { winners: d.winners, mode: stopped ? "manual" : d.mode, prizes, drawMs, ...(stopped ? { stopped: true } : {}), paused: t.paused, closed, drawn: d.drawn_ms !== null, drawnMs: d.drawn_ms, entries: d.entries, rehearsal: !!e.rehearsal_of, fairness: DRAW_FAIRNESS, privacy: NO_PERSONAL_LINE };
   if (d.drawn_ms === null) return { draw: base };
   const res: { pid: string; place: number }[] = JSON.parse(d.result || "[]");
   const places = prizePlaces(Math.max(d.winners, res.length));
@@ -92,14 +94,15 @@ export type DrawOutcome = { ok: true; already?: boolean } | { ok: false; error: 
  * Draw now, if allowed. Automatic: the draw time (on the game clock) has come. Manual: `by` is the Organizer or the Host (anybody else is refused by the engine and here).
  * The beacon round: the round of the draw time (automatic) or the newest published round at the press (manual); only a signature-checked round counts.
  */
-export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t: { drawRound: number; paused: boolean }, by: Role | "auto"): Promise<DrawOutcome> {
+export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t: { drawRound: number; paused: boolean; stopped?: boolean }, by: Role | "auto"): Promise<DrawOutcome> {
   const d = await drawRow(env.DB, e.id);
   if (!d) return { ok: false, error: "This game is not a Lucky Draw.", status: 404 };
   if (d.drawn_ms !== null) return { ok: true, already: true };
   if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 };
   const drawMs = roundMs(t.drawRound);
-  if (by === "auto") { if (d.mode !== "auto" || now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
-  else if (d.mode !== "manual") return { ok: false, error: "This draw is automatic. It happens at the published time.", status: 409 };
+  const mode: "auto" | "manual" = t.stopped ? "manual" : d.mode; // a Stop before the draw switches it to a manual draw
+  if (by === "auto") { if (mode !== "auto" || now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
+  else if (mode !== "manual") return { ok: false, error: "This draw is automatic. It happens at the published time.", status: 409 };
   else if (by !== "organizer" && by !== "host") return { ok: false, error: "Only the Organizer or the Host can press Draw.", status: 403 };
   // claim the draw: registering closes at once; one request does the work
   const claim = await env.DB.prepare("UPDATE draw SET closing_ms=? WHERE eid=? AND drawn_ms IS NULL AND (closing_ms IS NULL OR closing_ms < ?)").bind(now, e.id, now - 120_000).run();
@@ -113,10 +116,10 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
     const pids = await entryPids(env.DB, e.id);
     const clock = startClock(newClock());
     const closeAt = by === "auto" ? drawMs : Infinity;
-    let s: DrawState = luckyDrawRules.init({ eid: e.id, winners: d.winners, prizes: JSON.parse(d.prizes || "[]").join(","), draw: d.mode, closeAt: d.mode === "auto" ? closeAt : undefined, idKind: "emp", ref: d.ref, cap: Math.min(e.cap, DRAW_CAP), rehearsal: !!e.rehearsal_of }, [], now);
-    const regAt = d.mode === "auto" ? drawMs - 1 : now;
+    let s: DrawState = luckyDrawRules.init({ eid: e.id, winners: d.winners, prizes: JSON.parse(d.prizes || "[]").join(","), draw: mode, closeAt: mode === "auto" ? closeAt : undefined, idKind: "emp", ref: d.ref, cap: Math.min(e.cap, DRAW_CAP), rehearsal: !!e.rehearsal_of }, [], now);
+    const regAt = mode === "auto" ? drawMs - 1 : now;
     for (let i = 0; i < pids.length; i += 5000) s = luckyDrawRules.step(s, { type: "registerMany", players: pids.slice(i, i + 5000) }, regAt, clock).state;
-    const fin = d.mode === "auto" ? luckyDrawRules.step(s, { type: "tick", beacon: got.randomness }, Math.max(now, drawMs), clock) : luckyDrawRules.step(s, { type: "draw", by: by as Role, beacon: got.randomness }, now, clock);
+    const fin = mode === "auto" ? luckyDrawRules.step(s, { type: "tick", beacon: got.randomness }, Math.max(now, drawMs), clock) : luckyDrawRules.step(s, { type: "draw", by: by as Role, beacon: got.randomness }, now, clock);
     if (!fin.state.drawn) { await release(); return { ok: false, error: "The draw could not be made. Nothing was changed.", status: 409 }; }
     const byLower = new Map(pids.map((p) => [p.toUpperCase().replace(/[^A-Z0-9]/g, ""), p])); // the engine cleans IDs the same way for everybody; map back to the seat
     const result = fin.state.drawn.map((w, place) => ({ pid: byLower.get(w) ?? w, place }));
@@ -158,7 +161,7 @@ async function mailResult(env: Env & PiiEnv & PayEnv, e: any, d: DrawRow, result
 }
 
 /** Automatic draws whose time has come and that nobody has looked at: the scheduled job calls this. Bounded: 10 draws per call. */
-export async function drawTick(env: Env & PiiEnv & PayEnv, now: number, timing: (e: any) => Promise<{ drawRound: number; paused: boolean }>): Promise<number> {
+export async function drawTick(env: Env & PiiEnv & PayEnv, now: number, timing: (e: any) => Promise<{ drawRound: number; paused: boolean; stopped?: boolean }>): Promise<number> {
   const rows = (await env.DB.prepare("SELECT e.* FROM draw d JOIN engagement e ON e.id=d.eid WHERE d.drawn_ms IS NULL AND d.mode='auto' AND e.cancelled_ms IS NULL AND e.start_round < ? ORDER BY e.start_round LIMIT 10").bind(roundAt(now)).all<any>()).results ?? [];
   let n = 0;
   for (const e of rows) { const r = await runDraw(env, e, now, await timing(e), "auto"); if (r.ok && !r.already) n++; }
