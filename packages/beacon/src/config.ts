@@ -228,7 +228,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     for (let i = 1; i < out.length; i++) if (out[i]!.after === out[i - 1]!.after) return { ok: false, error: "Two breaks cannot start at the same step." };
     cfg.breaks = out;
   }
-  if (input.mark !== undefined) { if ((input.mark !== "auto" && input.mark !== "tap") || (!opts.stored && input.mark === "tap")) return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; // LD-21: "tap" only for a stored game if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
+  if (input.mark !== undefined) { if ((input.mark !== "auto" && input.mark !== "tap") || (!opts.stored && input.mark === "tap")) return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; /* LD-21: "tap" only for a stored game */ if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
   if (input.join !== undefined) { if (input.join !== "name" && input.join !== "phone") return { ok: false, error: "Joining is \"name\" (guests type their name) or \"phone\" (guests also give a mobile number)." }; if (input.join === "phone") cfg.join = "phone"; else delete cfg.join; }
   if (input.tz !== undefined) { if (input.tz === null || input.tz === "") delete cfg.tz; else if (isTimeZone(input.tz)) { if (input.tz === DEFAULT_TZ) delete cfg.tz; else cfg.tz = input.tz; } else return { ok: false, error: "That time zone is not known. Use a name such as America/New_York or Asia/Kolkata." }; }
   if (input.name !== undefined) { const nm = cleanText(input.name, 60); if (nm) cfg.name = nm; else delete cfg.name; }
