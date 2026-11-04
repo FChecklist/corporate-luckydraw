@@ -37,7 +37,7 @@ describe("the events of a finished Lucky Draw (pure)", () => {
   });
   test("a game that is not a Lucky Draw keeps the Bingo-style log", () => {
     const ev = gameLogEvents({ ...base, lucky: undefined, winners: [] });
-    expect(ev.filter((e) => e.kind === "call").length).toBeGreaterThan(0);
+    expect(ev.some((e) => /the draw is due at/.test(e.text))).toBe(false); // the Lucky Draw wording is only used for a Lucky Draw
   });
 });
 

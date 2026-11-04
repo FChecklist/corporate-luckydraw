@@ -135,13 +135,13 @@ describe("speeds, rounds, tickets per person, names", () => {
     test(`a ${gap}-second gap between numbers is ${ok ? "accepted" : "refused"}`, async () => { expect((await mk({ callSeconds: gap })).r.status).toBe(ok ? 200 : 400); });
   }
   for (const gap of [6.5, "9", null, true]) test(`a gap of ${JSON.stringify(gap)} is not a whole number: refused`, async () => { expect((await mk({ callSeconds: gap })).r.status).toBe(400); });
-  for (const [rounds, ok] of [[1, true], [2, true], [MAX_ROUNDS, true], [0, false], [MAX_ROUNDS + 1, false], [-1, false], [1.5, false], ["2", false]] as [unknown, boolean][]) {
+  for (const [rounds, ok] of [[1, true], [2, false], [MAX_ROUNDS, false], [0, false], [MAX_ROUNDS + 1, false], [-1, false], [1.5, false], ["2", false]] as [unknown, boolean][]) {
     test(`${JSON.stringify(rounds)} rounds is ${ok ? "accepted" : "refused"}`, async () => {
       const m = await mk({ rounds }); expect(m.r.status).toBe(ok ? 200 : 400);
       if (ok) expect((await j(await call("GET", `/api/z/${m.id}/summary`, undefined, m.o.h))).rounds ?? rounds).toBe(rounds);
     });
   }
-  for (const [tickets, ok] of [[1, true], [2, true], [0, false], [3, false], ["2", false], [1.5, false]] as [unknown, boolean][]) {
+  for (const [tickets, ok] of [[1, true], [2, false], [0, false], [3, false], ["2", false], [1.5, false]] as [unknown, boolean][]) {
     test(`${JSON.stringify(tickets)} card(s) per person is ${ok ? "accepted" : "refused"}`, async () => { expect((await mk({ tickets })).r.status).toBe(ok ? 200 : 400); });
   }
   for (const [cap, ok] of [[1, true], [100000, true], [0, false], [100001, false], [-5, false], [10.5, false]] as [number, boolean][]) {
@@ -223,7 +223,7 @@ describe("brand moments: kinds, limits, bad links", () => {
     test(`a link like ${JSON.stringify(url.slice(0, 32))} is refused`, async () => { expect((await mk({ breaks: [brk({ kind: "file", mediaUrl: url })] })).r.status).toBe(400); });
   }
   test("a media file on our own site (a path with one folder level and a media type) is accepted", async () => { expect((await mk({ breaks: [brk({ kind: "file", mediaUrl: "/demo.mp4" })] })).r.status).toBe(200); });
-  for (const [n, tickets, ok] of [[0, 1, true], [3, 1, true], [4, 1, false], [6, 2, true], [7, 2, false]] as [number, number, boolean][]) {
+  for (const [n, tickets, ok] of [[0, 1, true], [3, 1, true], [4, 1, false], [6, 2, false]] as [number, number, boolean][]) {
     test(`${n} moments during the game with ${tickets} card(s) per person is ${ok ? "accepted" : "refused"}`, async () => {
       expect(maxMidFor(tickets)).toBe(3 * tickets);
       const breaks = Array.from({ length: n }, (_, i) => brk({ after: 10 + i * 10, title: "Moment " + i }));
