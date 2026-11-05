@@ -97,7 +97,10 @@ export type DrawOutcome = { ok: true; already?: boolean } | { ok: false; error: 
 export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t: { drawRound: number; paused: boolean; stopped?: boolean }, by: Role | "auto"): Promise<DrawOutcome> {
   const d = await drawRow(env.DB, e.id);
   if (!d) return { ok: false, error: "This game is not a Lucky Draw.", status: 404 };
-  if (d.drawn_ms !== null) return { ok: true, already: true };
+  if (d.drawn_ms !== null) { // already drawn: if a passing database hiccup left the tail (life, winners, prizes, e-mails) open, this repeat finishes it; a plain repeat changes nothing
+    if (await pendingFinish(env.DB, e.id)) await finishDraw(env, e, d, JSON.parse(d.result || "[]"), true);
+    return { ok: true, already: true };
+  }
   if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 };
   const drawMs = roundMs(t.drawRound);
   const mode: "auto" | "manual" = t.stopped ? "manual" : d.mode; // a Stop before the draw switches it to a manual draw
@@ -123,23 +126,43 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
     if (!fin.state.drawn) { await release(); return { ok: false, error: "The draw could not be made. Nothing was changed.", status: 409 }; }
     const byLower = new Map(pids.map((p) => [p.toUpperCase().replace(/[^A-Z0-9]/g, ""), p])); // the engine cleans IDs the same way for everybody; map back to the seat
     const result = fin.state.drawn.map((w, place) => ({ pid: byLower.get(w) ?? w, place }));
-    const upd = await env.DB.prepare("UPDATE draw SET drawn_ms=?, round=?, beacon=?, result=?, by_role=?, entries=? WHERE eid=? AND drawn_ms IS NULL").bind(now, got.round, got.randomness, JSON.stringify(result), by, s.entries.length, e.id).run();
+    // The draw (who won) is committed ONCE, together with a "tail owed" marker, in one all-or-nothing step. The tail (end of game, winner record, prizes, e-mails) is then finished here; if a passing database hiccup stops it,
+    // the marker stays and the next press / request / scheduled run finishes it (nothing is lost, nothing is done twice).
+    const [upd] = await env.DB.batch([
+      env.DB.prepare("UPDATE draw SET drawn_ms=?, round=?, beacon=?, result=?, by_role=?, entries=? WHERE eid=? AND drawn_ms IS NULL").bind(now, got.round, got.randomness, JSON.stringify(result), by, s.entries.length, e.id),
+      env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM draw WHERE eid=? AND drawn_ms=?)").bind(`drawpend/${e.id}`, String(now), e.id, now),
+    ]);
     if (!(upd.meta?.changes ?? 0)) return { ok: true, already: true };
-    await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'phones') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms, end_src='phones' WHERE life.purged_ms IS NULL").bind(e.id, now).run();
-    if (!e.rehearsal_of) {
-      await recordWinners(env as any, e, e.id, result.map((r) => ({ pattern: "lucky", ordinal: r.place + 1, round: 1, idx: 0, pids: [r.pid] })), now, "draw");
-      for (const r of result) {
-        const seat = Number(r.pid.split("x")[0]);
-        const row = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(e.id, r.pid).first<{ pii: string | null }>();
-        if (Number.isFinite(seat)) await env.DB.prepare("INSERT OR IGNORE INTO prize(eid,round,pattern,ordinal,seat,pii,orig) VALUES(?,?,?,?,?,?,?)").bind(e.id, 1, "lucky", r.place + 1, seat, row?.pii ?? null, row?.pii ?? null).run();
-      }
-      await mailResult(env, e, d, result, now);
-    }
+    try { const fresh = (await drawRow(env.DB, e.id))!; await finishDraw(env, e, fresh, result, false); } catch { /* the draw stands; the tail is finished by the next request or the scheduled run */ }
     return { ok: true };
   } catch (err) {
     await release();
     return { ok: false, error: "The draw could not be made. Nothing was changed. Please try again.", status: 500 };
   }
+}
+
+/** True while the tail of a committed draw is still owed (see runDraw). */
+async function pendingFinish(db: D1, eid: string): Promise<boolean> {
+  return !!(await db.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`drawpend/${eid}`).first());
+}
+
+/**
+ * The tail of a committed draw: the end of the game, the winner record, the prize rows, then the e-mails. Every step is safe to do twice (and the e-mails are sent once: the marker is cleared before them).
+ * strict: a passing database hiccup is thrown out (so the caller answers "busy" and the repeat finishes the job) instead of being swallowed.
+ */
+export async function finishDraw(env: Env & PiiEnv & PayEnv, e: any, d: DrawRow, result: { pid: string; place: number }[], strict: boolean): Promise<void> {
+  const at = d.drawn_ms ?? Date.now();
+  await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'phones') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms, end_src='phones' WHERE life.purged_ms IS NULL").bind(e.id, at).run();
+  if (!e.rehearsal_of) {
+    await recordWinners(env as any, e, e.id, result.map((r) => ({ pattern: "lucky", ordinal: r.place + 1, round: 1, idx: 0, pids: [r.pid] })), at, "draw", true);
+    for (const r of result) {
+      const seat = Number(r.pid.split("x")[0]);
+      const row = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(e.id, r.pid).first<{ pii: string | null }>();
+      if (Number.isFinite(seat)) await env.DB.prepare("INSERT OR IGNORE INTO prize(eid,round,pattern,ordinal,seat,pii,orig) VALUES(?,?,?,?,?,?,?)").bind(e.id, 1, "lucky", r.place + 1, seat, row?.pii ?? null, row?.pii ?? null).run();
+    }
+  }
+  if (!(await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`drawpend/${e.id}`).run()).meta?.changes) return; // someone else finished it a moment ago: they send the e-mails
+  if (!e.rehearsal_of) await mailResult(env, e, d, result, at);
 }
 
 /** The result by e-mail: to every winner who gave an e-mail ID (the entry is the e-mail), and a summary to the Organizer. Never blocks the draw. */
@@ -162,7 +185,7 @@ async function mailResult(env: Env & PiiEnv & PayEnv, e: any, d: DrawRow, result
 
 /** Automatic draws whose time has come and that nobody has looked at: the scheduled job calls this. Bounded: 10 draws per call. */
 export async function drawTick(env: Env & PiiEnv & PayEnv, now: number, timing: (e: any) => Promise<{ drawRound: number; paused: boolean; stopped?: boolean }>): Promise<number> {
-  const rows = (await env.DB.prepare("SELECT e.* FROM draw d JOIN engagement e ON e.id=d.eid WHERE d.drawn_ms IS NULL AND d.mode='auto' AND e.cancelled_ms IS NULL AND e.start_round < ? ORDER BY e.start_round LIMIT 10").bind(roundAt(now)).all<any>()).results ?? [];
+  const rows = (await env.DB.prepare("SELECT e.* FROM draw d JOIN engagement e ON e.id=d.eid WHERE ((d.drawn_ms IS NULL AND d.mode='auto' AND e.cancelled_ms IS NULL AND e.start_round < ?) OR (d.drawn_ms IS NOT NULL AND EXISTS (SELECT 1 FROM kv WHERE k='drawpend/' || d.eid))) ORDER BY e.start_round LIMIT 10").bind(roundAt(now)).all<any>()).results ?? [];
   let n = 0;
   for (const e of rows) { const r = await runDraw(env, e, now, await timing(e), "auto"); if (r.ok && !r.already) n++; }
   return n;
