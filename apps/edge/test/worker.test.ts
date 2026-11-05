@@ -218,7 +218,7 @@ describe("free-plan guard and scale", () => {
       await Promise.all(pids.slice(0, 2000).map((pid, i) => call("POST", "/api/z/ENG1/claims", { pid, claims: [{ pattern: pats[i % 7], idx: i % 75 }] })));
     expect((raw.query("SELECT COUNT(*) c FROM claim").get() as any).c).toBe(0);
     expect((raw.query("SELECT writes w FROM usage").get() as any).w).toBe(79994); // 1 create + 1 entitlement-free + 10,000 joins at what a join really writes (about 8 units, the same figure Corporate Tambola counts)
-  }, 300_000);
+  }, 900_000); // 10,000 real joins take 5+ minutes on a loaded phone or laptop (a 300 s limit failed it on both, 5 Nov 2026); the limit is only a guard against a hang
   test("a small engagement (up to 500) stores claims once each, even when sent twice", async () => {
     await create({ cap: 500 });
     const pids: string[] = [];
