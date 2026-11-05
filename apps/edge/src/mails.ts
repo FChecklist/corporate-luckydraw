@@ -5,8 +5,8 @@
 
 import { aiPaste } from "./ai-link";
 
-export const AI_WARNING = "DO NOT FORWARD: this email holds your personal AI work link";
-export const HOST_WARNING = "DO NOT FORWARD: this email holds a Host AI work link";
+export const AI_WARNING = "PLEASE KEEP SAFE: this email holds your personal AI work link";
+export const HOST_WARNING = "PLEASE KEEP SAFE: this email holds a Host AI work link";
 export const AI_SUBJECT = "Your personal AI work link - Corporate Lucky Draw";
 export const HOST_SUBJECT = "A Host AI work link for your Corporate Lucky Draw account";
 
@@ -17,7 +17,7 @@ import { BRAND, esc, footerText, pageHtml } from "./brand";
 const AI_CAN = "It can do what you do in the console.";
 const AI_STAYS = "You keep payment, publishing, erasing data, and pause or stop.";
 const HOST_CAN = "Watch the game, message every guest, tick prizes as given.";
-const HOST_STAYS = "Nothing else. It cannot change settings, people, payment or data.";
+const HOST_STAYS = "Nothing else: it is for watching, not for changing settings, people, payment or data.";
 
 function shell(opts: { origin: string; warning: string; title: string; intro: string; pasteLabel: string; expiry: string; button: { label: string; url: string; note: string }; paste: string; steps: string[]; can: string; stays: string; replace: string; footer: string }): { text: string; html: string } {
   const text = [
@@ -86,7 +86,7 @@ export function coHostLinkMail(origin: string, key: string, owner: string, expir
 }
 
 export const HOST_LINK_SUBJECT = "You are a Host: your Corporate Lucky Draw link";
-export const HOST_LINK_WARNING = "DO NOT FORWARD: this email holds your personal Host link";
+export const HOST_LINK_WARNING = "PLEASE KEEP SAFE: this email holds your personal Host link";
 /** The Host's OWN link (their console), e-mailed to the Host when the Organizer adds them. Not an AI link; it opens the Host's console. Only the Organizer and Hosts have an e-mail. */
 export function hostLinkMail(origin: string, key: string, name: string, eid = ""): BuiltMail {
   const url = `${origin}/zc.html?k=${key}${eid ? "&e=" + encodeURIComponent(eid) : ""}`; // with a game id the link opens that game
@@ -130,9 +130,9 @@ export const SIGNIN_SUBJECT = "Your Corporate Lucky Draw sign-in: a 6-digit code
  *  (single use, 10 minutes). Nothing else: no AI link, no extra choices (people were confused by "sign-in link" and three options). */
 export function signInMail(origin: string, code: string, token: string, linkOverride?: string): BuiltMail {
   const link = linkOverride ?? `${origin}/signin.html?t=${token}&go=console`;
-  const foot = "If you did not ask for this, ignore this e-mail. Do not forward it: it opens your account.";
+  const foot = "If you did not ask for this, you can simply ignore this e-mail. Please keep it to yourself: it opens your account.";
   const text = [
-    "SIGN IN TO YOUR ACCOUNT", "", "Do ONE of these two things. You do not need both.", "",
+    "SIGN IN TO YOUR ACCOUNT", "", "Please choose ONE of these two ways. You do not need both.", "",
     "OPTION 1 - TYPE THE 6-DIGIT CODE", "Go back to the sign-in page, type these 6 numbers in the six boxes and press Submit:", code, "It works for 10 minutes.", "",
     "OPTION 2 - TAP THE BUTTON", "Tap this link. You are signed in at once:", link, "It works once, for 10 minutes.", "",
     foot, "", footerText(origin), "",

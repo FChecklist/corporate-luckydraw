@@ -58,7 +58,7 @@ export async function cancelPreview(env: PayEnv, e: any, now: number): Promise<{
     const c = await creditOfCancelled(env.DB, e.id), rb = await reopenBlocker(env.DB, e, now);
     return { canCancel: false, reason: "This game is already cancelled.", paid, cancelled: true, credit: c, ...(paid ? { rescheduleUntilMs: (await paidWindowEndMs(env.DB, e.id)) ?? e.cancelled_ms + 365 * 86_400_000 } : {}), canReschedule: !rb.reason, ...(rb.reason ? { rescheduleReason: rb.reason } : { maxStartMs: rb.maxStartMs }) };
   }
-  if (paid && roundMs(e.start_round) <= now) return { canCancel: false, reason: "The start time has passed and this game is paid, so it cannot be cancelled now. Please use End the game instead.", paid, credit: null };
+  if (paid && roundMs(e.start_round) <= now) return { canCancel: false, reason: "The start time has passed, so this paid game has started and can no longer be cancelled. Please use End the game instead.", paid, credit: null };
   if (e.unplayed_ms) return { canCancel: false, reason: "This game did not start and is closed. You can create a new game like this one.", paid, credit: null };
   const c = await creditIfCancelled(env.DB, e.id); // a paid game: what was paid. Any game: credit that had been applied to it comes back
   return { canCancel: true, paid, credit: c ? { amountInr: c.amountInr, expiresMs: c.expiresMs } : null, ...(paid && c ? { moveUntilMs: c.expiresMs } : {}) };

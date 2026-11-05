@@ -62,7 +62,7 @@ describe("the header menu: exactly six items, in the owner's order", () => {
   test("the menu points at pages that exist, and the free demo game is the 10-person demo", () => {
     const h = rd("index.html"), nav = /<nav class="ck-nav"[^>]*>([\s\S]*?)<\/nav>/.exec(h)![1]!;
     const hrefs = [...nav.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
-    expect(hrefs).toEqual(["/how-it-works", "/zc.html?demo=1", "/guide", "/brochure", "/partner", "/#login"]);
+    expect(hrefs).toEqual(["/how-it-works", "/zc.html?demo=1", "/guide", "/brochure", "/partner", "https://console.corporatetambola.com/"]);
     for (const f of ["how-it-works.html", "guide.html", "brochure.html", "partner.html", "zc.html", "brochure.pdf"]) expect([f, existsSync(new URL(f, PUB))]).toEqual([f, true]);
     expect(readFileSync(new URL("../../../packages/beacon/src/config.ts", import.meta.url), "utf8")).toMatch(/DEMO_CAP\s*=\s*10/);
     for (const banned of ["Free AI assistant", "WhatsApp us", "Pricing</a>", ">Video<"]) expect(nav).not.toContain(banned);
@@ -100,7 +100,7 @@ describe("plain wording", () => {
 });
 
 describe("canonical address, share tags, sitemap", () => {
-  const CLEAN: Record<string, string> = { index: "/", "how-it-works": "/how-it-works", guide: "/guide", brochure: "/brochure", partner: "/partner", helpdesk: "/helpdesk", pricing: "/pricing", about: "/about", contact: "/contact", legal: "/legal", terms: "/terms", privacy: "/privacy", "legal-position": "/legal-position", dpa: "/dpa", subprocessors: "/subprocessors", "refund-policy": "/refund-policy", "partner-terms": "/partner-terms", trust: "/trust" };
+  const CLEAN: Record<string, string> = { index: "/", "how-it-works": "/how-it-works", guide: "/guide", brochure: "/brochure", partner: "/partner", helpdesk: "/helpdesk", pricing: "/pricing", about: "/about", contact: "/contact", terms: "/terms", "partner-terms": "/partner-terms", trust: "/trust" };
   const sm = rd("sitemap.xml"), locs = [...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!);
   test("each indexable page has one canonical address, the same in Open Graph and in the sitemap, and the share picture exists", () => {
     expect(locs.sort()).toEqual(Object.values(CLEAN).map((p) => ORIGIN + p).sort());

@@ -21,7 +21,7 @@ const j = async (r: Response) => (await r.json()) as any;
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" };
 });
 
 async function organizer() {
@@ -128,8 +128,8 @@ describe("GET-only fallback (_method and _body)", () => {
   test("GET with _method=POST and _body creates, patches and loads a roster", async () => {
     const o = await organizer();
     const c = await call("GET", `/ai/${o.ai}/z?_method=POST&_body=${q(eng("GET-1"))}`); expect(c.status).toBe(200); expect((await j(c)).draft).toBe(true);
-    const p = await call("GET", `/ai/${o.ai}/z/GET-1/settings?_method=PATCH&_body=${q({ tickets: 2, rewards: [{ pattern: "blackout", ordinal: 1, text: "TV" }] })}`); expect(p.status).toBe(200);
-    expect((await j(await call("GET", `/ai/${o.ai}/z/GET-1/summary`))).tickets).toBe(2);
+    const p = await call("GET", `/ai/${o.ai}/z/GET-1/settings?_method=PATCH&_body=${q({ tickets: 1, rewards: [{ pattern: "blackout", ordinal: 1, text: "TV" }] })}`); expect(p.status).toBe(200);
+    expect((await j(await call("GET", `/ai/${o.ai}/z/GET-1/summary`))).tickets).toBe(1);
     const people = Array.from({ length: 20 }, (_, i) => ({ phone: "98765" + String(10000 + i), name: "P" + i }));
     const refused = await call("GET", `/ai/${o.ai}/z/GET-1/roster?_method=POST&_body=${q({ people })}`); expect(refused.status).toBe(403); expect((await refused.text())).toMatch(/console/); // names and numbers never pass through the AI
     expect((await j(await call("POST", "/api/z/GET-1/roster", { people }, o.h))).added).toBe(20); // the owner loads them in the console

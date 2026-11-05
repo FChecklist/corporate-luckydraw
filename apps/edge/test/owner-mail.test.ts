@@ -27,7 +27,7 @@ beforeEach(() => {
     if (pm) { const p = rz.payments[pm[1]!]; if (!p) return new Response("{}", { status: 404 }); if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p), { status: 200 }); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -46,7 +46,7 @@ describe("E9: the owner is told of each paid order", () => {
     expect(ownerMails().length).toBe(0); // an order that is only opened is not a paid order
     expect((await verify(o.paymentId, o.razorpay.orderId)).status).toBe(200);
     const m = ownerMails(); expect(m.length).toBe(1);
-    const txn = (raw.query("SELECT txn_id FROM payment").get() as any).txn_id as string; expect(txn).toMatch(/^BNG-/);
+    const txn = (raw.query("SELECT txn_id FROM payment").get() as any).txn_id as string; expect(txn).toMatch(/^LDR-/);
     expect(m[0]!.subject).toContain("Paid order"); expect(m[0]!.subject).toContain("Corporate Lucky Draw");
     for (const part of ["Game: Corporate Lucky Draw", "up to 500", txn, "Asha Rao", "asha@acme.com", "Rs"]) expect(m[0]!.body).toContain(part);
   });
@@ -63,7 +63,7 @@ describe("E9: the owner is told of each paid order", () => {
   });
   test("the claim is one row per payment, so two calls at the same instant cannot both send", async () => {
     const sent: string[] = [];
-    const order = { gameLabel: "Corporate Lucky Draw", paymentId: "pay_same", txnId: "BNG-pay_same", planLabel: "up to 500 players", amountText: "Rs 100", organizerName: "Asha", organizerEmail: "asha@acme.com" };
+    const order = { gameLabel: "Corporate Lucky Draw", paymentId: "pay_same", txnId: "LDR-pay_same", planLabel: "up to 500 players", amountText: "Rs 100", organizerName: "Asha", organizerEmail: "asha@acme.com" };
     const results = await Promise.all([1, 2, 3].map(() => notifyOwnerOfPaidOrder(async (subject) => { sent.push(subject); return true; }, env.DB, order, T)));
     expect(results.filter(Boolean).length).toBe(1); expect(sent.length).toBe(1);
     expect((raw.query("SELECT COUNT(*) c FROM kv WHERE k LIKE 'ownerpaid/%'").get() as any).c).toBe(1);

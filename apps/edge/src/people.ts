@@ -71,7 +71,7 @@ export const normId = (raw: unknown, kind: "emp" | "email", createdMs?: number |
   if ((createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && looksLikeEmail(raw)) return null; // an Email ID typed where an employee ID is asked is refused, never mangled
   return normEmp(raw, createdMs);
 };
-export const EMP_TOO_LONG = "This ID is too long. An employee ID may be up to 30 characters once cleaned.";
+export const EMP_TOO_LONG = "This Employee ID is too long. An employee ID may be up to 30 characters once cleaned.";
 export const badIdMessage = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string => kind === "email" ? "Please check your Email ID. It looks incomplete." : (createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && looksLikeEmail(raw) ? EMP_LOOKS_LIKE_EMAIL : (createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && empClean(raw).length > 30 ? EMP_TOO_LONG : "An employee ID has letters and numbers only (up to 30).";
 /** Does anybody in this game hold an identity made from an ID (an employee ID or an Email ID)? A listed person or a joined person with an ID, in pages of 100. A name-only or mobile-only guest does not count:
  *  only a stored ID hash is orphaned when "what a person must give" changes, so only that locks the setting. */
@@ -170,7 +170,7 @@ async function callerOf(c: Ctx, bodyMe?: unknown, bodyDevice?: unknown): Promise
   if (seat.role) return { res: c.json({ error: "Your team seat invites through the console, not through the card." }, 403) };
   if (seat.inv !== null) return { res: c.json({ error: "Guests invited by a guest can play but cannot invite more people." }, 403) };
   if (!c.invites.on) return { res: c.json({ error: "The organizer has not switched on guest invitations for this game." }, 403) };
-  return { who: { id: "s:" + seat.seq, kind: "guest", all: false, limit: c.invites.per, label: "Guest", seat: seat.seq } };
+  return { who: { id: "s:" + seat.seq, kind: "guest", all: false, limit: Math.min(c.invites.per, 4), label: "Guest", seat: seat.seq } };
 }
 
 /** The labels the console shows for inviter ids: Organizer, Host <label>, Co-host <label>, Guest (card n). */
@@ -204,7 +204,7 @@ export async function limitOfInviter(c: { env: Env; eid: string; e: any; invites
   if (inviter.startsWith("c:")) return c.e.cohost_limit ?? COHOST_LIMIT_DEFAULT;
   if (inviter.startsWith("s:")) {
     const s = await c.env.DB.prepare("SELECT role FROM seat WHERE eid=? AND seq=?").bind(c.eid, Number(inviter.slice(2))).first<{ role: string | null }>();
-    return s?.role ? null : c.invites.per;
+    return s?.role ? null : Math.min(c.invites.per, 4); // you and up to 4 family members, also for games saved with a larger number
   }
   return null;
 }

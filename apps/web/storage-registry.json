@@ -22,18 +22,15 @@
     {
       "id": "organizer-tab",
       "store": "sessionStorage",
-      "say": "In an organizer's browser tab, until the tab is closed: the sign-in, the e-mail and mobile number typed, the page to open next, and a note that the page already updated itself to the newest version.",
+      "say": "In an organizer's browser tab, until the tab is closed: the sign-in, the page to open next, and a note that the page already updated itself to the newest version.",
       "keys": [
         "cbz-org",
         "cbz-next",
         "cbz-login-email",
         "cbz-aimsg",
-        "cbz-email",
-        "cbz-name",
         "cbz-pl",
         "cbz-cap",
-        "cb-auto-done",
-        "cbz-phone"
+        "cb-auto-done"
       ]
     },
     {
@@ -62,6 +59,14 @@
       "say": "In an organizer's browser: the name, e-mail, mobile number and invoice details typed on the payment page, so the form is filled in next time.",
       "keys": [
         "cb-payer"
+      ]
+    },
+    {
+      "id": "pay-draft",
+      "store": "sessionStorage",
+      "say": "On the screen of whoever is paying: the country chosen, the Game ID typed on the payment test and, after paying, the payment's reference and the optional invoice details typed (name, company, tax number). Kept only in this tab so nothing is lost if the page reloads, and gone when the tab closes.",
+      "keys": [
+        "cbz-paydraft-*"
       ]
     },
     {

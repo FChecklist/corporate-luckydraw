@@ -24,7 +24,9 @@ export const rankOf = (eid: string, ref: string, beacon: string, id: string): st
 export function winnersFor(eid: string, ref: string, beacon: string, entries: readonly string[], n: number): string[] {
   return [...new Set(entries)].map((id) => [rankOf(eid, ref, beacon, id), id] as const).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).slice(0, Math.max(0, n)).map((x) => x[1]);
 }
-const place = (i: number): string => ["1st", "2nd", "3rd"][i] ?? `${i + 1}th`;
+/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st, 22nd, 23rd ... 101st, 111th (smoke-test LD-12: 21 was "21th"). */
+export const ordinalOf = (n: number): string => { const m = n % 100, d = n % 10; return `${n}${m >= 11 && m <= 13 ? "th" : d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"}`; };
+const place = (i: number): string => ordinalOf(i + 1);
 export const prizePlaces = (n: number): string[] => Array.from({ length: n }, (_, i) => place(i));
 const finishDraw = (s: DrawState, beacon: string): { state: DrawState; out: Outcome[] } => {
   const drawn = winnersFor(s.eid, s.ref, beacon, s.entries, s.winnersWanted);
@@ -43,7 +45,8 @@ export const luckyDrawRules: RulesModule<DrawState, DrawEvent> = {
     if (!(winnersWanted >= 1)) throw new Error("a draw needs at least one winner");
     const closeAt = mode === "auto" ? Number(setup.closeAt) : Infinity;
     if (mode === "auto" && !Number.isFinite(closeAt)) throw new Error("an automatic draw needs its draw time (setup.closeAt)");
-    const cap = setup.rehearsal ? MANIFESTS.luckydraw.rehearsalMax : Math.min(Number(setup.cap ?? DRAW_CAP), DRAW_CAP);
+    // The server seats up to 20 people in a rehearsal and passes that as setup.cap; everybody seated is in the draw (smoke-test LD-14). The manifest's rehearsalMax is only the fallback when no cap is given.
+    const cap = Math.min(Number(setup.cap ?? (setup.rehearsal ? MANIFESTS.luckydraw.rehearsalMax : DRAW_CAP)), DRAW_CAP);
     return {
       eid: String(setup.eid ?? ""), ref: String(setup.ref ?? "0"), idKind: setup.idKind === "email" ? "email" : "emp", mode, closeAt, winnersWanted, cap,
       prizes: String(setup.prizes ?? "").split(",").map((p) => p.trim()).filter(Boolean), entries: [], drawn: null, beacon: null, over: false,
@@ -73,7 +76,7 @@ export const luckyDrawRules: RulesModule<DrawState, DrawEvent> = {
 export function registerWhy(s: DrawState, raw: string, now: number, clock: Clock): string | null {
   const id = normId(s.idKind, raw);
   if (s.drawn) return "The draw is done.";
-  if (!id) return "That ID is not valid.";
+  if (!id) return "That Employee ID or Email ID is not valid.";
   if (gameNow(clock, now) >= s.closeAt) return "Registration is closed.";
   if (s.entries.includes(id)) return "You are already in the draw.";
   if (s.entries.length >= s.cap) return "The draw is full.";

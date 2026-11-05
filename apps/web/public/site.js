@@ -55,7 +55,7 @@
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "pack2") { S.pack = e.target.value === DEMO ? DEMO : +e.target.value; renderPrices(); const f = $("pack2"); if (f) f.focus(); } });
   function startDemo() { try { sessionStorage.setItem("cbz-next", "/zc.html?demo=1"); } catch {} const t = (() => { try { return (window.CTK ? CTK.get("cbz-org") : sessionStorage.getItem("cbz-org")); } catch { return null; } })(); if (t) location.href = "/zc.html?demo=1"; else openLogin(""); } // signed in already: straight to the demo draft; otherwise the same sign-in as every game
   $("payBtn").addEventListener("click", () => (isDemo() ? startDemo() : openCheckout(S.pack)));
-  $("loginLink").addEventListener("click", (e) => { e.preventDefault(); openLogin(""); });
+  // The Log in link in the top bar is a plain link to the ONE sign-in page (the console); it no longer opens the sheet below.
 
   // ---------- helpers ----------
   const xbtn = `<button type="button" class="xbtn" data-close aria-label="Close">${ic("x")}</button>`;
@@ -97,7 +97,7 @@
         <div id="taxBox"></div><div id="k3wrap">${CBConsent.html("K3")}</div><div id="fErr"></div>
         <button class="btn block" style="margin-top:16px" type="submit" id="payGo" disabled aria-disabled="true">${ic("lock")} ${PAYMODE === "razorpay" ? "Pay securely with Razorpay" : PAYMODE === "off" ? "Payments are not switched on yet" : "Pay (local test payment)"}</button>
       </form>
-      <p class="proto">${PAYMODE === "razorpay" ? "Secure payment by Razorpay. No refunds are given. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The organizer keeps the credit in their account. Once it has started, a paid game cannot be cancelled. Payment to <a href='https://itservices-rajat-agarwal.pages.dev/' rel='noopener' target='_blank'>IT Services by Rajat Agarwal</a>. An invoice is emailed to you." : "Local test payment: no real money is taken. Unused places are not credited."}</p>`);
+      <p class="proto">${PAYMODE === "razorpay" ? "Secure payment by Razorpay. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The organizer keeps the credit in their account. A paid game can be cancelled until it starts. Payment to <a href='https://itservices-rajat-agarwal.pages.dev/' rel='noopener' target='_blank'>IT Services by Rajat Agarwal</a>. An invoice is emailed to you." : "Local test payment: no real money is taken. Unused places are not credited."}</p>`);
     $("oCty").addEventListener("change", taxField);
     $("coForm").addEventListener("submit", (e) => { e.preventDefault(); pay(); });
     CBConsent.gate($("k3wrap"), "K3", $("payGo"));
@@ -123,7 +123,7 @@
     TB.sheet(`${xbtn}<div class="openfree" role="group" aria-labelledby="ofTitle">
       <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Lucky Draw"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Lucky Draw<i>.</i></span></span></div>
       <div class="eyebrow ofeye">Build it and publish it free.</div><h2 id="ofTitle">Create your game</h2>
-      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>Add a message or video as a break</span></li><li><span class="bico">${ic("trophy")}</span><span>Set the winners and their prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group lucky draw for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>Everyone joins once, with an ID</span></li><li><span class="bico">${ic("phone")}</span><span>Each guest joins on their phone</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are auto-deleted within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
+      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>Add a message or video as a break</span></li><li><span class="bico">${ic("trophy")}</span><span>Set the winners and their prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group lucky draw for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>Everyone joins once, with an Employee ID</span></li><li><span class="bico">${ic("phone")}</span><span>Each guest joins on their phone</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are auto-deleted within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
       <div id="k2wrap">${CBConsent.html("K2")}</div>${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your e-mail</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" aria-describedby="fErr"><div id="fErr" role="alert"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled aria-disabled="true">Create my game ${ic("arrow")}</button></form>
       <p class="trust">${ic("shield")}Free to build and publish. No password.</p>
@@ -257,7 +257,9 @@
     tick(); setInterval(tick, 1300);
     let bb = 0; setInterval(() => { bb = (bb + 2) % 102; const e = $("bbp"); if (e) e.style.setProperty("--p", bb + "%"); }, 200);
   }
-  const hashLogin = () => { if (location.hash === "#login") { let em = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} openLogin(em); } };
+  // The one sign-in is the console. A bare #login (an old link, a bookmark, the Guide's Sign in button) goes there; this sheet opens only for a flow that is waiting for it (a demo, a payment or the organizer console asks again and leaves cbz-next or cbz-login-email).
+  const CONSOLE_SIGNIN = "https://console.corporatetambola.com/";
+  const hashLogin = () => { if (location.hash === "#login") { let em = "", waiting = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; waiting = sessionStorage.getItem("cbz-next") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} if (!em && !waiting) { location.replace(CONSOLE_SIGNIN); return; } openLogin(em); } };
   window.addEventListener("hashchange", hashLogin); hashLogin();
   // ---------- who is signed in: the top link says it ("Organizer" or "Host") and goes to the right place ----------
   (async () => {

@@ -7,6 +7,7 @@
 import { tzOfRow } from "./tz";
 import { checkinRequired, deviceMatches, keepWinnerEvidence, prefixEnd } from "./checkin";
 import { restoreCreditUses } from "./credit";
+import { transientDb } from "./transient";
 import { keepLegalParty } from "./legal";
 import { ensureGameRecordTable, keepGameRecord } from "./gamerecord";
 import { ensureGameLog, writeGameLog } from "./gamelog";
@@ -70,9 +71,10 @@ async function callTimeMs(env: Env, e: any, round: number, idx: number, sch?: Aw
 async function keepGameLog(env: Env, e: any, life: any, now: number): Promise<void> {
   try {
     const sch = await schedule(env, e);
-    const w = (await env.DB.prepare("SELECT round, pattern, ordinal, seat, idx FROM winner WHERE eid=? AND pattern<>'lucky' ORDER BY round, idx, ordinal, seat").bind(e.id).all<any>()).results ?? [];
+    const isDraw = !!(await env.DB.prepare("SELECT 1 AS x FROM draw WHERE eid=?").bind(e.id).first().catch(() => null)); // a Lucky Draw keeps its own short log (LD-41); the 'lucky' winners are its winners
+    const w = (await env.DB.prepare(isDraw ? "SELECT round, pattern, ordinal, seat, idx FROM winner WHERE eid=? AND pattern='lucky' ORDER BY ordinal, seat" : "SELECT round, pattern, ordinal, seat, idx FROM winner WHERE eid=? AND pattern<>'lucky' ORDER BY round, idx, ordinal, seat").bind(e.id).all<any>()).results ?? [];
     const lines: Record<string, number> = {}; for (const r of sch.cfg.rewards) lines[r.pattern] = (lines[r.pattern] ?? 0) + 1;
-    await writeGameLog(env, { id: e.id, tz: sch.cfg.tz, startRound: e.start_round, callSeconds: e.call_seconds, rounds: sch.cfg.rounds, st: sch.st, breaks: sch.cfg.breaks, endMs: life.end_ms, endSrc: life.end_src, winners: w, lines }, now);
+    await writeGameLog(env, { id: e.id, tz: sch.cfg.tz, startRound: e.start_round, callSeconds: e.call_seconds, rounds: sch.cfg.rounds, st: sch.st, breaks: sch.cfg.breaks, endMs: life.end_ms, endSrc: life.end_src, winners: w, lines, ...(isDraw ? { lucky: { dueMs: roundMs(callRoundR(sch.st, e.start_round, 1, [], 1, 0) ?? e.start_round) } } : {}) }, now);
   } catch { /* the log is a help, never a reason to stop the lifecycle */ }
 }
 /** When the game will have ended if nobody ends it sooner: the last call of the last round, or the organizer's stop. */
@@ -96,7 +98,7 @@ export async function erasureOf(env: Env, e: any): Promise<number> {
 const lineLabel = (cfg: EngagementCfg, key: PatternKey, ordinal: number) => (linesFor(cfg.rewards, key).length > 1 ? ord(ordinal) + " " : "") + (NAMES[key] ?? key);
 
 /** Called when the organizer's console publishes results: the winners record gets one row per winning seat (never a name or a number). */
-export async function recordWinners(env: Env, e: any, eid: string, results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[], now: number, src = "console"): Promise<void> {
+export async function recordWinners(env: Env, e: any, eid: string, results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[], now: number, src = "console", strict = false): Promise<void> {
   try {
     const sch = await schedule(env, e);
     for (const x of results) {
@@ -114,7 +116,7 @@ export async function recordWinners(env: Env, e: any, eid: string, results: { pa
     const still = new Set(((await env.DB.prepare("SELECT DISTINCT seat FROM winner WHERE eid=?").bind(eid).all<{ seat: number }>()).results ?? []).map((r) => Number(r.seat)));
     const evid = (await env.DB.prepare("SELECT k FROM kv WHERE k >= ? AND k < ?").bind(`wev/${eid}/`, prefixEnd(`wev/${eid}/`)).all<{ k: string }>()).results ?? [];
     for (const r of evid) if (!still.has(Number(r.k.split("/")[2]))) await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(r.k).run();
-  } catch { /* the winners record is best effort here: phones report their own wins too */ }
+  } catch (err) { if (strict && transientDb(err)) throw err; /* the winners record is best effort here: phones report their own wins too; strict (the phones' vote) lets a passing database hiccup out so the vote is not marked settled over a missing record */ }
 }
 
 /** A phone reporting a win of its own (so a game without an open console still has a winners record). Console-checked results always win over these. */
@@ -175,7 +177,7 @@ async function deleteEngagementRows(env: Env, id: string): Promise<void> {
   await keepLegalParty(env.DB, id, Date.now()); // the law keeps payments, invoices, the organizer's invoice details and who paid, for ever: copy them out before the game's own rows go
   await env.DB.batch([
     env.DB.prepare("DELETE FROM winner WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM kv WHERE k >= ? AND k < ?").bind(`wev/${id}/`, prefixEnd(`wev/${id}/`)), env.DB.prepare("DELETE FROM prize WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM life WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM cbl_request WHERE eid=?").bind(id),
-    env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
+    env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`mailowed/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
     env.DB.prepare("DELETE FROM organizer_key WHERE eid=? AND kind='cohost'").bind(id), env.DB.prepare("DELETE FROM shred WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM eng_key WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM audit_pii WHERE eid=?").bind(id), // erasePersonal above wrote a fresh shred marker
     env.DB.prepare("DELETE FROM game_log WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM draw WHERE eid=?").bind(id), // B26: the game log goes with the game, at the end of the 365th day
     env.DB.prepare("DELETE FROM engagement WHERE id=?").bind(id),
@@ -456,9 +458,12 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
 
 export { INVITE_CATEGORIES };
 
-/** Lucky Draw timing: the draw round (the published time, moved later by the Organizer's or Host's pauses) and whether the game is paused right now. */
-export async function drawTiming(env: Env, e: any, now: number): Promise<{ drawRound: number; paused: boolean }> {
+/** Lucky Draw timing: the draw round (the published time, moved later by the Organizer's or Host's pauses), whether the game is paused right now, and whether the Organizer Stopped the game before the draw.
+ * After a Stop there is no automatic draw at the old time: `stopped` is true, `drawRound` is Infinity (never reached) and the draw is made by hand. */
+export async function drawTiming(env: Env, e: any, now: number): Promise<{ drawRound: number; paused: boolean; stopped: boolean }> {
   const f = await readPublished(d1kv(env), e.id);
   const st = f ? resolveControl(controlCfg(f), f.messages) : null;
-  return { drawRound: callRoundR(st, e.start_round, 1, [], 1, 0) ?? e.start_round, paused: st ? pausedAt(st, roundAt(now)) : false };
+  const r = callRoundR(st, e.start_round, 1, [], 1, 0);
+  const stopped = !!st && r === null;
+  return { drawRound: stopped ? Infinity : r ?? e.start_round, paused: st ? pausedAt(st, roundAt(now)) : false, stopped };
 }

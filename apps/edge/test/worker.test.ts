@@ -20,7 +20,7 @@ const join = (i: number, eid = "ENG1", now = T) => call("POST", `/api/z/${eid}/j
 beforeEach(() => {
   const d = makeD1();
   raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "80000", JOIN_PER_IP_DAY: "1000000", JOIN_PER_IP_MINUTE: "1000000" } as any;
+  env = { DB: d.db, ORGANIZER_SECRET: SECRET, RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "80000", JOIN_PER_IP_DAY: "1000000", JOIN_PER_IP_MINUTE: "1000000" } as any;
 });
 
 describe("engagement set-up", () => {
@@ -218,7 +218,7 @@ describe("free-plan guard and scale", () => {
       await Promise.all(pids.slice(0, 2000).map((pid, i) => call("POST", "/api/z/ENG1/claims", { pid, claims: [{ pattern: pats[i % 7], idx: i % 75 }] })));
     expect((raw.query("SELECT COUNT(*) c FROM claim").get() as any).c).toBe(0);
     expect((raw.query("SELECT writes w FROM usage").get() as any).w).toBe(79994); // 1 create + 1 entitlement-free + 10,000 joins at what a join really writes (about 8 units, the same figure Corporate Tambola counts)
-  }, 300_000);
+  }, 900_000); // 10,000 real joins take 5+ minutes on a loaded phone or laptop (a 300 s limit failed it on both, 5 Nov 2026); the limit is only a guard against a hang
   test("a small engagement (up to 500) stores claims once each, even when sent twice", async () => {
     await create({ cap: 500 });
     const pids: string[] = [];
@@ -612,29 +612,31 @@ describe("tickets, reward lines and brand breaks", () => {
     expect(i.breaks).toEqual([]);
   });
   test("settings given at creation are kept and shown to every phone; bad ones refuse the whole creation", async () => {
-    const good = { tickets: 2, rewards: [{ pattern: "blackout", ordinal: 1, text: "Hamper" }, { pattern: "line", text: "Grand hamper" }], breaks: [{ after: 40, seconds: 45, kind: "speech", title: "CEO message" }] };
+    const good = { tickets: 1, rewards: [{ pattern: "blackout", ordinal: 1, text: "Hamper" }, { pattern: "line", text: "Grand hamper" }], breaks: [{ after: 40, seconds: 45, kind: "speech", title: "CEO message" }] };
     expect((await mk(good)).status).toBe(200);
     const i = await info();
-    expect(i).toMatchObject({ tickets: 2, breaks: [{ after: 40, seconds: 45, kind: "speech", title: "CEO message" }] });
+    expect(i).toMatchObject({ tickets: 1, breaks: [{ after: 40, seconds: 45, kind: "speech", title: "CEO message" }] });
     expect(i.rewards.map((r: any) => r.text)).toEqual(["Hamper", "Grand hamper"]);
     expect((await mk({ breaks: [{ after: 5, seconds: 20, kind: "speech", title: "x" }] }, "CFG02")).status).toBe(400);
     expect((await mk({ tickets: 5 }, "CFG03")).status).toBe(400);
-    expect(raw.query("SELECT COUNT(*) c FROM engagement WHERE id IN ('CFG02','CFG03')").get()).toEqual({ c: 0 });
+    expect((await mk({ tickets: 2 }, "CFG04")).status).toBe(400); // LD-21: a new Lucky Draw has no second entry
+    expect(raw.query("SELECT COUNT(*) c FROM engagement WHERE id IN ('CFG02','CFG03','CFG04')").get()).toEqual({ c: 0 });
   });
   test("joining returns the settings too, so a phone never needs a second call", async () => {
-    await mk({ tickets: 2, rewards: [{ pattern: "blackout", text: "Hamper" }] });
+    await mk({ tickets: 1, rewards: [{ pattern: "blackout", text: "Hamper" }] });
     const r = await (await join(1, "CFG01")).json() as any;
-    expect(r.tickets).toBe(2);
+    expect(r.tickets).toBe(1);
     expect(r.rewards[0].text).toBe("Hamper");
   });
   test("settings can be changed before the start and never after, and a bad change changes nothing", async () => {
     await mk();
-    expect((await call("PATCH", "/api/z/CFG01/settings", { tickets: 2, rewards: [{ pattern: "line", text: "Voucher" }], breaks: [{ after: 20, seconds: 30, kind: "speech", title: "Welcome" }] }, org)).status).toBe(200);
-    expect(await info()).toMatchObject({ tickets: 2, rewards: [{ pattern: "line", text: "Voucher" }], breaks: [{ after: 20 }] });
+    expect((await call("PATCH", "/api/z/CFG01/settings", { tickets: 1, rewards: [{ pattern: "line", text: "Voucher" }], breaks: [{ after: 20, seconds: 30, kind: "speech", title: "Welcome" }] }, org)).status).toBe(200);
+    expect((await call("PATCH", "/api/z/CFG01/settings", { tickets: 2 }, org)).status).toBe(400); // LD-21
+    expect(await info()).toMatchObject({ tickets: 1, rewards: [{ pattern: "line", text: "Voucher" }], breaks: [{ after: 20 }] });
     expect((await call("PATCH", "/api/z/CFG01/settings", { breaks: [{ after: 20, seconds: 31, kind: "speech", title: "Welcome" }] }, org)).status).toBe(400);
     expect((await info()).breaks).toHaveLength(1);
     await call("POST", "/api/z", { id: "STARTED1", startRound: 5, callSeconds: 6, cap: 5 }, org);
-    expect((await call("PATCH", "/api/z/STARTED1/settings", { tickets: 2 }, org)).status).toBe(409);
+    expect((await call("PATCH", "/api/z/STARTED1/settings", { tickets: 1 }, org)).status).toBe(409);
   });
   test("results carry which reward line each outcome is for, and an accepted result is final", async () => {
     await mk({ tickets: 1, rewards: [{ pattern: "blackout", ordinal: 1 }, { pattern: "blackout", ordinal: 2 }] });
@@ -724,20 +726,24 @@ describe("an organizer's own sign-in keys", () => {
 
 describe("rounds in the store", () => {
   const FUT = Math.floor((T / 1000 - 1692803367) / 3) + 1 + 4000;
-  test("rounds are set at creation or before the start, shown to phones, and 1 to 5 only", async () => {
-    expect((await call("POST", "/api/z", { id: "RND01", startRound: FUT, callSeconds: 9, cap: 50, rounds: 3 }, org)).status).toBe(200);
+  // LD-21: new input has exactly one round; a game saved earlier with 2..5 rounds is read back unchanged. This stands in for such a stored game.
+  const storeRounds = (id: string, n: number) => { const row = raw.query("SELECT config FROM engagement WHERE id=?").get(id) as any; const c = JSON.parse(row.config || "{}"); c.rounds = n; raw.query("UPDATE engagement SET config=? WHERE id=?").run(JSON.stringify(c), id); };
+  test("rounds: new input must be 1 (2..5 are refused); a stored game with several rounds is shown to phones unchanged", async () => {
+    expect((await call("POST", "/api/z", { id: "RND00", startRound: FUT, callSeconds: 9, cap: 50, rounds: 3 }, org)).status).toBe(400);
+    expect((await call("POST", "/api/z", { id: "RND01", startRound: FUT, callSeconds: 9, cap: 50, rounds: 1 }, org)).status).toBe(200);
+    expect(((await (await call("GET", "/api/z/RND01/info")).json()) as any).rounds).toBe(1);
+    expect((await call("PATCH", "/api/z/RND01/settings", { rounds: 2 }, org)).status).toBe(400);
+    storeRounds("RND01", 3);
     expect(((await (await call("GET", "/api/z/RND01/info")).json()) as any).rounds).toBe(3);
-    expect((await call("PATCH", "/api/z/RND01/settings", { rounds: 2 }, org)).status).toBe(200);
-    expect(((await (await call("GET", "/api/z/RND01/info")).json()) as any).rounds).toBe(2);
     for (const r of [0, 6, 1.5, "2"]) { expect((await call("PATCH", "/api/z/RND01/settings", { rounds: r }, org)).status).toBe(400); expect((await call("POST", "/api/z", { id: "BADR" + String(r).length, startRound: FUT, callSeconds: 9, cap: 5, rounds: r }, org)).status).toBe(400); }
-    expect(((await (await call("GET", "/api/z/RND01/info")).json()) as any).rounds).toBe(2);
+    expect(((await (await call("GET", "/api/z/RND01/info")).json()) as any).rounds).toBe(3);
   });
   test("an engagement with nothing set is one round", async () => {
     await call("POST", "/api/z", { id: "RND02", startRound: FUT, callSeconds: 9, cap: 50 }, org);
     expect(((await (await call("GET", "/api/z/RND02/info")).json()) as any).rounds).toBe(1);
   });
   test("claims are kept per round, a round that does not exist is ignored, and the same claim in two rounds is two claims", async () => {
-    await call("POST", "/api/z", { id: "RND03", startRound: FUT, callSeconds: 9, cap: 50, rounds: 2 }, org);
+    await call("POST", "/api/z", { id: "RND03", startRound: FUT, callSeconds: 9, cap: 50 }, org); storeRounds("RND03", 2);
     const pid = ((await (await join(1, "RND03")).json()) as any).pid;
     const claim = (c: unknown) => call("POST", "/api/z/RND03/claims", { pid, claims: [c] });
     await claim({ pattern: "line", idx: 20 }); await claim({ pattern: "line", idx: 25, round: 2 }); await claim({ pattern: "line", idx: 25, round: 2 }); await claim({ pattern: "line", idx: 30, round: 3 }); await claim({ pattern: "line", idx: 30, round: 0 });
@@ -745,7 +751,7 @@ describe("rounds in the store", () => {
     expect(c).toEqual([{ pid, pattern: "line", round: 1, idx: 20 }, { pid, pattern: "line", round: 2, idx: 25 }]);
   });
   test("results are kept per round; a round that does not exist, or a lucky draw in round 2, is ignored", async () => {
-    await call("POST", "/api/z", { id: "RND04", startRound: FUT, callSeconds: 9, cap: 50, rounds: 2, breaks: [{ after: 20, seconds: 30, kind: "lucky", title: "Draw", winners: 3 }] }, org);
+    await call("POST", "/api/z", { id: "RND04", startRound: FUT, callSeconds: 9, cap: 50, breaks: [{ after: 20, seconds: 30, kind: "lucky", title: "Draw", winners: 3 }] }, org); storeRounds("RND04", 2);
     const p = ((await (await join(1, "RND04")).json()) as any).pid;
     const post = (results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[]) => settleByPhones(call, "RND04", results, [p]);
     await post([{ pattern: "blackout", round: 1, idx: 60, pids: [p] }, { pattern: "blackout", round: 2, idx: 70, pids: [p] }]);
@@ -756,7 +762,7 @@ describe("rounds in the store", () => {
     expect(((await (await call("GET", "/api/z/RND04/results")).json()) as any).results.some((x: any) => x.pattern === "lucky")).toBe(true);
   });
   test("erase removes every round's claims and results", async () => {
-    await call("POST", "/api/z", { id: "RND05", startRound: FUT, callSeconds: 9, cap: 50, rounds: 2 }, org);
+    await call("POST", "/api/z", { id: "RND05", startRound: FUT, callSeconds: 9, cap: 50 }, org); storeRounds("RND05", 2);
     const pid = ((await (await join(1, "RND05")).json()) as any).pid;
     await call("POST", "/api/z/RND05/claims", { pid, claims: [{ pattern: "line", idx: 20, round: 2 }] });
     await settleByPhones(call, "RND05", [{ pattern: "line", round: 2, idx: 20, pids: [pid] }], [pid]);
@@ -913,10 +919,10 @@ describe("brand moments: five for each ticket, placed by the software", () => {
   const mid = (o: Record<string, unknown> = {}) => ({ kind: "speech", title: "A word from Acme", ...o });
   const open = { kind: "youtube", title: "Welcome", mediaUrl: "https://youtu.be/abcdefghijk" };
   test("an engagement created with openings, a closing and automatic breaks shows every phone where each one goes", async () => {
-    expect((await mk({ tickets: 2, opening: [open, { kind: "speech", title: "Hello", seconds: 30 }], breaks: [mid(), mid(), mid()], closing: [{ kind: "speech", title: "Thank you" }] })).status).toBe(200);
+    expect((await mk({ opening: [open], breaks: [mid(), mid(), mid()], closing: [{ kind: "speech", title: "Thank you" }] })).status).toBe(200); // LD-21: one entry each, so one opening
     const i = await info();
     expect(i.breaks.map((b: any) => b.after)).toEqual([19, 38, 56]);
-    expect(i.opening.map((x: any) => x.title)).toEqual(["Welcome", "Hello"]);
+    expect(i.opening.map((x: any) => x.title)).toEqual(["Welcome"]);
     expect(i.closing).toEqual([{ kind: "speech", title: "Thank you" }]);
   });
   test("a phone that joins is told about the opening and the closing too", async () => {
@@ -925,9 +931,7 @@ describe("brand moments: five for each ticket, placed by the software", () => {
     expect(r.opening[0].title).toBe("Hello"); expect(r.closing[0].title).toBe("Bye");
   });
   test("the summary shows the allowance for the organizer and the AI", async () => {
-    await mk({ tickets: 2 });
-    const sm = (await (await call("GET", "/api/z/BM01/summary", undefined, org)).json()) as any;
-    expect(sm.brandMomentsAllowed).toBe(10);
+    expect((await mk({ tickets: 2 })).status).toBe(400); // LD-21: no second entry any more, so no allowance of 10 for a new game
     await mk({ tickets: 1 }, "BM02");
     expect(((await (await call("GET", "/api/z/BM02/summary", undefined, org)).json()) as any).brandMomentsAllowed).toBe(5);
   });
@@ -936,17 +940,17 @@ describe("brand moments: five for each ticket, placed by the software", () => {
     expect((await mk({ tickets: 1, opening: [open, open] }, "BM03")).status).toBe(400);
     expect((await mk({ tickets: 1, opening: [open], breaks: [mid(), mid(), mid()], closing: [{ kind: "speech", title: "Bye" }] }, "BM04")).status).toBe(200);
   });
-  test("changing from 2 tickets to 1 is refused while too many are switched on, with a plain reason, and nothing is saved", async () => {
-    await mk({ tickets: 2, opening: [{ kind: "speech", title: "One", seconds: 30 }, { kind: "speech", title: "Two", seconds: 30 }], breaks: [mid(), mid(), mid(), mid()] });
-    const r = await call("PATCH", "/api/z/BM01/settings", { tickets: 1 }, org);
+  test("LD-21: asking for 2 tickets is refused with a plain reason and nothing is saved; a settings change that keeps 1 ticket works", async () => {
+    await mk({ tickets: 1, opening: [open], breaks: [mid(), mid(), mid()] });
+    const r = await call("PATCH", "/api/z/BM01/settings", { tickets: 2 }, org);
     expect(r.status).toBe(400);
-    expect(((await r.json()) as any).error).toContain("switch some off");
-    expect((await info()).tickets).toBe(2);
+    expect(((await r.json()) as any).error).toContain("each person registers once");
+    expect((await info()).tickets).toBe(1);
     expect((await call("PATCH", "/api/z/BM01/settings", { tickets: 1, opening: [open], breaks: [mid(), mid()] }, org)).status).toBe(200);
     expect(await info()).toMatchObject({ tickets: 1, breaks: [{ after: 25 }, { after: 50 }] });
   });
   test("saving the breaks again spreads them again; an older break with its own number keeps it", async () => {
-    await mk({ tickets: 2, breaks: [mid(), mid()] });
+    await mk({ breaks: [mid(), mid()] });
     expect((await info()).breaks.map((b: any) => b.after)).toEqual([25, 50]);
     const cur = (await info()).breaks;
     await call("PATCH", "/api/z/BM01/settings", { breaks: [...cur, mid()] }, org);

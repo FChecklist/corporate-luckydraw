@@ -3,6 +3,8 @@
 import { NO_PERSONAL_DETAILS, TERMS_RETENTION, ID_ONLY_LINE, DETAILS_LINE, AUTO_DELETE_LINE } from "./lines";
 export { NO_PERSONAL_DETAILS, TERMS_RETENTION, ID_ONLY_LINE, DETAILS_LINE, AUTO_DELETE_LINE };
 export * from "./legal";
+export * from "./documents";
+export * from "./consent";
 export const RETENTION_LINE = NO_PERSONAL_DETAILS;
 export const DATA_SENTENCES: string[] = [NO_PERSONAL_DETAILS, TERMS_RETENTION, ID_ONLY_LINE, DETAILS_LINE, AUTO_DELETE_LINE];
 /** Words that must not appear in a data or privacy sentence: first person (we, our, us), harsh or legal-sounding words, and any mention of a name or a mobile number (say "participant details" or "participant data"). */
@@ -23,7 +25,7 @@ export const MSG: Record<string, string> = {
   "wait": "Waiting for the Organizer to let you in.",
   "full": "This game is full.",
   "notopen": "This game is not open yet.",
-  "seated": "This ID already has a seat in this game.",
+  "seated": "This Employee ID already has a seat in this game.",
   "net.reconnecting": "Reconnecting…",
   "net.back": "Back online.",
   "generic": "Something changed in the game.",

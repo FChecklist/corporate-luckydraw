@@ -33,7 +33,7 @@ async function setup(opts: { closed?: boolean; verify?: string; employeesOnly?: 
 }
 const add = (key: string, people: unknown[]) => call("POST", "/api/z/PPL-1/people", { people }, key);
 
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
 afterEach(() => { globalThis.fetch = realFetch; });
 
 describe("employee ID", () => {
@@ -56,7 +56,7 @@ describe("the settings", () => {
     await keep("after setup");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, rewards: [{ pattern: "line", ordinal: 1, text: "" }] }, t.master)).status).toBe(200); await keep("after the prizes");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, opening: [], breaks: [], closing: [] }, t.master)).status).toBe(200); await keep("after the brand moments");
-    expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 2 }, t.master)).status).toBe(200); await keep("after the rounds");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 1 }, t.master)).status).toBe(200); await keep("after the rounds"); // LD-21: a new Lucky Draw has one round
     expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "mobile", employeesOnly: false }, t.master)).status).toBe(200); // choosing differently still works
     const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([s.verify, s.employeesOnly]).toEqual(["mobile", false]);
   });
@@ -195,10 +195,10 @@ describe("the owner's three test sign-ins", () => {
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(3);
     expect((await call("POST", "/api/auth/verify", { email: "demo4@xyz.in", code: "123456" })).status).toBe(400);
   });
-  test("the test sign-ins are limited per network per day, record no Terms consent, never send mail, and keep only their latest six keys", async () => {
+  test("the test sign-ins have no daily limit (owner order 4 Nov 2026), record no Terms consent, never send mail, and keep only their latest six keys", async () => {
     await setMode(env as any, "TEST", "t", T); const em = "demo2@xyz.in"; const fire = () => call("POST", "/api/auth/verify", { email: em, code: "123456" });
-    for (let i = 0; i < 30; i++) expect((await fire()).status).toBe(200);
-    const blocked = await fire(); expect(blocked.status).toBe(429);
+    for (let i = 0; i < 35; i++) expect((await fire()).status).toBe(200); // owner order 4 Nov 2026: no per-network daily limit any more
+    expect((await fire()).status).toBe(200);
     expect(rowsOf("SELECT COUNT(*) c FROM consent_log WHERE kind='K2'")[0].c).toBe(0);
     const org = rowsOf("SELECT org FROM organizer_email")[0].org;
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_key WHERE org=? AND kind='master'", org)[0].c).toBeLessThanOrEqual(6);

@@ -22,7 +22,7 @@ const read = (...p: string[]) => readFileSync(join(root, ...p), "utf8");
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key", TEST_MODE: "1" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key", TEST_MODE: "1" };
   sentReports.length = 0;
 });
 const realFetch = globalThis.fetch;
@@ -98,24 +98,17 @@ describe("pages: one title pattern, icons, manifest, theme colour", () => {
   });
 });
 
-describe("the legal page carries the owner's final text, and each line matches what the code does", () => {
-  const html = read("apps/web/public/legal.html");
-  const sec = (id: string) => { const m = html.match(new RegExp(`<section id="${id}"[\\s\\S]*?</section>`)); expect(m).toBeTruthy(); return m![0]; };
-  const items = (id: string) => [...sec(id).matchAll(/<li>([\s\S]*?)<\/li>/g)].map((x) => x[1]!.replace(/<[^>]+>/g, "").replace(/&rsquo;/g, "’").replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”").replace(/&amp;/g, "&"));
-  test("anchors, headings, counts, and one short line each", () => {
-    for (const id of ["rules", "privacy", "disclaimer"]) expect(html).toContain(`<section id="${id}"`);
-    expect(html).toContain(">Rules</h2>"); expect(html).toContain(">Privacy &amp; Data Policy</h2>"); expect(html).toContain(">Disclaimer</h2>");
-    expect(items("rules").length).toBe(10); expect(items("privacy").length).toBe(18); expect(items("disclaimer").length).toBe(6);
-    for (const id of ["rules", "privacy", "disclaimer"]) for (const l of items(id)) expect(l.split(/\s+/).length).toBeLessThanOrEqual(30);
-    expect(html).toMatch(/<p class="muted">[^<]{1,80}<\/p>/);
+describe("the one legal document (terms.html) carries the approved text, the older legal pages point to it, and the timings in it match what the code does", () => {
+  const html = read("apps/web/public/terms.html");
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  test("nine sections in one document with one version, and the older legal pages point into it", () => {
+    for (const id of ["terms", "payments", "privacy", "retention", "cookies", "processors", "grievance", "acceptable-use", "game-rules"]) expect(html).toContain(`<section id="${id}">`);
+    expect(html).toContain('<article class="legal-doc" data-version="2026-11-01">');
+    for (const [f, sec] of [["legal.html", "terms"], ["privacy.html", "privacy"], ["refund-policy.html", "payments"], ["legal-position.html", "acceptable-use"], ["dpa.html", "processors"], ["subprocessors.html", "processors"]] as const) expect([f, read("apps/web/public/" + f).includes(`href="/terms#${sec}"`)]).toEqual([f, true]);
+    expect(html).toContain("hello@corporatetambola.com");
   });
-  test("the six disclaimer lines, word for word", () => {
-    expect(items("disclaimer")).toEqual(["This is a close group game, open only to the people the organizer invites, run by your organizer.", "Corporate Lucky Draw provides the software only. IT Services by Rajat Agarwal never holds or pays prize money. Participants pay nothing to play.", "The organizer provides and hands over the prizes.", "The software decides the winners. Results are final.", "The organizer makes sure the game is allowed under local law.", "IT Services by Rajat Agarwal is not responsible for prize handover or for disputes between the organizer and participants."]);
-  });
-  test("the rules say only what the software does (no claims, no manual cutting, no blocking), and the privacy timings match lifecycle.ts", () => {
-    const r = items("rules").join(" ");
-    expect(r).not.toMatch(/Cut your own|Late claims|wrong claim|block your ticket|for fun/i);
-    expect(r).toContain("The same entries and the same public beacon give the same winners."); expect(r).not.toMatch(/No one can choose or change|not even the organizer|twice|every claim is checked|nobody knows|tamper/i); expect(r).toContain("Joining closes when the draw starts."); expect(r).toContain("A rehearsal has up to 10 people and no prizes."); expect(r).not.toMatch(/\bticket|Full House|Tambola|housie|\bcard\b|75 numbers|BINGO/i);
+  test("the timings in the document match lifecycle.ts", () => {
+    expect(text).toContain("deleted within 24 hours after the game"); expect(text).toContain("Within 24 hours after it was meant to end");
     const lc = read("apps/edge/src/lifecycle.ts");
     expect(lc).toMatch(/PURGE_AFTER_MS = 20 \* 3_600_000/); // 20 h (the job may run 3 h late) is inside "within 24 hours"
     expect(lc).toMatch(/endMs \+ 365 \* DAY/); expect(lc).toMatch(/DELETE FROM prize WHERE eid=\?/); // prize details go with the 365-day deletion

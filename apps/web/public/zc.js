@@ -35,19 +35,20 @@
   const rid = () => "LD-" + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
   const chip = (on, attr, label) => `<button type="button" class="zc-chip${on ? " on" : ""}" ${attr} aria-pressed="${on ? "true" : "false"}" style="min-height:44px">${label}</button>`;
   const bar = () => `<header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="36" height="36"> <b class="zc-name"><i>Corporate</i> <span>Lucky Draw</span></b></span>${S.who ? `<span class="zc-pill zc-pill-role">${esc(({ organizer: "Organizer", host: "Host", cohost: "Co-host" })[roleOf()])}</span>` : ""}</header>`;
-  const frame = (inner) => `<div class="zc-frame">${bar()}<div class="zc-main">${S.note ? `<div class="zc-alert" role="status"><p>${esc(S.note)}</p></div>` : ""}${S.err ? `<div class="zc-alert zc-alert-bad" role="alert"><p>${esc(S.err)}</p></div>` : ""}${inner}<p class="zc-small">${PRIVACY}</p></div></div>`;
+  const isDemo = () => !!(S.sum && (S.sum.demo || /^Demo: /.test(S.sum.name || "")));
+  const frame = (inner) => `<div class="zc-frame">${bar()}<div class="zc-main">${isDemo() ? `<div class="zc-alert" role="status"><p><b>Demo.</b> Up to 10 people. No payment. Everything is deleted within 24 hours.</p></div>` : ""}${S.note ? `<div class="zc-alert" role="status"><p>${esc(S.note)}</p></div>` : ""}${S.err ? `<div class="zc-alert zc-alert-bad" role="alert"><p>${esc(S.err)}</p></div>` : ""}${inner}<p class="zc-small">${PRIVACY}</p></div></div>`;
   const fail = (e) => { S.err = e && e.message ? e.message : "Something went wrong. Please try again."; S.busy = false; if (eid && !S.sum) load().then(paint, paint); else paint(); };
 
   /* ---------------- sign in ---------------- */
   function signinView() {
     if (!S.su) { S.su = 1; if (window.CBFunnel) CBFunnel.report("signup_started"); }
-    return frame(`<div class="zc-block"><h3>Sign in to make a Lucky Draw</h3><p>It is free to build and free to publish. You pay before the draw.</p><button class="zc-btn" id="si" style="min-height:48px">Sign in</button></div>`);
+    return frame(`<div class="zc-block"><h3>Sign in to make a Lucky Draw</h3><p>It is free to build and free to publish. You pay before the draw.</p><button class="zc-btn" id="si" style="min-height:48px">Sign in</button><p class="zc-small zc-muted" id="toConsole">Organizers can also sign in on the <a href="https://console.corporatetambola.com/">console</a>, where all their games sit together.</p></div>`);
   }
 
   /* ---------------- home: your draws ---------------- */
   function homeView() {
     const rows = (S.list || []).map((g) => `<div class="zc-block"><h3>${esc(g.id)}</h3><p class="zc-small">${g.draft ? "Draft" : "Published"} · ${esc(g.startsAtIST || "")} · ${esc(g.participants)} registered</p><div class="zc-chips"><a class="zc-btn zc-btn-s" href="/zc.html?e=${encodeURIComponent(g.id)}" style="min-height:44px">Open</a><button class="zc-btn zc-btn-s zc-btn-alt" data-clone="${esc(g.id)}" style="min-height:44px">New draw like this one</button></div></div>`).join("");
-    return frame(`<div class="zc-block"><h3>Your Lucky Draws</h3><div class="zc-chips"><button class="zc-btn" id="new" style="min-height:48px">Make a new draw</button><button class="zc-btn zc-btn-alt" id="demo" style="min-height:48px">Free demo draw (10 people)</button></div></div>${rows || `<p class="zc-small">No draws yet.</p>`}${isOrg() ? `<div class="zc-block"><h3>Your account</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="closeacct" style="min-height:44px">Close my account</button><p class="zc-small">Deletes your sign-in and your details. A draw that is running must end first.</p></div>` : ""}`);
+    return frame(`<div class="zc-block"><h3>Your Lucky Draws</h3><div class="zc-chips"><button class="zc-btn" id="new" style="min-height:48px">Make a new draw</button>${S.demoOn ? `<button class="zc-btn zc-btn-alt" id="demo" style="min-height:48px">Free demo draw (10 people)</button>` : ""}</div></div>${rows || `<p class="zc-small">No draws yet.</p>`}${isOrg() ? `<div class="zc-block"><h3>Your account</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="closeacct" style="min-height:44px">Close my account</button><p class="zc-small">Deletes your sign-in and your details. Please let a running draw finish first.</p></div>` : ""}`);
   }
 
   /* ---------------- the six steps ---------------- */
@@ -115,7 +116,8 @@
       h += `<div class="zc-block"><h3>Controls</h3><div class="zc-chips">${d.mode === "manual" ? `<button class="zc-btn" id="drawnow" style="min-height:48px"${d.paused ? " disabled" : ""}>Draw now</button>` : ""}${d.paused ? `<button class="zc-btn zc-btn-alt" id="resume" style="min-height:48px">Resume</button>` : `<button class="zc-btn zc-btn-alt" id="pause" style="min-height:48px">Pause</button>`}</div>${d.paused ? `<p class="zc-small"><b>Paused.</b> Nothing registers and nothing is drawn. The draw time waits.</p>` : ""}${S.ctlErr ? `<p class="zc-small">${esc(S.ctlErr)}</p>` : ""}<p class="zc-small">Only the Organizer and the Host can press Draw, Pause or Resume. Each is logged with the role.</p></div>`;
       if (roleOf() === "host" && S.hk === "waiting") h += `<div class="zc-alert"><h3>Waiting for the Organizer</h3><p>Your pause key was sent. The Organizer approves it in their console. Then Pause and Resume work for you.</p></div>`;
       if (isOrg() && S.hkKey) h += `<div class="zc-alert"><h3>A Host asks to pause and resume</h3><p>Approve the Host key. It can only Pause and Resume, and every use is logged as Host.</p><button class="zc-btn" id="hkok" style="min-height:48px">Approve Host key</button></div>`;
-      if (isOrg() && !s.rehearsal && !/draft/.test(s.status || "")) h += `<div class="zc-block"><h3>Try it first</h3><p class="zc-small">A rehearsal has up to 10 people and no prizes. It does not change your real draw.</p><button class="zc-btn zc-btn-s zc-btn-alt" id="rehearse" style="min-height:44px">Start a rehearsal</button>${S.rehLink ? `<p class="zc-small">People link: <code style="word-break:break-all">${esc(S.rehLink)}</code></p>` : ""}</div>`;
+      if (isOrg() && !s.rehearsal && !/draft/.test(s.status || "") && isDemo()) h += `<div class="zc-block" style="opacity:.55"><h3>Try it first</h3><p class="zc-small">A demo is already a practice game, so a rehearsal is not part of it.</p><button class="zc-btn zc-btn-s zc-btn-alt" type="button" disabled aria-disabled="true" style="min-height:44px">Start a rehearsal</button></div>`;
+      else if (isOrg() && !s.rehearsal && !/draft/.test(s.status || "")) h += `<div class="zc-block"><h3>Try it first</h3><p class="zc-small">A rehearsal has up to 10 people and no prizes. It does not change your real draw.</p><button class="zc-btn zc-btn-s zc-btn-alt" id="rehearse" style="min-height:44px">Start a rehearsal</button>${S.rehLink ? `<p class="zc-small">People link: <code style="word-break:break-all">${esc(S.rehLink)}</code></p>` : ""}</div>`;
     }
     if (d.drawn) h += `<div class="zc-block"><h3>Result</h3>${(d.result || []).map((w) => `<div class="zrow"><span><b>${esc(w.place)}</b> ${esc(w.who)}</span><i>${esc(w.prize)}</i></div>`).join("")}<p class="zc-small">${esc(d.entries)} entries. Beacon round ${esc(d.round)}. ${esc(d.fairness)}</p></div>`;
     if (isOrg() && !/draft/.test(s.status || "")) h += `<div class="zc-block"><h3>Report</h3><button class="zc-btn zc-btn-s zc-btn-alt" id="newreport" style="min-height:44px">New report link</button>${S.reportUrl ? `<p class="zc-small"><code style="word-break:break-all">${esc(S.reportUrl)}</code></p>` : ""}<p class="zc-small">The report link works for 19 hours after the draw. Making a new link stops the old one.</p></div>`;
@@ -141,7 +143,7 @@
     on("si", () => { try { sessionStorage.setItem("cbz-next", "/zc.html"); } catch (e) { /* the sign-in page still returns here */ } location.href = "/#login"; });
     on("new", () => { S.f = formFromSum({}); S.step = 1; S.note = ""; S.err = ""; paint(); });
     on("demo", async () => {
-      try { S.busy = true; const id = rid(), t = Date.now() + 3600000; await api("POST", "/api/z", { id, startRound: roundOf(t), callSeconds: 12, cap: 10, name: "Free demo draw", verify: "id", idKind: "emp", whoCanJoin: "anyone" }); await api("POST", `/api/z/${id}/drawset`, { winners: 1, prizes: [], mode: "manual" }); location.href = "/zc.html?e=" + id; } catch (e) { fail(e); }
+      try { S.busy = true; const id = rid(), t = Date.now() + 3600000; await api("POST", "/api/z", { id, demo: true, startRound: roundOf(t), callSeconds: 12, cap: 10, name: "Free demo draw", verify: "id", idKind: "emp", whoCanJoin: "anyone" }); await api("POST", `/api/z/${id}/drawset`, { winners: 1, prizes: [], mode: "manual" }); location.href = "/zc.html?e=" + id; } catch (e) { fail(e); }
     });
     document.querySelectorAll("[data-clone]").forEach((b) => (b.onclick = () => cloneGame(b.dataset.clone)));
     on("cloneme", () => cloneGame(eid));
@@ -161,7 +163,7 @@
         try { if (window.TBControl) await TBControl.ensureKey(eid, { token: secret, base: BASE, prefix: "/api/z" }); } catch (e) { /* pause needs this key; the console says so on the day */ }
         const pr = await api("POST", `/api/z/${eid}/publish`, { email: S.f.email, phone: S.f.phone, consent: CBConsent.payload($("app"), "K1") });
         if (window.CBFunnel) CBFunnel.report("game_published", { mode: S.f.mode === "manual" ? "manual" : "auto" });
-        S.editing = false; S.note = pr && pr.needsOrganizer ? "Ready. The organizer must open the link and publish it." : pr.paid ? "Published. Share the link." : "Published. Pay before the draw so it can happen."; await load();
+        S.editing = false; S.note = pr && pr.needsOrganizer ? "Ready. The organizer opens the link and publishes it." : pr.paid ? "Published. Share the link." : "Published. Pay before the draw so it can happen."; await load();
       } catch (e) { return fail(e); }
       S.busy = false; paint();
     });
@@ -215,9 +217,10 @@
     if (!secret) return;
     try { S.who = await api("GET", "/api/whoami"); }
     catch (e) { if (e.status === 401 || e.status === 403) { secret = ""; ss.set("cbz-org", ""); } else S.err = e.message; return paint(); }
-    if (!S.who.email && q.get("demo") === "1") { /* host/cohost have no e-mail */ }
+    try { S.demoOn = !!(await api("GET", "/api/game-manifest")).demo; } catch (e) { S.demoOn = false; }
+    if (q.get("demo") === "1" && !S.demoOn) S.note = "The free demo is not switched on yet.";
     try { if (!eid) { S.list = (await api("GET", "/api/history")).engagements || []; if (q.get("new") === "1" || q.get("demo") === "1") { S.f = formFromSum({}); } } else await load(); } catch (e) { S.err = e.message; }
-    if (q.get("demo") === "1" && !eid) { document.getElementById("demo") && document.getElementById("demo").click(); }
+    if (q.get("demo") === "1" && !eid && S.demoOn) { document.getElementById("demo") && document.getElementById("demo").click(); }
     paint();
     setInterval(async () => { if (eid && S.sum && S.sum.status !== "draft" && !document.hidden && !S.busy) { try { await load(); paint(); } catch (e) { /* next time */ } } }, 15000);
   }

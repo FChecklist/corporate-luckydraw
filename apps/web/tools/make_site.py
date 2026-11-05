@@ -25,7 +25,7 @@ def landing():
         '<section class="ck-hero g-draw"><div class="ck-wrap ck-hero-in"><div>\n'
         '<span class="ck-kicker">For HR teams and managers</span>\n'
         '<h1>This week, which teams will you engage with <span class="ck-hl">Corporate Lucky Draw?</span></h1>\n'
-        '<p class="ck-lead">Everyone enters once with their ID. At the draw time the software picks the winners from the public beacon, and everyone sees the result.</p>\n'
+        '<p class="ck-lead">Everyone enters once with their Employee ID. At the draw time the software picks the winners from the public beacon, and everyone sees the result.</p>\n'
         f'<div class="ck-btn-row"><a class="ck-btn main" href="{DEMO}">Try a free draw with 10 people</a><a class="ck-btn" href="/how-it-works">See how it works</a></div>\n'
         '<p class="ck-hero-contact">Talk to a person: <a href="tel:+919650397480">(+91) 96503 97480</a> or <a href="mailto:hello@corporatetambola.com?subject=%5BLucky%20Draw%5D%20">hello@corporatetambola.com</a></p>\n'
         '</div>\n'
@@ -43,7 +43,7 @@ def landing():
         '<button class="btn" id="payBtn" type="button"><span class="bt">Create your Corporate Lucky Draw</span></button></div></div>\n'
         '<div class="packs" id="packs" aria-live="polite"></div>\n'
         '<p class="pricenote" id="priceNote"></p>\n'
-        '<p class="ck-small">See the <a href="/pricing">full price list</a>. Refunds are not given. If you cancel a paid game before it starts, your payment stays as credit for 365 days.</p>\n'
+        '<p class="ck-small">See the <a href="/pricing">full price list</a>. If you cancel a paid game before it starts, your payment stays as credit for your next game, valid for 365 days. Unused credit lapses at the end of day 365.</p>\n'
         '</div></section>')
     ai = (
         '<section class="ck-sec ck-alt" id="ai-host" aria-labelledby="aih"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">Prizes</span>'
@@ -51,7 +51,7 @@ def landing():
         '<p class="ck-lead">You set how many winners there are and what each prize is. A fixed public rule puts the entries in order, so the same entries and the same public beacon always give the same winners. You provide the prizes.</p></div></div></section>')
     faq_items = [
         ("How is a game set up?", "Sign in with your e-mail and use the organizer console to build the draft. Building and publishing are free."),
-        ("Do players pay or install anything?", "No. Players never pay and there is no app. They open your link, type their ID and are entered."),
+        ("Do players pay or install anything?", "No. Players never pay and there is no app. They open your link, type their Employee ID and are entered."),
         ("Who gives the prizes?", "You do, the organizer. Corporate Lucky Draw is software only. Prize money is never held or paid out by Corporate Lucky Draw."),
         ("Who decides the winners?", "The software only. The software ranks every entry with a fixed rule and a public random number (the beacon). The same entries and the same beacon give the same winners. Nobody picks a winner by hand."),
         ("How does the draw work?", "You set the winners and prizes and a draw time. People enter once until that time. At the time, or when the Organizer or Host presses Draw, the winners are shown to everyone and e-mailed to winners."),
@@ -79,7 +79,7 @@ def slim_hero(kicker, h1, lead, buttons=""):
 
 def cta_band(text="Try a free draw with 10 people. It costs nothing."):
     return (f'<section class="ck-sec ck-cta"><div class="ck-wrap"><h2>{text}</h2>'
-            f'<div class="ck-btn-row"><a class="ck-btn main" href="{DEMO}">Free demo game</a><a class="ck-btn" href="/#login">Log in</a></div></div></section>')
+            f'<div class="ck-btn-row"><a class="ck-btn main" href="{DEMO}">Free demo game</a><a class="ck-btn" href="https://console.corporatetambola.com/">Log in</a></div></div></section>')
 
 
 # ---------------------------------------------------------------- how it works
@@ -112,7 +112,7 @@ GUIDE_SECTIONS = [
     ("run", "Running the draw", ["Share one link in Slack, Teams, Zoom chat, e-mail or WhatsApp.", "Choose an automatic draw at a set time, or press Draw yourself.", "Entry closes at the draw time. Each person enters once."]),
     ("prizes", "Prizes", ["You provide the prizes and hand them over.", "Corporate Lucky Draw is software only. Prize money is never held or paid out by Corporate Lucky Draw.", "Winners confirm their details on their own phone. Tick “Prize given” in your console."]),
     ("data", "Your players’ data", ["Tell your players what you do with their details.", "Entries are deleted within 24 hours after the game. Your report link works for 19 hours, so open it before then.", "To delete earlier, use your console."]),
-    ("pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is auto-deleted. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "Refunds are not given. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]),
+    ("pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is auto-deleted. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "A paid game can be cancelled until its start time.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]),
     ("helpdesk", "Someone to set it up for you", ["A Help Desk person can prepare a game in your account. You allow them first, and you can stop them at any time.", "They can create and change the game. They cannot publish, pay, see your sign-in keys or close your account.", "When it is ready they ask you to publish. You get an e-mail with a summary and publish with one tap.", "After you publish, they become a Host of that game. They do not use one of your 5 Host places.", 'Find a helper, or become one: <a href="/helpdesk">Help Desk</a>.']),
 ]
 
@@ -138,7 +138,7 @@ def organizer_guide_pointer():
 def brochure():
     pts = [
         ("Ready in minutes", "Pick the time, the number of winners and the prizes. Start free. Change anything until the draw."),
-        ("Everyone enters on their phone", "One link. One ID. No app to install."),
+        ("Everyone enters on their phone", "One link. One Employee ID. No app to install."),
         ("Your message in the game", "A message in the waiting screen and your brand colours."),
         ("Fair for everyone", "The same entries and the same public beacon give the same winners. Nobody picks by hand."),
         ("Your team can help", "You, up to 5 Hosts and any number of Co-hosts. One payment is enough."),

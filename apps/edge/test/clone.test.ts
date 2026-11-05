@@ -30,7 +30,7 @@ beforeEach(() => {
     if (pm) { const p = payments[pm[1]!]; if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p)); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -40,10 +40,10 @@ const PUB = { email: "boss@acme.com", phone: "9876543210" };
 const GAME_START = T + 3 * H;
 const BRAND = { name: "Acme Foods", color: "#0B3D91" };
 const REWARDS = [{ pattern: "blackout", text: "Hamper" }, { pattern: "line", text: "Voucher" }, { pattern: "corners", text: "Mug" }];
-/** An Organizer, a Host and a Co-host; OLD-1 (300 people, 2 tickets, 2 rounds, list-only, prizes, brand, guest invites) with a guest, a listed person and a waiting request. */
+/** An Organizer, a Host and a Co-host; OLD-1 (300 people, 1 ticket, 1 round, list-only, prizes, brand, guest invites) with a guest, a listed person and a waiting request. */
 const world = async (publish = true) => {
   const master = await start("boss@acme.com"); const ai = lastAi;
-  expect((await call("POST", "/api/z", { id: "OLD-1", startRound: roundAt(GAME_START), callSeconds: 12, cap: 300, tickets: 2, rounds: 2, rewards: REWARDS, brand: BRAND, name: "Diwali Party" }, master)).status).toBe(200);
+  expect((await call("POST", "/api/z", { id: "OLD-1", startRound: roundAt(GAME_START), callSeconds: 12, cap: 300, tickets: 1, rounds: 1, rewards: REWARDS, brand: BRAND, name: "Diwali Party" }, master)).status).toBe(200);
   expect((await call("PATCH", "/api/z/OLD-1/settings", { guestInvites: { on: true, per: 3 }, whoCanJoin: "list", coHostLimit: 50 }, master)).status).toBe(200);
   const host = (await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "98765 00001", e: "OLD-1" }, master))).cohostKey as string;
@@ -80,7 +80,7 @@ describe("what the new game is", () => {
     expect({ ok: b.ok, openUrl: b.openUrl, peopleCopied: b.peopleCopied }).toEqual({ ok: true, openUrl: `https://bingo.test/zc.html?e=${newId}`, peopleCopied: 0 });
     expect(Array.isArray(b.copied)).toBe(true); expect(b.copied).toContain("Prizes (all houses and their texts)"); expect(b.copied).toContain("Brand strip"); expect(b.copied).toContain("Guest invites"); expect(b.copied).toContain("Rounds");
     const n = row(newId);
-    expect(n).toMatchObject({ org: before.org, pack: 0, cap: 300, call_seconds: 12, tickets: 2, closed: 1, cohost_limit: 50, cancelled_ms: null, unplayed_ms: null });
+    expect(n).toMatchObject({ org: before.org, pack: 0, cap: 300, call_seconds: 12, tickets: 1, closed: 1, cohost_limit: 50, cancelled_ms: null, unplayed_ms: null });
     expect(JSON.parse(n.config)).toEqual(JSON.parse(before.config)); // prizes, brand, rounds, invites, brand moments, name: all of it
     expect(JSON.parse(n.config).brand.name).toBe("Acme Foods"); expect(JSON.parse(n.config).rewards.map((x: any) => x.text)).toEqual(expect.arrayContaining(["Hamper", "Voucher", "Mug"])); expect(JSON.parse(n.config).invites).toMatchObject({ on: true, per: 3 });
     expect(row("OLD-1")).toEqual(before);

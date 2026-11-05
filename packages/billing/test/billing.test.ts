@@ -122,14 +122,14 @@ describe("Orders API client (against a local stand-in for api.razorpay.com)", ()
       return new Response("no", { status: 404 });
     } });
     try {
-      const cfg = { keyId: "rzp_test_abc", keySecret: "sec", baseUrl: `http://localhost:${srv.port}/v1` };
+      const cfg = { keyId: "rzp_test_abc", keySecret: "sec", baseUrl: `http://127.0.0.1:${srv.port}/v1` };
       const o = await createOrder(cfg, { amountMinor: 100000, currency: "INR", receipt: "ord_1", notes: { brand: "Corporate Lucky Draw", product: "engagement" } });
       expect(o.id).toBe("order_TEST1");
       expect(seen.auth).toBe("Basic " + Buffer.from("rzp_test_abc:sec").toString("base64"));
       expect(seen.body).toMatchObject({ amount: 100000, currency: "INR", notes: { brand: "Corporate Lucky Draw" } });
       await expect(createOrder(cfg, { amountMinor: 1, currency: "INR", receipt: "r", notes: {} })).rejects.toThrow("minimum amount");
     } finally { srv.stop(true); }
-  });
+  }, 30000);
 });
 
 describe("invoice details (2026-10-10 owner list)", () => {

@@ -1,5 +1,5 @@
-// The Terms boxes as a person meets them on the pages (real page scripts in a DOM, real Worker code, in-memory database): never ticked, the button stays off until
-// every box is ticked, the request carries the ticks, and the server answer is shown if a box is missing. The other page tests tick the boxes for the person (harness tick option).
+// The agreement notice as a person meets it on the pages (real page scripts in a DOM, real Worker code, in-memory database). No tick-boxes since 1 Nov 2026: one small line with three links,
+// the buttons are not held back, and the request still carries the version so the server keeps its proof.
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { newWorld, openPage, roundAt, T, type Page } from "./harness";
@@ -39,13 +39,10 @@ describe("K1 publish on the console", () => {
 });
 
 describe("K2 the Create your game pop-up", () => {
-  test("the box sits above the button, the button starts off, Google sign-up waits for the tick, and the sign-up carries the ticks", async () => {
+  test("the notice sits with the sign-up and the sign-up carries the version", async () => {
     const site = await Bun.file(new URL("../public/site.js", import.meta.url)).text();
-    expect(site).toContain('CBConsent.html("K2")'); expect(site).toContain('id="frGo" disabled aria-disabled="true"');
+    expect(site).toContain('CBConsent.html("K2")'); expect(site).toContain('consent: CBConsent.payload(k2, "K2")');
     expect(site.indexOf('CBConsent.html("K2")')).toBeLessThan(site.indexOf('id="frGo"'));
-    expect(site).toContain('consent: CBConsent.payload(k2, "K2")'); expect(site).toContain('mountGoogle("signup", () => (CBConsent.all(k2, "K2")');
-    const g = await Bun.file(new URL("../public/google.js", import.meta.url)).text();
-    expect(g).toContain("Please tick the box to continue."); // the Google button never signs anyone up without the tick
   });
 });
 
@@ -53,12 +50,11 @@ describe("K5 a Co-host takes the role", () => {
 });
 
 describe("K3 the payment page", () => {
-  test("the pay button is off until the box is ticked", async () => {
+  test("no box: the pay button is on", async () => {
     const o = await organizer({ TEST_MODE: "1" }); await make(o, "CP-PAY"); await publish(o, "CP-PAY");
-    const p = await page(o, "/pay?e=CP-PAY", "pay.html", ["common.js", "pay.js"], { "cbz-org": o.token, "cbz-email": "boss@acme.com" });
+    const p = await page(o, "/pay?e=CP-PAY", "pay.html", ["common.js", "payfields.js", "paykit.js", "pay.js"], { "cbz-org": o.token, "cbz-email": "boss@acme.com", "cbz-paydraft-pay": '{"pick":"IN"}' }); // the country already chosen in this tab
     await p.waitFor((x) => /Payment/.test(x) && !!p.$("#paygo"));
-    expect((p.win.document.querySelector('[data-cbc="K3"] input') as any).checked).toBe(false);
-    expect([(p.$("#paygo") as any).disabled, (p.$("#paygo") as any).getAttribute("aria-disabled")]).toEqual([true, "true"]);
-    tick(p, "cbc-K3-A"); expect((p.$("#paygo") as any).disabled).toBe(false);
+    expect(p.win.document.querySelectorAll('[data-cbc="K3"] input').length).toBe(0);
+    expect([(p.$("#paygo") as any).disabled, (p.$("#paygo") as any).getAttribute("aria-disabled")]).toEqual([false, "false"]);
   });
 });

@@ -85,6 +85,7 @@ export async function listRehearsals(env: Env, real: any, now: number) {
 export async function startRehearsal(env: Env, real: any, b: any, now: number, origin: string, spend: (n: number) => Promise<boolean>, json: (o: unknown, s?: number) => Response): Promise<Response> {
   const db = env.DB; await ensureRehearsalColumns(db);
   if (real.rehearsal_of) return json({ error: REAL_ONLY_MSG, code: "real-only" }, 409);
+  if (isDemoRow(real)) return json({ error: "A demo is already a practice game, so a rehearsal is not part of it.", code: "demo-no-rehearsal" }, 409);
   const list = await listRehearsals(env, real, now);
   if (!list.paid) return json({ error: NOT_PAID_MSG, code: "not-paid" }, 402);
   if (!list.beforeStart) return json({ error: AFTER_START_MSG, code: "after-start" }, 409);

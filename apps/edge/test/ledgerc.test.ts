@@ -35,7 +35,7 @@ beforeEach(() => {
     if (u === "https://central.test/api/pay/site-summary") { const r = rz.summary(body); return new Response(JSON.stringify(r.body), { status: r.status }); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -51,30 +51,30 @@ const newBuy = async () => { const r = await (await buy()).json() as any; return
 
 describe("the id that ties A, B and C together", () => {
   test("txn_id is the site code, a dash and the website's own payment id; it is stored on the payment and put in the Razorpay order notes", async () => {
-    expect(SITE_CODE).toBe("BNG");
-    expect(txnIdOf("pay_0123456789abcdef")).toBe("BNG-pay_0123456789abcdef");
+    expect(SITE_CODE).toBe("LDR");
+    expect(txnIdOf("pay_0123456789abcdef")).toBe("LDR-pay_0123456789abcdef");
     const { paymentId } = await newBuy();
     expect(paymentId).toMatch(/^pay_[0-9a-f]{16}$/);
-    expect(payRow(paymentId).txn_id).toBe(`BNG-${paymentId}`);
-    expect(rz.orders[0].notes.txn_id).toBe(`BNG-${paymentId}`); // the order opened straight with Razorpay (no central service key) carries it in the notes (A)
+    expect(payRow(paymentId).txn_id).toBe(`LDR-${paymentId}`);
+    expect(rz.orders[0].notes.txn_id).toBe(`LDR-${paymentId}`); // the order opened straight with Razorpay (no central service key) carries it in the notes (A)
     expect(rz.orders[0].notes.payment_ref).toBe(paymentId);
   });
   test("the Rs 1 payment test gets its txn_id too, and so does a payment made in TEST mode (no Razorpay)", async () => {
-    const r = await (await call("POST", "/api/payments/paytest", { email: "t@x.com", name: "Tess Tester" })).json() as any;
-    expect(payRow(r.paymentId).txn_id).toBe(`BNG-${r.paymentId}`);
-    expect(rz.orders.at(-1).notes.txn_id).toBe(`BNG-${r.paymentId}`);
+    const r = await (await call("POST", "/api/payments/paytest", { email: "t@x.com", name: "Tess Tester" }, plat)).json() as any;
+    expect(payRow(r.paymentId).txn_id).toBe(`LDR-${r.paymentId}`);
+    expect(rz.orders.at(-1).notes.txn_id).toBe(`LDR-${r.paymentId}`);
     env.RAZORPAY_KEY_ID = undefined; env.RAZORPAY_KEY_SECRET = undefined; env.TEST_MODE = "1";
     const t = await (await buy({ email: "other@x.com" })).json() as any;
-    expect(payRow(t.paymentId).txn_id).toBe(`BNG-${t.paymentId}`);
+    expect(payRow(t.paymentId).txn_id).toBe(`LDR-${t.paymentId}`);
   });
   test("the central order carries the same id back and the payment keeps its own; the unique index forbids two payments with one txn_id", async () => {
     central();
     const { paymentId } = await newBuy();
     expect(centralCalls("/api/pay/order")[0]!.body.payment_ref).toBe(paymentId);
-    expect(payRow(paymentId).txn_id).toBe(`BNG-${paymentId}`);
-    expect(() => raw.run("UPDATE payment SET txn_id='BNG-dup' WHERE id=?", [paymentId])).not.toThrow();
+    expect(payRow(paymentId).txn_id).toBe(`LDR-${paymentId}`);
+    expect(() => raw.run("UPDATE payment SET txn_id='LDR-dup' WHERE id=?", [paymentId])).not.toThrow();
     const { paymentId: second } = await (async () => { const r = await (await buy({ email: "b@x.com" })).json() as any; return { paymentId: r.paymentId as string }; })();
-    expect(() => raw.run("UPDATE payment SET txn_id='BNG-dup' WHERE id=?", [second])).toThrow();
+    expect(() => raw.run("UPDATE payment SET txn_id='LDR-dup' WHERE id=?", [second])).toThrow();
   });
 });
 
@@ -87,13 +87,13 @@ describe("every attempt is kept (webhook), success and failure, once", () => {
     expect(raw.query("SELECT COUNT(*) c FROM entitlement").get()).toEqual({ c: 0 });
     expect(raw.query("SELECT COUNT(*) c FROM invoice").get()).toEqual({ c: 0 });
     expect(attempts()).toHaveLength(1);
-    expect(attempts()[0]).toMatchObject({ rzp_payment_id: "pay_f1", payment_id: paymentId, rzp_order_id: orderId, txn_id: `BNG-${paymentId}`, status: "failed", method: "upi", error_code: "BAD_REQUEST_ERROR", error_reason: "insufficient_funds", amount_minor: 469900, currency: "INR", failed_ms: (Math.floor(T / 1000) - 60) * 1000 });
+    expect(attempts()[0]).toMatchObject({ rzp_payment_id: "pay_f1", payment_id: paymentId, rzp_order_id: orderId, txn_id: `LDR-${paymentId}`, status: "failed", method: "upi", error_code: "BAD_REQUEST_ERROR", error_reason: "insufficient_funds", amount_minor: 469900, currency: "INR", failed_ms: (Math.floor(T / 1000) - 60) * 1000 });
     expect(attempts()[0].error_description).toContain("insufficient balance");
     // the buyer tries again and pays
     expect((await hook(captured(orderId, "pay_ok", { method: "upi" }), "evt_c1")).status).toBe(200);
     expect(await (await hook(captured(orderId, "pay_ok", { method: "upi" }), "evt_c1")).json()).toMatchObject({ duplicate: "evt_c1" });
     expect((await hook(captured(orderId, "pay_ok", { method: "upi" }), "evt_c2")).status).toBe(200); // a different event id, same payment: still one grant, one attempt row
-    expect(payRow(paymentId)).toMatchObject({ status: "paid", rzp_payment_id: "pay_ok", txn_id: `BNG-${paymentId}` });
+    expect(payRow(paymentId)).toMatchObject({ status: "paid", rzp_payment_id: "pay_ok", txn_id: `LDR-${paymentId}` });
     expect(raw.query("SELECT COUNT(*) c FROM entitlement").get()).toEqual({ c: 1 });
     expect(raw.query("SELECT COUNT(*) c FROM invoice").get()).toEqual({ c: 1 });
     expect(attempts().map((a) => [a.rzp_payment_id, a.status])).toEqual([["pay_f1", "failed"], ["pay_ok", "captured"]]);
@@ -148,7 +148,7 @@ describe("refunds", () => {
     await hook(rf("refund.created", "pending"), "r3"); // a stale copy of the first message
     const rows = raw.query("SELECT * FROM payment_refund").all() as any[];
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ rzp_refund_id: "rfnd_1", rzp_payment_id: "pay_ok", payment_id: paymentId, txn_id: `BNG-${paymentId}`, amount_minor: 100000, status: "processed", currency: "INR" });
+    expect(rows[0]).toMatchObject({ rzp_refund_id: "rfnd_1", rzp_payment_id: "pay_ok", payment_id: paymentId, txn_id: `LDR-${paymentId}`, amount_minor: 100000, status: "processed", currency: "INR" });
     await hook(rf("refund.failed", "failed", "rfnd_2"), "r4");
     expect(raw.query("SELECT status FROM payment_refund WHERE rzp_refund_id='rfnd_2'").get()).toEqual({ status: "failed" });
     expect(payRow(paymentId).status).toBe("paid"); // a refund message never changes what was sold
@@ -160,7 +160,7 @@ describe("fee, tax, method and the bank reference are kept", () => {
   test("webhook path: the payment row and the attempt carry fee, tax, method, bank, card tail and rrn", async () => {
     const { paymentId, orderId } = await newBuy();
     await hook(captured(orderId, "pay_ok", detailed), "ec");
-    expect(payRow(paymentId)).toMatchObject({ fee_minor: 11800, tax_minor: 1800, method: "card", bank: "HDFC", card_network: "Visa", card_type: "credit", rrn: "123456789012", txn_id: `BNG-${paymentId}` });
+    expect(payRow(paymentId)).toMatchObject({ fee_minor: 11800, tax_minor: 1800, method: "card", bank: "HDFC", card_network: "Visa", card_type: "credit", rrn: "123456789012", txn_id: `LDR-${paymentId}` });
     expect(attempts()[0]).toMatchObject({ fee_minor: 11800, tax_minor: 1800, rrn: "123456789012", card_last4: "1111", vpa_masked: "so***@okbank" });
   });
   test("no full card number and no full UPI id is stored anywhere", async () => {
@@ -338,7 +338,7 @@ describe("the owner's view of C", () => {
     expect(j.summary).toMatchObject({ currency: "INR", paid_count: 1, failed_count: 1, revenue_minor: 469900, fee_minor: 11800, tax_minor: 1800 });
     expect(j.payments).toHaveLength(1);
     const p = j.payments[0];
-    expect(p).toMatchObject({ txn_id: `BNG-${paymentId}`, payment_id: paymentId, rzp_order_id: orderId, rzp_payment_id: "pay_ok", amount: 4699, amount_minor: 469900, currency: "INR", status: "paid", method: "card", fee_minor: 11800, tax_minor: 1800, net_minor: 458100, rrn: "55", plan: "luckydraw_pack_500", product: "corporate_luckydraw", captured_attempts: 1 });
+    expect(p).toMatchObject({ txn_id: `LDR-${paymentId}`, payment_id: paymentId, rzp_order_id: orderId, rzp_payment_id: "pay_ok", amount: 4699, amount_minor: 469900, currency: "INR", status: "paid", method: "card", fee_minor: 11800, tax_minor: 1800, net_minor: 458100, rrn: "55", plan: "luckydraw_pack_500", product: "corporate_luckydraw", captured_attempts: 1 });
     expect(p.paid_utc).toBe(new Date(T).toISOString()); expect(p.paid_ist).toBe("2026-10-01 15:30:00 IST");
     expect(p.attempts.map((a: any) => [a.rzp_payment_id, a.status, a.error_reason])).toEqual([["pay_f1", "failed", "insufficient_funds"], ["pay_ok", "captured", null]]);
     expect(JSON.stringify(j)).not.toContain("Boss@Acme.com"); expect(JSON.stringify(j)).not.toContain("someone@okbank"); // no payer e-mail, no full UPI id
@@ -348,7 +348,7 @@ describe("the owner's view of C", () => {
     expect(csv.headers.get("content-type")).toContain("text/csv");
     const lines = (await csv.text()).trim().split("\r\n");
     expect(lines[0]).toStartWith("txn_id,payment_id,rzp_order_id,rzp_payment_id,amount,currency,status");
-    expect(lines).toHaveLength(2); expect(lines[1]).toContain(`BNG-${paymentId}`); expect(lines[1]).toContain("'=HYPERLINK"); // a spreadsheet never runs a formula from a name
+    expect(lines).toHaveLength(2); expect(lines[1]).toContain(`LDR-${paymentId}`); expect(lines[1]).toContain("'=HYPERLINK"); // a spreadsheet never runs a formula from a name
     void oct;
   });
 });
