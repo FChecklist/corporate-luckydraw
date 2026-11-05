@@ -11,7 +11,7 @@ import { validateCfg } from "../../../packages/beacon/src/config";
 const T = Date.UTC(2026, 10, 2, 10, 0, 0), H = 3_600_000;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 const d = makeD1();
-const env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://luckydraw.test", OWNER_EMAIL: "owner@platform.test" } as PayEnv;
+const env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://luckydraw.test", OWNER_EMAIL: "owner@platform.test" } as PayEnv;
 const call = (method: string, path: string, body?: unknown, key?: string) =>
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", "cf-connecting-ip": "9.9.9.9", ...(key ? { "x-organizer": key } : {}) }, body: withDevice(method, path, body) }), env as Env, T);
 const j = async (r: Response) => (await r.json()) as any;

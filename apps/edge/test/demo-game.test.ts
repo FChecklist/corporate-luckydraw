@@ -15,7 +15,7 @@ let ipN = 0;
 const call = (method: string, path: string, body?: unknown, key?: string, ip = "9.9.9.9", now = T) =>
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", "cf-connecting-ip": ip, ...(key ? { "x-organizer": key } : {}) }, body: withDevice(method, path, body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
-const make = (demo = true) => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://luckydraw.test", OWNER_EMAIL: "owner@platform.test", ...(demo ? { DEMO_GAME: "1" } : {}) } as PayEnv; };
+const make = (demo = true) => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://luckydraw.test", OWNER_EMAIL: "owner@platform.test", ...(demo ? { DEMO_GAME: "1" } : {}) } as PayEnv; };
 const organizer = async (email: string) => (await j(await call("POST", "/api/start", { email }, undefined, `8.8.8.${++ipN}`))).token as string;
 const demo = (key: string, id: string, o: Record<string, unknown> = {}, ip = "9.9.9.9", now = T) =>
   call("POST", "/api/z", { id, demo: true, startRound: roundAt(T + 3 * H), callSeconds: 12, cap: 10, name: "Free demo draw", verify: "id", idKind: "emp", whoCanJoin: "anyone", ...o }, key, ip, now);
