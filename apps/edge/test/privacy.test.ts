@@ -203,7 +203,7 @@ describe("the report and the deletion", () => {
     const m = sentReports[0]!;
     expect(m.to).toBe("boss@acme.com"); expect(m.subject).toMatch(/PRV-1/); expect(m.attachments.length).toBe(0);
     expect(m.text).toMatch(/built on your own/); expect(m.text).toMatch(/within 24 hours/); expect(m.text).toMatch(/365 days/); expect(m.text).not.toMatch(/backup/i); expect(m.text).toMatch(/winners record/);
-    expect(m.text).toMatch(/DPDP Act/); expect(m.text).toMatch(/CCPA/); expect(m.text).not.toMatch(/personal data(?! protection)/i);
+    expect(m.text).toContain("designed to follow US privacy laws, the EU GDPR and India's DPDP"); /* the owner's one privacy line, 20 Nov 2026 */ expect(m.text).toContain("We keep billing data for audit and tax reasons."); expect(m.text).not.toMatch(/personal data(?! protection)/i);
     expect(m.text + "").not.toMatch(/the law requires|required by law/i);
     const link = linkOf(m); expect(link).toMatch(/report\.html\?e=PRV-1&k=/);
     const r = await buildReport(link); const pdf = r.text;
