@@ -38,6 +38,9 @@ import { REHEARSAL_SCHEMA, closeRehearsal, listRehearsals, rehearsalFacts, start
 import { CREDIT_SCHEMA, activeCreditSummary, creditAppliedFor, creditLastDay, creditRoute } from "./credit";
 import { cloneGame } from "./clone";
 import { DRAW_SCHEMA, checkDrawSettings, drawFacts, drawRow, drawTick, registrationClosed, runDraw, saveDrawSettings } from "./draw";
+import { handleConsole, legacyPayRedirect } from "./console-bridge/bridge";
+import { consoleAdapter } from "./console-adapter";
+import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA } from "./console-origin";
 import { drawTiming, acceptOver, acceptWon, endBoundMs, eraseEverything, erasePersonal, erasureOf, fullDeleteAt, lifecycleTick, MAX_AHEAD_MS, personalDeleteAt, SETTINGS_KEEP_MS, recordWinners, reportApi, reportLink } from "./lifecycle";
 import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_CAP, MAX_DRAFTS, type PayEnv } from "./pay";
 import { PACKS, price } from "../../../packages/shared/src/pricing";
@@ -554,6 +557,8 @@ export async function handle(req: Request, env: Env, now = Date.now(), waitUntil
 async function handleCore(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
   if (keysMissing(env)) return new Response(JSON.stringify({ error: "The service is not configured. Please try again later." }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store" } });
   const pn = new URL(req.url).pathname;
+  if (pn.startsWith("/api/console/")) { const cr = await handleConsole(consoleAdapter(now), req, env); if (cr) return cr; } // the master console's bridge (console-adapter.ts); DARK (null) until the owner sets CONSOLE_PUBKEYS
+  { const lr = legacyPayRedirect(req, { flag: (env as any).PAY_VIA_CONSOLE, consoleOrigin: CONSOLE_ORIGIN, extra: LEGACY_PAY_EXTRA }); if (lr) return lr; } // with PAY_VIA_CONSOLE=1 every old payment route of this game answers 302 to the console (nothing is deleted)
   if (pn === "/ai" || pn.startsWith("/ai/")) return aiLink(req, env, now, waitUntil);
   if (req.method === "GET" && pn.startsWith("/j/")) return joinLinkPage(env, decodeURIComponent(pn.slice(3)).replace(/\/$/, ""), (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, (e) => cfgOf(e).name || e.id); // the short personal link (people.ts)
   return handle0(req, env, now, waitUntil);

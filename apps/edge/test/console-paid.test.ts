@@ -1,0 +1,140 @@
+// OWNER RULES v1.1 (20 Nov 2026), item 5: payment is only through the console. The console calls Moneypenny, then tells this game with a SIGNED "paid" notice (bridge contract v1, act "paid").
+// The game accepts it ONCE per order id, rejects a forged or replayed notice, and the draw may start only when the game is paid.
+// The bridge is dark without CONSOLE_PUBKEYS. Old payment routes answer 302 to the console only when PAY_VIA_CONSOLE=1 (nothing is deleted).
+// FALSIFIED BY: the 3 planted breaks listed in docs/STATE.md (paid notice marks twice; unpaid game draws; forged signature accepted)
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { handle } from "./with-terms";
+import type { PayEnv } from "../src/pay";
+import { makeD1 } from "./d1-sqlite";
+import { makeKeyPair, signAssertion, b64uEncode, type Payload } from "../src/console-bridge/assertion";
+import { drawTick } from "../src/draw";
+import { drawTiming } from "../src/lifecycle";
+import { legacyPayRedirect } from "../src/console-bridge/bridge";
+import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA, HOME_ORIGIN, signinRedirect } from "../src/console-origin";
+
+const T = Date.UTC(2026, 10, 20, 10, 0, 0), GEN = 1692803367;
+const roundAt = (ms: number) => Math.floor((ms / 1000 - GEN) / 3) + 1;
+const ORIGIN = "https://luckydraw.test";
+const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
+let env: PayEnv; let raw: ReturnType<typeof makeD1>["raw"]; let ipN = 0; let kp: Awaited<ReturnType<typeof makeKeyPair>>; let other: Awaited<ReturnType<typeof makeKeyPair>>;
+const realFetch = globalThis.fetch;
+const call = (now: number, method: string, path: string, body?: unknown, key?: string, extraEnv: Record<string, string> = {}) =>
+  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }), { ...(env as any), ...extraEnv }, now);
+const j = async (r: Response) => (await r.json()) as any;
+let jtiN = 0;
+const note = async (o: { sub: string; eid: string; now?: number; key?: CryptoKey; kid?: string; aud?: string; act?: string; exp?: number }) => {
+  const iat = Math.floor((o.now ?? T) / 1000), pl = { v: 1, kid: o.kid ?? "k1", aud: o.aud ?? ORIGIN, sub: o.sub, act: o.act ?? "paid", eid: o.eid, jti: "jti-" + String(++jtiN).padStart(16, "0"), iat, exp: o.exp ?? iat + 60 } as Payload;
+  return signAssertion(pl, o.key ?? kp.privateKey);
+};
+const paid = (a: string, eid: string, orderRef: string, item = "100", now = T) => call(now, "POST", "/api/console/paid", { assertion: a, eid, item, orderRef }, undefined, {});
+async function game(email: string, o: { id: string; cap?: number; mode?: "auto" | "manual" } ) {
+  const st = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `8.8.8.${++ipN}` }, body: JSON.stringify({ email }) }), env as any, T));
+  const key = st.token as string;
+  expect((await call(T, "POST", "/api/z", { id: o.id, startRound: roundAt(T) + 1200, callSeconds: 12, cap: o.cap ?? 100, whoCanJoin: "anyone", verify: "id", idKind: "emp" }, key)).status).toBe(200);
+  expect((await call(T, "POST", `/api/z/${o.id}/drawset`, { winners: 1, prizes: [], mode: o.mode ?? "auto" }, key)).status).toBe(200);
+  return { key, sub: await sha("email|" + email) };
+}
+const packOf = (id: string) => (raw.prepare("SELECT pack FROM engagement WHERE id=?").get(id) as any).pack as number;
+beforeEach(async () => {
+  const d = makeD1(); raw = d.raw; kp = await makeKeyPair(); other = await makeKeyPair();
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: ORIGIN, PHONE_SALT: "salt", CONSOLE_PUBKEYS: "k1:" + kp.publicB64u } as any;
+  (globalThis as any).fetch = async () => new Response("{}", { status: 404 });
+});
+afterEach(() => { globalThis.fetch = realFetch; });
+
+describe("the bridge is dark until the owner switches it on", () => {
+  test("without CONSOLE_PUBKEYS every /api/console route answers the game's normal 404", async () => {
+    const r = await call(T, "POST", "/api/console/paid", { assertion: "x", eid: "A-1", item: "100", orderRef: "ord-0001" }, undefined, { CONSOLE_PUBKEYS: "" });
+    expect(r.status).toBe(404); expect((await j(r)).error).toBe("Not found");
+  });
+  test("capabilities tell the console the game, its sizes and that the invite is by ID", async () => {
+    const r = await call(T, "GET", "/api/console/capabilities"); expect(r.status).toBe(200);
+    const c = await j(r); expect(c.game).toBe("luckydraw"); expect(c.origin).toBe(ORIGIN); expect(c.sizes.some((s: any) => s.pack === 100)).toBe(true); expect(c.options.startOptions).toEqual(["auto", "manual"]);
+  });
+});
+
+describe("the signed paid notice: once per order id", () => {
+  test("a good notice marks the game paid; the same order id again answers repeat and changes nothing", async () => {
+    const g = await game("pay1@acme.com", { id: "PAY-1" });
+    expect(packOf("PAY-1")).toBe(0);
+    const r1 = await paid(await note({ sub: g.sub, eid: "PAY-1" }), "PAY-1", "ord-0001"); expect(r1.status).toBe(200); expect(await j(r1)).toMatchObject({ ok: true, repeat: false, eid: "PAY-1" });
+    expect(packOf("PAY-1")).toBe(100);
+    const paidby = raw.prepare("SELECT v FROM kv WHERE k='paidby/PAY-1'").get() as any; expect(JSON.parse(paidby.v).via).toBe("console");
+    const r2 = await paid(await note({ sub: g.sub, eid: "PAY-1" }), "PAY-1", "ord-0001"); expect(r2.status).toBe(200); expect(await j(r2)).toMatchObject({ ok: true, repeat: true });
+    expect(raw.prepare("SELECT COUNT(*) AS c FROM console_paid WHERE order_ref='ord-0001'").get()).toEqual({ c: 1 });
+  });
+  test("the very same signed notice used twice is refused as replayed (one use of the assertion)", async () => {
+    const g = await game("pay2@acme.com", { id: "PAY-2" }); const a = await note({ sub: g.sub, eid: "PAY-2" });
+    expect((await paid(a, "PAY-2", "ord-0002")).status).toBe(200);
+    const again = await paid(a, "PAY-2", "ord-0003"); expect(again.status).toBe(401); expect((await j(again)).error).toBe("replayed");
+    expect(raw.prepare("SELECT COUNT(*) AS c FROM console_paid").get()).toEqual({ c: 1 });
+  });
+  test("a forged notice (signed with a key the game does not know, or a changed body) is refused and nothing is marked paid", async () => {
+    const g = await game("pay3@acme.com", { id: "PAY-3" });
+    const forged = await paid(await note({ sub: g.sub, eid: "PAY-3", key: other.privateKey }), "PAY-3", "ord-0004"); expect(forged.status).toBe(401); expect((await j(forged)).error).toBe("bad_assertion");
+    const a = await note({ sub: g.sub, eid: "PAY-3" }), [v, p, s] = a.split("."); const body = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(p!.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))));
+    const tampered = `${v}.${b64uEncode(new TextEncoder().encode(JSON.stringify({ ...body, eid: "OTHER-9" })))}.${s}`;
+    expect((await paid(tampered, "PAY-3", "ord-0005")).status).toBe(401);
+    expect((await paid(await note({ sub: g.sub, eid: "PAY-3", kid: "k9" }), "PAY-3", "ord-0006")).status).toBe(401); // a key id the game does not know
+    expect(packOf("PAY-3")).toBe(0);
+  });
+  test("a notice for another game's address, another purpose, a stale time or another game is refused", async () => {
+    const g = await game("pay4@acme.com", { id: "PAY-4" });
+    expect((await j(await paid(await note({ sub: g.sub, eid: "PAY-4", aud: "https://bingo.corporatetambola.com" }), "PAY-4", "ord-0007"))).error).toBe("wrong_audience");
+    expect((await j(await paid(await note({ sub: g.sub, eid: "PAY-4", act: "games" }), "PAY-4", "ord-0008"))).error).toBe("wrong_act");
+    expect((await j(await paid(await note({ sub: g.sub, eid: "PAY-4", now: T - 3_600_000 }), "PAY-4", "ord-0009"))).error).toBe("expired");
+    expect((await j(await paid(await note({ sub: g.sub, eid: "PAY-4" }), "PAY-9", "ord-0010"))).error).toBe("wrong_act"); // the notice names another game than the request
+    expect(packOf("PAY-4")).toBe(0);
+  });
+  test("the game decides from its own tables: another person's game, a wrong size, a free game, a cancelled game are all refused, definitely (nothing changed)", async () => {
+    const g = await game("pay5@acme.com", { id: "PAY-5" }); const stranger = await game("pay6@acme.com", { id: "PAY-6" });
+    const a1 = await paid(await note({ sub: stranger.sub, eid: "PAY-5" }), "PAY-5", "ord-0011"); expect(a1.status).toBe(409); expect(await j(a1)).toMatchObject({ error: "game_refused", definite: "true" });
+    const a2 = await paid(await note({ sub: g.sub, eid: "PAY-5" }), "PAY-5", "ord-0012", "500"); expect(a2.status).toBe(409); expect((await j(a2)).error).toBe("game_refused");
+    const free = await game("pay7@acme.com", { id: "PAY-7", cap: 10 }); const a3 = await paid(await note({ sub: free.sub, eid: "PAY-7" }), "PAY-7", "ord-0013"); expect(a3.status).toBe(409);
+    raw.run("UPDATE engagement SET cancelled_ms=? WHERE id='PAY-5'", [T]); const a4 = await paid(await note({ sub: g.sub, eid: "PAY-5" }), "PAY-5", "ord-0014"); expect(a4.status).toBe(409);
+    expect(packOf("PAY-5")).toBe(0); expect(raw.prepare("SELECT COUNT(*) AS c FROM console_paid").get()).toEqual({ c: 0 }); // a refusal leaves no order row: the console may repeat with a good one
+  });
+  test("a second order id for a game that is already paid is refused (money is never counted twice)", async () => {
+    const g = await game("pay8@acme.com", { id: "PAY-8" });
+    expect((await paid(await note({ sub: g.sub, eid: "PAY-8" }), "PAY-8", "ord-0015")).status).toBe(200);
+    const second = await paid(await note({ sub: g.sub, eid: "PAY-8" }), "PAY-8", "ord-0016"); expect(second.status).toBe(409); expect(await j(second)).toMatchObject({ error: "game_refused", definite: "true" });
+  });
+});
+
+describe("the game starts only when it is paid", () => {
+  const T2 = T + 3600_000 + 60_000; // after the draw time
+  test("an unpaid game is not drawn by the tick or by Start; after the paid notice it is (two minutes later, as with every late payment)", async () => {
+    const g = await game("start1@acme.com", { id: "ST-1", mode: "auto" });
+    await call(T, "POST", "/api/z/ST-1/publish", { email: "start1@acme.com", phone: "98765 43210" }, g.key); // published, not paid
+    expect((await call(T, "POST", "/api/z/ST-1/join", { empId: "E1", device: "a".repeat(32) })).status).toBeLessThan(500);
+    const e0 = raw.prepare("SELECT * FROM engagement WHERE id='ST-1'").get() as any; expect(e0.pack).toBe(0);
+    expect(await drawTick(env as any, T2, (e) => drawTiming(env as any, e, T2))).toBe(0);
+    expect((raw.prepare("SELECT drawn_ms FROM draw WHERE eid='ST-1'").get() as any).drawn_ms).toBeNull();
+    const manual = await game("start2@acme.com", { id: "ST-2", mode: "manual" });
+    const press = await call(T2, "POST", "/api/z/ST-2/drawnow", {}, manual.key); expect(press.status).toBe(402); expect((await j(press)).error).toMatch(/paid/);
+    // paid through the console: now the game may start
+    expect((await paid(await note({ sub: g.sub, eid: "ST-1", now: T2 }), "ST-1", "ord-0020", "100", T2)).status).toBe(200);
+    expect(packOf("ST-1")).toBe(100);
+    const restart = (raw.prepare("SELECT start_round FROM engagement WHERE id='ST-1'").get() as any).start_round; expect(restart).toBeGreaterThan(roundAt(T2)); // the draw comes 2 minutes after the payment
+  });
+});
+
+describe("old payment and login routes go to the console and to home, behind a flag, and nothing is deleted", () => {
+  const req = (p: string, method = "GET") => new Request("https://luckydraw.test" + p, { method });
+  const go = (p: string, flag: string | undefined, method = "GET") => legacyPayRedirect(req(p, method), { flag, consoleOrigin: CONSOLE_ORIGIN, extra: LEGACY_PAY_EXTRA });
+  test("flag off: nothing moves; flag on: pay, paylink and paytest pages (both spellings) and the old pay routes answer 302 to the console", () => {
+    for (const p of ["/pay.html", "/paylink.html", "/paytest.html", "/pay", "/paylink", "/paytest", "/api/checkout", "/api/z/AB-12/pay-with-credit", "/api/payments/verify", "/api/z/AB-12/paylink"]) { expect([p, go(p, undefined)]).toEqual([p, null]); const r = go(p, "1", p.startsWith("/api") ? "POST" : "GET")!; expect([p, r?.status, r?.headers.get("location")]).toEqual([p, 302, CONSOLE_ORIGIN + "/"]); }
+  });
+  test("Razorpay's own notice to the game is never redirected (money already paid must still be recorded)", () => { expect(go("/api/payments/webhook", "1", "POST")).toBeNull(); });
+  test("the old sign-in page goes to home with the flag on, except the console's one-time hand-off landing", () => {
+    expect(signinRedirect(req("/signin.html"), undefined)).toBeNull();
+    const r = signinRedirect(req("/signin.html"), "1")!; expect(r.status).toBe(302); expect(r.headers.get("location")).toBe(HOME_ORIGIN + "/");
+    expect(signinRedirect(req("/signin?foo=1"), "1")!.status).toBe(302);
+    expect(signinRedirect(req("/signin.html?t=" + "a1".repeat(24) + "&go=console&e=AB-12"), "1")).toBeNull();
+  });
+  test("through the Worker with the flag on, an old pay route answers 302 and the data stays", async () => {
+    const g = await game("flag1@acme.com", { id: "FL-1" });
+    const r = await call(T, "POST", "/api/checkout", { eid: "FL-1" }, g.key, { PAY_VIA_CONSOLE: "1" }); expect(r.status).toBe(302); expect(r.headers.get("location")).toBe(CONSOLE_ORIGIN + "/");
+    expect((await call(T, "GET", "/api/z/FL-1/summary", undefined, g.key, { PAY_VIA_CONSOLE: "1" })).status).toBe(200);
+  });
+});

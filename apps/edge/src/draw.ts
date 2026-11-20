@@ -96,6 +96,7 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
   const d = await drawRow(env.DB, e.id);
   if (!d) return { ok: false, error: "This game is not a Lucky Draw.", status: 404 };
   if (d.drawn_ms !== null) return { ok: true, already: true };
+  if (e.pack === 0) return { ok: false, error: "The game starts only after it is paid for. Please pay in your console first.", status: 402 }; // OWNER RULE 20 Nov 2026: no payment, no game (a free game for up to 10 people and a paid game both have a pack above 0)
   if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 };
   const drawMs = roundMs(t.drawRound);
   if (by === "auto") { if (d.mode !== "auto" || now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
