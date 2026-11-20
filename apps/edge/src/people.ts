@@ -144,6 +144,8 @@ export interface Ctx {
   a: { plat: boolean; org: string | null; kind: string | null; eid?: string | null; viaLink?: boolean };
   keyId7: string; viaLink: boolean; origin: string; gameName: string; block?: string; invites: { on: boolean; per: number; cats: string[] };
   started: boolean; draft: boolean; cancelled: boolean;
+  /** Lucky Draw only: the entry list has closed (draw time or Start). Nobody can be added or put back after that. */
+  listClosed?: boolean;
   json: (o: unknown, status?: number) => Response;
   body: (req: Request, max?: number) => Promise<any | null>;
   spend: (n?: number) => Promise<boolean>;
@@ -304,7 +306,9 @@ async function listPeople(c: Ctx, who: Caller): Promise<Response> {
   });
 }
 
+const LIST_CLOSED_MSG = "The list of entries has closed, so nobody can be added or put back now. This keeps the draw fair for everyone.";
 async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
+  if (c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (!b || !Array.isArray(b.people) || b.people.length < 1) return c.json({ error: "Send at least one person: {people:[{name, phone}]}." }, 400);
   { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these names and numbers for this game. The people have been told."
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
@@ -443,7 +447,7 @@ async function removePerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
   const stmts: ReturnType<D1["prepare"]>[] = [];
   for (const t of targets) {
     stmts.push(db.prepare("UPDATE person SET status='removed', removed_ms=?, removed_by=?, tok_hash=NULL, tok_sealed=NULL WHERE eid=? AND id=? AND status<>'removed'").bind(c.now, who.id, c.eid, t.id));
-    if (c.started) stmts.push(db.prepare("UPDATE seat SET blocked=1 WHERE eid=? AND ph=?").bind(c.eid, t.ph)); // the seat stays in the public list: winners must be identical on every phone
+    if (c.started) stmts.push(db.prepare("UPDATE seat SET blocked=1, blk_ms=? WHERE eid=? AND ph=?").bind(c.now, c.eid, t.ph)); // the seat stays in the public list: winners must be identical on every phone
     else stmts.push(db.prepare("DELETE FROM claim WHERE eid=? AND pid IN (SELECT pid FROM seat WHERE eid=? AND ph=?)").bind(c.eid, c.eid, t.ph), db.prepare("DELETE FROM participant WHERE eid=? AND phone_hash=?").bind(c.eid, t.ph), db.prepare("DELETE FROM seat WHERE eid=? AND ph=?").bind(c.eid, t.ph));
   }
   await batched(db, stmts);
@@ -573,6 +577,7 @@ async function decideWaiting(c: Ctx, who: Caller, wid: string, b: any): Promise<
   const w = await db.prepare("SELECT id, ph, pii, inviter, chain, overlimit, status, at_ms FROM waiting WHERE eid=? AND id=?").bind(c.eid, wid).first<any>();
   if (!w || (!who.all && !String(w.chain).includes(`,${who.id},`))) return c.json({ error: "No such request." }, 404);
   if (w.status !== "waiting") return c.json({ ok: true, already: w.status });
+  if (decision === "admit" && c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (approvalRulesOn(c.e) && waitingLapsed(Number(w.at_ms), c.now)) { await db.prepare("UPDATE waiting SET status='lapsed', decided_ms=? WHERE eid=? AND id=? AND status='waiting'").bind(c.now, c.eid, wid).run(); return c.json({ error: "This request waited more than 30 minutes, so it has lapsed. The person can ask again.", code: "lapsed" }, 409); }
   if (approvalRulesOn(c.e) && decision === "admit" && !who.all && String(w.inviter).startsWith("s:") && familyCutoffPassed(roundStartMs(c.e.start_round), c.now)) return c.json({ error: FAMILY_CLOSED_MESSAGE, code: "family-closed" }, 409);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so this request has lapsed." }, 409);
@@ -601,6 +606,7 @@ async function decideAll(c: Ctx, who: Caller, b: any): Promise<Response> {
   const decision = b?.decision;
   if (decision !== "admit" && decision !== "decline") return c.json({ error: "Say admit or decline." }, 400);
   const db = c.env.DB;
+  if (decision === "admit" && c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so these requests have lapsed." }, 409);
   const cols = "id, ph, pii, inviter, overlimit";
   const familyClosed = approvalRulesOn(c.e) && !who.all && familyCutoffPassed(roundStartMs(c.e.start_round), c.now);

@@ -43,10 +43,11 @@
     const title = esc((I.name || EID));
     let h = head(I) + `<div class="zcard"><h2>${title}</h2>`;
     if (d.rehearsal) h += `<p class="zsmall"><b>Rehearsal.</b> Up to 10 people. No prizes.</p>`;
-    h += `<p><b>${d.winners}</b> winner${d.winners === 1 ? "" : "s"}. ${d.mode === "auto" ? "The draw happens by itself on " + esc(when(d.drawMs)) + "." : "The organizer presses Draw. The time is " + esc(when(d.drawMs)) + "."}</p>`;
+    h += `<p><b>${d.winners}</b> winner${d.winners === 1 ? "" : "s"}. ${d.mode === "auto" ? "The draw happens by itself on " + esc(when(d.drawMs)) + "." : "The organizer presses Start. The time is " + esc(when(d.drawMs)) + "."}</p>`;
     if (!d.rehearsal && d.prizes.some(Boolean)) h += prizeList(d);
     h += `</div>`;
-    if (d.paused) h += `<div class="zbanner warn">Paused. The draw waits until the organizer or host resumes it.</div>`;
+    if (d.paused && !d.drawing) h += `<div class="zbanner warn">Paused. The draw waits until the organizer or host resumes it.</div>`;
+    if (d.drawing) h += `<div class="zbanner info" role="status">The game has been started. The list of entries is now closed. The winners appear in a few seconds.</div>`;
     if (d.drawn) return h + resultView(d);
     if (S.pid) {
       h += `<div class="zbanner ok">You are in the draw.</div>`;
@@ -128,7 +129,7 @@
     try {
       I = await api("GET", `/api/z/${EID}/info`);
       D = I.draw || null;
-      if (D && D.drawMs && Date.now() + (S.skew || 0) >= D.drawMs && !D.drawn && !D.paused) { const r = await api("GET", `/api/z/${EID}/draw${S.pid ? "?pid=" + encodeURIComponent(S.pid) : ""}`); D = r.draw; }
+      if (D && D.drawMs && (Date.now() + (S.skew || 0) >= D.drawMs || D.drawing) && !D.drawn && (!D.paused || D.drawing)) { const r = await api("GET", `/api/z/${EID}/draw${S.pid ? "?pid=" + encodeURIComponent(S.pid) : ""}`); D = r.draw; }
       else if (D && D.drawn && S.pid) { const r = await api("GET", `/api/z/${EID}/draw?pid=${encodeURIComponent(S.pid)}`); D = r.draw; }
       S.err = S.err && !I ? S.err : S.err;
       if (S.pid && I && I.invites && I.invites.on && !(D && D.drawn)) { try { S.fam = await api("GET", `/api/z/${EID}/invites?pid=${encodeURIComponent(S.pid)}`); } catch (e) { S.fam = null; } }

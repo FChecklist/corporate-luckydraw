@@ -37,7 +37,7 @@ import { rehearsalBlock } from "./rehearsal-mail";
 import { REHEARSAL_SCHEMA, closeRehearsal, listRehearsals, rehearsalFacts, startRehearsal, OVER_MSG, rehearsalFinished } from "./rehearsal";
 import { CREDIT_SCHEMA, activeCreditSummary, creditAppliedFor, creditLastDay, creditRoute } from "./credit";
 import { cloneGame } from "./clone";
-import { DRAW_SCHEMA, checkDrawSettings, drawFacts, drawRow, drawTick, registrationClosed, runDraw, saveDrawSettings } from "./draw";
+import { DRAW_FREEZE_SCHEMA, DRAW_SCHEMA, checkDrawSettings, drawFacts, drawRow, drawTick, freezeAt, registrationClosed, runDraw, saveDrawSettings } from "./draw";
 import { handleConsole, legacyPayRedirect } from "./console-bridge/bridge";
 import { consoleAdapter } from "./console-adapter";
 import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA } from "./console-origin";
@@ -201,8 +201,16 @@ export const SCHEMA: string[] = [
   ...REHEARSAL_SCHEMA,
   // Lucky Draw: the draw settings, the beacon round and the result (0031_draw.sql)
   ...DRAW_SCHEMA,
+  // Lucky Draw: the entry list closes at the draw time or at the press of Start; the beacon round of a manual start; when a seat was blocked (0032_draw_freeze.sql)
+  ...DRAW_FREEZE_SCHEMA,
 ];
 
+/** Lucky Draw: has the entry list closed (the draw time has come, or Start was pressed)? From then on nobody can be added, put back or taken out of the draw, and a removal only blocks the seat (it never deletes it). */
+async function listClosedFor(env: Env, e: any, now: number): Promise<boolean> {
+  const dr = await drawRow(env.DB, e.id);
+  if (!dr) return false;
+  return registrationClosed(dr, now, roundMs((await drawTiming(env, e, now)).drawRound));
+}
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
 /** What the organizer set for this engagement (tickets per participant, reward lines, brand breaks); plain defaults when nothing was set. */
 const cfgOf = (e: { tickets?: number; config?: string | null }): EngagementCfg => {
@@ -1518,9 +1526,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (!pe) return json({ error: "No such engagement." }, 404);
       const presented = req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
       const isDraftP = pe.pack === 0 && !(await isPublished(env, pe));
+      const listClosedP = await listClosedFor(env, pe, now);
       return peopleRoute({
         req, env, now, url, e: pe, eid: pe.id, tail: pm[2]! + pm[3]!, a, keyId7: a.kind === "host" && a.hid ? a.hid.slice(0, 7) : presented ? (await sha("key|" + presented)).slice(0, 7) : "", /* a Host keeps one list on every device (their identity, not the device key) */ viaLink: req.headers.get("x-cb-link") === "1",
-        origin: (env as PayEnv).PUBLIC_ORIGIN ?? url.origin, gameName: cfgOf(pe).name || pe.id, block: pe.rehearsal_of ? rehearsalBlock(pe.id, pe.run_no) : undefined, invites: cfgOf(pe).invites ?? { on: false, per: 4, cats: [] }, started: now >= roundMs(pe.start_round), draft: isDraftP, cancelled: !!pe.cancelled_ms || !!pe.unplayed_ms,
+        origin: (env as PayEnv).PUBLIC_ORIGIN ?? url.origin, gameName: cfgOf(pe).name || pe.id, block: pe.rehearsal_of ? rehearsalBlock(pe.id, pe.run_no) : undefined, invites: cfgOf(pe).invites ?? { on: false, per: 4, cats: [] }, started: now >= roundMs(pe.start_round) || listClosedP, listClosed: listClosedP, draft: isDraftP, cancelled: !!pe.cancelled_ms || !!pe.unplayed_ms,
         json, body, spend: (n = 1) => spend(env, now, n), busy: BUSY, endBound: () => endBoundMs(env as any, pe), istTime,
         sendMail: (to, subject, text) => sendMail(env as PayEnv, env.DB, to, subject, text, now), orgEmail: async () => (await teamEmails(env as PayEnv, pe.org, pe.id)).organizer,
       });
@@ -1691,6 +1700,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       }
       if (have.seat && !have.dev && dev && (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first())) return json({ error: "This phone already holds a card in this engagement. One phone, one card. Ask the person to open the link on their own phone.", code: "device-used" }, 409);
       if (have.seat && !have.dev && !dev) return json({ error: "Please refresh this page and try again." }, 400); // an unbound card is handed over only to a phone that proves its device, like a new person
+      if (have.seat && !have.dev && dev && (await listClosedFor(env, e, now))) return json({ error: (await drawRow(env.DB, eid!))?.drawn_ms ? "The draw is done." : "Registration is closed.", code: "draw-closed" }, 403); // a card that nobody had opened cannot be taken up once the list has closed: the entries must not change
       if (have.seat && !have.dev && dev) { // first device to open the link of someone who was on the list (or whom the organizer let move) keeps the card
         if (!(await spend(env, now, 2))) return BUSY();
         await env.DB.batch([env.DB.prepare("UPDATE seat SET dev=? WHERE eid=? AND pid=? AND dev IS NULL").bind(dev, eid, have.pid), env.DB.prepare("UPDATE participant SET joined_ms=? WHERE eid=? AND pid=? AND joined_ms<?").bind(now, eid, have.pid, now), env.DB.prepare("UPDATE person SET status='joined', joined_ms=? WHERE eid=? AND ph=? AND status='invited'").bind(now, eid, ph)]);
@@ -1777,7 +1787,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     return reply(row.pid, { jr: row.jr ?? 0, ...(row.role ? { role: row.role } : {}) });
   }
   if ((action === "leave" || action === "datareq") && req.method === "POST") { // a player's own rights (rights.ts): leave at any time, and "what do you hold about me / correct / delete me"; the player's card id AND their phone's own device id are the proof
-    const rc = { env: env as PayEnv, db: env.DB, e, eid: eid!, now, started: now >= roundMs(e.start_round), b: await body(req, 2_048), json, gameName: cfgOf(e).name || e.id, orgEmail: async () => (await teamEmails(env as PayEnv, e.org, e.id)).organizer, erasureMs: () => erasureOf(env, e), spend: (n: number) => spend(env, now, n) };
+    const rc = { env: env as PayEnv, db: env.DB, e, eid: eid!, now, started: now >= roundMs(e.start_round) || (await listClosedFor(env, e, now)), b: await body(req, 2_048), json, gameName: cfgOf(e).name || e.id, orgEmail: async () => (await teamEmails(env as PayEnv, e.org, e.id)).organizer, erasureMs: () => erasureOf(env, e), spend: (n: number) => spend(env, now, n) };
     return action === "leave" ? leaveRoute(rc) : requestRoute(rc);
   }
   if (action === "seats" && req.method === "GET") {
@@ -1864,7 +1874,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const dr = await drawRow(env.DB, e.id);
     if (!dr) return json({ error: "This game is not a Lucky Draw." }, 404);
     let t = await drawTiming(env, e, now);
-    if (dr.mode === "auto" && dr.drawn_ms === null && !t.paused && now >= roundMs(t.drawRound) + 3000 && (await spend(env, now, 2))) await runDraw(env as any, e, now, t, "auto");
+    // lazy completion on a frozen list: an automatic draw whose time has come, or a manual one that was started and waits for its beacon round (the scheduled job does the same every minute)
+    if (dr.drawn_ms === null && ((dr.mode === "auto" && now >= roundMs(t.drawRound) + 3000) || (dr.mode === "manual" && dr.freeze_ms !== null && now >= roundMs(dr.target_round ?? 0))) && (await spend(env, now, 2))) await runDraw(env as any, e, now, t, "auto");
     return json(await drawFacts(env as any, e, now, await drawTiming(env, e, now), url.searchParams.get("pid")));
   }
   if (action === "drawset" && (req.method === "POST" || req.method === "PATCH")) { // the Organizer's draw settings (winners, prizes, automatic or manual), until the draw
@@ -1881,7 +1892,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!can(a, e, true)) return deny(a);
     if (!(await spend(env, now, 4))) return BUSY();
     const r = await runDraw(env as any, e, now, await drawTiming(env, e, now), a.kind === "host" ? "host" : "organizer");
-    return r.ok ? json({ ok: true, ...(r.already ? { already: true } : {}) }) : json({ error: r.error }, r.status);
+    return r.ok ? json({ ok: true, ...(r.already ? { already: true } : {}), ...(r.pending ? { pending: true, drawAtMs: r.pending.atMs, message: "The list of entries is closed. The winners appear in a few seconds." } : {}) }) : json({ error: r.error }, r.status);
   }
   if (action === "info" && req.method === "GET") return json({ ...(await rehearsalFacts(env, e, now)), ...(await drawFacts(env as any, e, now, await drawTiming(env, e, now), null)), ...(await endedAtOf(env, e, now)), ...(cancelled ? { cancelled: true, message: "This game was cancelled by the organizer.", cancelledMs: e.cancelled_ms } : {}), ...(didNotStart ? { message: DNS_MSG } : {}), ...(isDraft ? { draft: true } : {}), ...(unpaid && !isDraft ? { ...(can(a, e) ? { unpaid: true } : {}), locked } : {}),
     waitingFor: locked ? "organizer" : null, didNotStart, erasureMs: await erasureOf(env, e), ...(await creditFields(env, a, e, unpaid && !cancelled && !didNotStart, now)), ...(!unpaid && !cancelled && can(a, e) ? { moveUntilMs: await paidWindowEndMs(env.DB, e.id) } : {}), startMs: roundMs(e.start_round), cap: e.cap, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), controlUrl: controlUrl(env, e.id), whoCanJoin: e.closed ? "list" : "anyone", ...pub(e, true) });
