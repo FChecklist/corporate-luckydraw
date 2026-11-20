@@ -43,7 +43,7 @@ import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
-import { anyoneHoldsIdHash, EMP_CLEAN_FROM_MS, normEmp, normId, badIdMessage, empHashOf, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
+import { anyoneHoldsIdHash, EMP_CLEAN_FROM_MS, normEmp, normId, badIdMessage, empHashOf, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByEmpId, personByPhone, legacyEmpFor, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
 import { googleClientId, verifyGoogleCredential } from "./google";
@@ -1619,9 +1619,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (vf.mode !== "mobile" && String(b?.empId ?? "").trim() !== "" && id === null) return json({ error: badIdMessage(b?.empId, vf.idKind, (e as any)?.created_ms), code: "bad-id" }, 400); // the same plain refusal as the join path
     if (vf.mode === "mobile" || !id) return json({ known: false });
     const ck = consentMissing(b, "K4"); if (ck) return ck;
-    const eh = await empHashOf(env, id);
-    let hit = await personByPhone(env, eid!, eh);
-    if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid!, al.v); }
+    const hit = await personByEmpId(env, eid!, id, vf.idKind === "email" ? null : legacyEmpFor(b?.empId, e)); // the cleaned ID, and for an older game also the form it was stored in
     if (!hit || hit.status === "removed") {
       try {
         const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
@@ -1655,9 +1653,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (vf.employeesOnly && vf.mode === "either" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your mobile number or your employee ID.", code: "need-id" }, 400);
     let extraDigits: string | null = null, idHit = false; // a mobile number given together with an employee ID that is on the list: kept as the person's contact, never a reason to refuse
     if ((vf.mode === "either" || vf.mode === "id") && empNorm && !tok) { // "mobile number or employee ID" (and ID alone): an ID on the list is as good as the listed mobile number (the person is then known by their listed number)
-      const eh = await empHashOf(env, empNorm);
-      let hit = await personByPhone(env, eid!, eh);
-      if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid!, al.v); }
+      const hit = await personByEmpId(env, eid!, empNorm, vf.idKind === "email" ? null : legacyEmpFor(b?.empId, e)); // the cleaned ID, and for an older game also the form it was stored in
       if (hit) { tok = hit; tokPii = await openPii(env, hit.pii); extraDigits = typedDigits; idHit = true; typedPh = null; typedDigits = null; }
     }
     const idOnly = (vf.mode === "id" || vf.mode === "either") && !!empNorm && !typedGiven && !tok; // known by employee ID alone
