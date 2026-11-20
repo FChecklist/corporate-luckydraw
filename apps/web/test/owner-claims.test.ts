@@ -113,7 +113,7 @@ describe("4: prices use the rupee sign", () => {
   });
   test("the price list shows the rupee sign for every pack, and the sign is in its page description too", () => {
     const raw = read(join(PUB, "pricing.html")), p = plain(raw);
-    expect(p).toContain("(₹2,399)"); expect(p).toContain("₹29,499");
+    expect(raw).toContain("(₹2,399)"); expect(p).toContain("₹2,399"); expect(p).toContain("₹29,499");
     for (const d of raw.match(/<meta[^>]+description[^>]+>/g) ?? []) expect(d).not.toMatch(/\bRs\b/);
   });
 });

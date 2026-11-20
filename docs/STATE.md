@@ -1,0 +1,55 @@
+# STATE: Corporate Lucky Draw, P1 owner rules v1.1 (20 Nov 2026)
+
+Branch `p1/owner-rules-v1-1`. **Nothing is deployed.** No live service, DNS, payment or secret was touched. Not for merge or deploy until two independent audits say PASS and the owner says go.
+
+Commit: see "Exact commit" at the end of this file (filled in at the last commit).
+
+## Which branch holds the live code
+- The default branch `feat/luckydraw-on-engine-2026-10-31` (head `f051e22`) holds the current live code. `docs/DEPLOYS.md` records the first deploy at commit `15dd94b`, and `15dd94b` is an ancestor of `f051e22` (checked with `git merge-base --is-ancestor`). Every change here sits on top of `f051e22`.
+- The brief said the bridge module and `docs/CONTRACT_V1.md` were already in this repo. They were NOT. They were copied in from `FChecklist/corporate-console` (branch `claude/console-game-pay-step-91b60a`, read only): the bridge byte for byte with the console's own `tools/vendor-bridge.mjs` (`apps/edge/src/console-bridge/`, with its MANIFEST and the contract test kit in `apps/edge/test/console-contract/`), and `docs/CONTRACT_V1.md` and `docs/PAY_STEP.md` as they are in the console repo.
+- The reference for the ID invite was `FChecklist/corporate-tambola` branch `feat/id-invite-2026-11-20` (cloned read only). Its logic was ported; this game's code is built differently, so it is a port and not a copy.
+
+## What is built (all in this PR)
+| # | Owner rule | What was done | Where |
+|---|---|---|---|
+| 1 | Console voice (you, polite, simple) | The organizer console (`zc.js`) has no "I / my / me", no blunt text. Organizer-facing static pages and AI manuals were swept by a second pass (see "Copy sweep"). `docs/CONSOLE_VOICE.md` and a test keep it so. | `zc.js`, `console-voice.test.ts`, `docs/CONSOLE_VOICE.md` |
+| 2 | Two start options only | "The game starts by itself" (begins at the time you set; you do nothing) and "You start the game" (waits; press Start when you are ready). No number-calling question exists in this game. The day-of button says "Start the game". Values stay `auto` and `manual` (no change to the API). | `zc.js` step 3, `id-invite-pages.test.ts` |
+| 3 | ID invite | One ID, wording only (employee, associate, vendor, customer). No name, mobile or e-mail asked at the join box or for the list. The organizer pastes or uploads (.csv/.txt) IDs; a unique game link is shown in every case. Listed = joins at once. Not listed = request to the organizer/Host (approve, decline, approve all, decline all). Family invite: a listed person can invite 4 more (the 5th request goes to the organizer). Only the organizer and Hosts see the list, the chain and the log (a Co-host gets a plain refusal). The owner's five lines of text are on screen word for word. | `people.ts`, `worker.ts`, `zc.js`, `z.js`, `id-invite.test.ts`, `id-invite-pages.test.ts` |
+| 3a | One ID rule | Every non-letter/number removed, then capitals (A-1101, A 1101, A/1101 = A1101) at upload, join, approval and matching, in every game old or new. Older games are ALSO looked up in the form an older release stored (`legacyEmpFor`); nothing stored is rewritten. | `people.ts` (`normEmp`, `legacyEmpFor`, `personByEmpId`) |
+| 4 | No own login, payment or chat | The console says "Pay in your console" (link to console.corporatetambola.com) and "Go to sign-in" (home.corporatetambola.com). The old pay block stays in the file behind `OWN_PAY = false`. The old pay pages and routes, and the old sign-in page, answer 302 to console / home when `PAY_VIA_CONSOLE=1` (nothing deleted; Razorpay's own notice to the game is not redirected). The sign-in page now also takes the console's one-time hand-off (one press, no form of its own). | `console-origin.ts`, `pages/functions/_middleware.ts`, `worker.ts`, `signin.js`, `console-paid.test.ts` |
+| 5 | Payment only through the console | `POST /api/console/paid`: the console's SIGNED notice (Ed25519, 60 seconds, one use of the assertion) marks the game paid ONCE per order id; a repeat answers `repeat:true`; forged, replayed, wrong game address, wrong purpose, stale or wrong-game notices are refused. The game checks from its own tables: it exists, it belongs to the person who paid, the size paid is its own size, it is not already paid; a refusal is definite (nothing changed). The draw refuses to start while the game is unpaid (`runDraw`, status 402): no payment, no game. A late payment moves the draw to 2 minutes after the notice, as with every other way of paying. Bridge is DARK until `CONSOLE_PUBKEYS` is set. | `console-adapter.ts`, `draw.ts`, `console-bridge/*`, `console-paid.test.ts` |
+| 6 | All participant info deleted within 24 hours | Verified in code: `erasePersonal` removes participants, seats, listed people (IDs), waiting requests, ID lookups, check-in records, data requests and (new in this PR) the wrong-ID guess counters; it runs at 20 hours after the game ends (`PURGE_AFTER_MS`). Tests prove the list, the waiting rows, the ID lookups and the counters are empty after erasure and after the scheduled tick at 22 hours. No text promises a PDF e-mail: the report e-mail carries a link and the PDF is made on the organizer's own device (true today). | `lifecycle.ts`, `id-invite.test.ts` |
+| 7 | Rupee sign, banned claims, billing and privacy lines | See "Copy sweep" below. | see below |
+
+## Copy sweep (items 1 and 7 on static pages)
+Done by a second pass over all pages, scripts, mails and manuals (result filled in below).
+COPYSWEEP_RESULT_PLACEHOLDER
+
+## Tests
+- Baseline before any change (branch head `f051e22`): 1847 pass, 7 fail, 7 errors. The failures were not caused by this work: 1 date test that expired (`owner-test-free.test.ts`: the owner's test-account end date, 1 Nov 2026, has passed), 1 stale Bingo test that needs a file that does not exist (`room-mode.test.ts`: `big.js`), and 5 tests in `privacy.test.ts` that time out at 5 seconds only when the whole suite runs together (they pass when run alone).
+- New test files: `apps/edge/test/id-invite.test.ts`, `apps/edge/test/console-paid.test.ts`, `apps/web/test/id-invite-pages.test.ts`, `apps/web/test/console-voice.test.ts` (and `owner-claims.test.ts` from the copy sweep).
+- Old tests that pinned the OLD behaviour were changed to the new owner rule, with the reason in the same line: `emp-clean.test.ts`, `email-id.test.ts`, `verify.test.ts` (the ID rule), and wording tests touched by the copy sweep.
+- FINAL_TEST_RESULT_PLACEHOLDER
+
+## Falsifiability checks (break the logic, see a test fail, restore)
+1. ID cleaning changed to keep the dash: 8+ cases in `id-invite.test.ts` and `emp-clean.test.ts` failed. Restored.
+2. The "unpaid game cannot start" gate removed from `runDraw`: the "game starts only when paid" test failed. Restored.
+3. The paid notice stopped checking who owns the game: the "refused, definitely" test failed. Restored.
+4. Erasure stopped deleting the listed people: 2 retention tests failed. Restored.
+5. The start option text changed back to "I press Draw": the page test and the voice test failed. Restored.
+
+## Needs (owner or another repo)
+1. **Owner go to deploy.** Nothing is deployed. At go-live set together: `CONSOLE_PUBKEYS` (the console's public keys, from the console repo) and `PAY_VIA_CONSOLE=1`. Then `EMP_LEGACY_BEFORE_MS` in `people.ts` should be set to the exact deploy instant (it is far in the future now, which is safe: every game is also looked up in the old ID form).
+2. **Consent wording (owner approves legal text).** The tick-box texts K4 ("my name (and my mobile number...)") and K6 ("these names and numbers") still talk about names and numbers. With ID-only invites they should say IDs. They are legal text, so they were NOT changed. Changing them changes the consent version.
+3. **Winners' details are kept 365 days.** K4 and the prize hand-over form keep a winner's name and mobile number for 365 days so the prize can be handed over. The privacy line on every screen says all participant information is deleted within 24 hours. The two do not agree for winners. The owner decides which one changes. (The line was left as the owner wrote it.)
+4. **Host and Co-host keys through the console** are not wired in this game (`mintKey` refuses them; `features.roles` is false). The console can sign in the organizer, hand off, list games and send the paid notice. Hosts and Co-hosts still use their own links.
+5. **Contract kit fixtures.** The console's 40 golden fixtures need a fake game seeded with the same people. They were copied into `apps/edge/test/console-contract/` but not run against this game. This game's own tests cover the paid notice, the hand-off and the dark bridge.
+6. **Corporate Tambola's own code and the console** (other repos) were only read. No change was made there. The console must call this game's `/api/console/paid` with `item` = the game's size (the smallest listed pack that holds its people limit: 100, 250, 500, 750, 1000, 2500, 5000 or 10000) and `orderRef` = the Moneypenny order.
+7. **Pre-existing failures** listed under Tests (an expired date, a stale Bingo test, slow tests) need the owner's or a later session's decision; they were not hidden or deleted.
+8. **Chat.** This game has no chat on its pages (checked and tested). The help bot lives in the Moneypenny chat, another repo.
+
+## Exact commit
+COMMIT_PLACEHOLDER
+
+## Audits
+Two independent audits (PASS or FAIL, with reasons) are requested before anything is merged or deployed. Auditors should read this file, `docs/CONTRACT_V1.md`, `docs/PAY_STEP.md`, and run `bun test packages apps tools/control-worker`.

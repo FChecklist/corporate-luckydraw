@@ -29,7 +29,7 @@ export function checkDrawSettings(b: any, cap: number, rehearsal: boolean): { ok
   if (winners > MAX_WINNERS) return { ok: false, error: `A draw can have up to ${MAX_WINNERS} winners.` };
   if (winners > cap) return { ok: false, error: "There cannot be more winners than the number of people you allow." };
   const mode = b?.mode === "manual" ? "manual" : b?.mode === undefined || b?.mode === "auto" ? "auto" : null;
-  if (!mode) return { ok: false, error: "The draw is automatic (at the time you publish) or manual (you press Draw)." };
+  if (!mode) return { ok: false, error: "The game starts by itself at the time you set, or you start it yourself. Please choose one." };
   const raw: unknown[] = Array.isArray(b?.prizes) ? b.prizes : typeof b?.prizes === "string" ? b.prizes.split(",") : [];
   const prizes = rehearsal ? [] : raw.map(cleanPrize).slice(0, winners);
   if (!rehearsal && raw.length > winners) return { ok: false, error: "There are more prizes than winners. Add winners or remove a prize." };
@@ -100,8 +100,8 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
   if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 };
   const drawMs = roundMs(t.drawRound);
   if (by === "auto") { if (d.mode !== "auto" || now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
-  else if (d.mode !== "manual") return { ok: false, error: "This draw is automatic. It happens at the published time.", status: 409 };
-  else if (by !== "organizer" && by !== "host") return { ok: false, error: "Only the Organizer or the Host can press Draw.", status: 403 };
+  else if (d.mode !== "manual") return { ok: false, error: "This game starts by itself at the time you set, so there is nothing to press.", status: 409 };
+  else if (by !== "organizer" && by !== "host") return { ok: false, error: "Only you or your Host can start the game.", status: 403 };
   // claim the draw: registering closes at once; one request does the work
   const claim = await env.DB.prepare("UPDATE draw SET closing_ms=? WHERE eid=? AND drawn_ms IS NULL AND (closing_ms IS NULL OR closing_ms < ?)").bind(now, e.id, now - 120_000).run();
   if (!(claim.meta?.changes ?? 0)) return { ok: false, error: "The draw is being made. Please wait a moment.", status: 409 };
@@ -110,7 +110,7 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
     const target = by === "auto" ? t.drawRound : roundAt(now);
     let got = null as Awaited<ReturnType<typeof fetchRound>>;
     for (let r = target; r > target - (by === "auto" ? 1 : 3) && !got; r--) got = await fetchRound(r);
-    if (!got) { await release(); return { ok: false, error: "The public beacon did not answer. Please press Draw again in a minute.", status: 503 }; }
+    if (!got) { await release(); return { ok: false, error: "The public beacon did not answer. Please press Start again in a minute.", status: 503 }; }
     const pids = await entryPids(env.DB, e.id);
     const clock = startClock(newClock());
     const closeAt = by === "auto" ? drawMs : Infinity;
