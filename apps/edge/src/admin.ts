@@ -13,6 +13,7 @@
 //   E12 Mail events      POST /api/mail/events  the mail service's webhook (Svix-style signature, secret RESEND_WEBHOOK_SECRET; with no secret set the address answers 404 and accepts nothing)
 //                        -> table mail_bounce; GET /api/owner/mail-events shows bounced / complained / delivered, newest first.
 // A recipient is kept as a one-way hash plus a masked form (j***@example.com) so the owner can recognise it; nothing else about the person. Rows are deleted after 90 days.
+import { goLiveState } from "./console-origin";
 import { logAccess } from "./audit";
 import { accountEmail } from "./emailkey";
 import { PURGE_AFTER_MS } from "./lifecycle";
@@ -203,7 +204,8 @@ export async function adminRoute(req: Request, env: AdminEnv, now: number, owner
     try { errors = await errorsLastHour(env.DB, now); } catch { dbOk = false; }
     try { overdue = await overduePurge(env.DB, now); } catch { dbOk = false; }
     // ok turns false when a game is past its 23-hour deletion and its players' data is still stored: the scheduler's uptime check fails on it (the 24-hour promise has an alarm)
-    return jsonRes({ ok: dbOk && overdue.count === 0, errors_last_hour: errors, threshold: ERROR_ALERT_THRESHOLD, overdue_purge: overdue.count, overdue_hours: overdue.oldestHours, maintenance: await siteIsOff(env.DB, now), at: new Date(now).toISOString() });
+    const live = goLiveState(env as any); // audit M2: the two go-live settings are one step; a half switch is a failed health check (booleans only, no secret is shown)
+    return jsonRes({ ok: dbOk && overdue.count === 0 && live.problems.length === 0, go_live: { pay_via_console: live.flag, console_keys: live.keys, ready: live.ready, dark: live.dark, problems: live.problems }, errors_last_hour: errors, threshold: ERROR_ALERT_THRESHOLD, overdue_purge: overdue.count, overdue_hours: overdue.oldestHours, maintenance: await siteIsOff(env.DB, now), at: new Date(now).toISOString() });
   }
   if (p === "/api/mail/events") return mailEventsWebhook(req, env, now, spend);
   const m = p.match(/^\/api\/owner\/(site|organizer|data-requests|mail-events|errors)$/);

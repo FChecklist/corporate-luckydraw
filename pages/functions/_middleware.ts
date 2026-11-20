@@ -4,10 +4,11 @@
 import { domainRedirect } from "../../apps/edge/src/domain-redirect";
 import { BRAND } from "../../apps/edge/src/brand";
 import { legacyPayRedirect } from "../../apps/edge/src/console-bridge/bridge";
-import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA, signinRedirect } from "../../apps/edge/src/console-origin";
+import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA, effectiveFlag, legacyLoginRedirect, signinRedirect } from "../../apps/edge/src/console-origin";
 
 export const onRequest = (ctx: { request: Request; env: any; next: () => Promise<Response> }) =>
   domainRedirect(ctx.request, ctx.env.PUBLIC_ORIGIN || BRAND.defaultOrigin)
-  ?? legacyPayRedirect(ctx.request, { flag: ctx.env.PAY_VIA_CONSOLE, consoleOrigin: CONSOLE_ORIGIN, extra: LEGACY_PAY_EXTRA })
-  ?? signinRedirect(ctx.request, ctx.env.PAY_VIA_CONSOLE)
+  ?? legacyPayRedirect(ctx.request, { flag: effectiveFlag(ctx.env), consoleOrigin: CONSOLE_ORIGIN, extra: LEGACY_PAY_EXTRA })
+  ?? signinRedirect(ctx.request, effectiveFlag(ctx.env))
+  ?? legacyLoginRedirect(ctx.request, effectiveFlag(ctx.env))
   ?? ctx.next();

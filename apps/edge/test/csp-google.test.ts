@@ -6,13 +6,13 @@ import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8");
 const GOOGLE_HOSTS = ["accounts.google.com/gsi/client", "accounts.google.com/gsi/style", "accounts.google.com/gsi/"];
 
-test("only signin, index, zc (and the home '/') use the Google rules; every other page keeps the plain or game rules", () => {
+test("only index (and the home '/') use the Google rules; every other page keeps the plain or game rules", () => {
   const pages = [...src.matchAll(/\["(\/[a-z0-9-]*)", (\w+CSP), (true|false)\]/g)].map((m) => [m[1]!, m[2]!] as const);
   const google = pages.filter(([, c]) => c === "GOOGLECSP").map(([p]) => p).sort();
-  expect(google).toEqual(["/index", "/signin", "/zc"]);
+  expect(google).toEqual(["/index"]); // audit M2 / owner rule: login is at home, so the console page and the sign-in landing have no Google
   expect(src).toContain('rules += "/" + hdr(GOOGLECSP)');
   expect(pages.length).toBeGreaterThan(15);
-  for (const [p, c] of pages) if (!["/index", "/signin", "/zc"].includes(p)) expect([p, c === "GOOGLECSP"]).toEqual([p, false]);
+  for (const [p, c] of pages) if (!["/index"].includes(p)) expect([p, c === "GOOGLECSP"]).toEqual([p, false]);
 });
 
 test("the Google rules allow Google's sign-in script, frame, connection and style - and only those", () => {

@@ -10,6 +10,7 @@
   const PRIVACY = "Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires.";
   /* OWNER RULES v1.1 (20 Nov 2026): login is only at home, payment is only in the console. The old own-payment block stays in the file behind this flag (nothing is deleted). */
   const HOME = "https://home.corporatetambola.com", CONSOLE = "https://console.corporatetambola.com", OWN_PAY = false;
+  window.ZFLOW_GAME = Object.assign(window.ZFLOW_GAME || {}, { game: "luckydraw", payGame: "luckydraw", consoleOrigin: CONSOLE }); // the descriptor the console's shared pay step reads: which game this is and where the console lives
   /* The owner's invite text, word for word. */
   const INVITE = { h: "Invite people with just an ID", p1: "No names or personal details are needed.", p2: "Just upload or paste the IDs of the people you want to invite: employee ID, associate ID, vendor ID or customer ID, whichever you use.", p3: "Your invitee opens the game link and enters their ID. If it is on your list, they join and play. If it is not, you get a request to approve or decline.", p4: "The list and all IDs are deleted within 24 hours after the game ends." };
   const FAMILY = 4;

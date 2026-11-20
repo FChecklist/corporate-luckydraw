@@ -22,13 +22,18 @@ const CSP = "default-src 'self'; script-src 'self' https://static.cloudflareinsi
 const PAYCSP = CSP.replace("script-src 'self' https://static.cloudflareinsights.com;", "script-src 'self' https://static.cloudflareinsights.com https://checkout.razorpay.com;"); // only the payment page loads Razorpay Checkout
 const GAMECSP = CSP.replace(/ frame-src[^;]*;/, " frame-src https://www.youtube-nocookie.com;").replace("media-src 'self' blob:;", "media-src 'self' blob: https:;"); // the phone page may play a break video
 const PLAINCSP = CSP.replace(/ frame-src[^;]*;/, "");
-// "Continue with Google" (Google Identity Services): its script, frame, connection and style are allowed ONLY on the pages that show the button (signin, index, zc; the Host setup lives in zc)
+// "Continue with Google" (Google Identity Services): its script, frame, connection and style are allowed ONLY on the pages that show the button (index only: the organizer console and the sign-in landing have none, login is at home)
 const GOOGLECSP = PLAINCSP.replace("script-src 'self' https://static.cloudflareinsights.com;", "script-src 'self' https://static.cloudflareinsights.com https://accounts.google.com/gsi/client;").replace("style-src 'self' 'unsafe-inline';", "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style;").replace("connect-src 'self'", "connect-src 'self' https://accounts.google.com/gsi/").replace("frame-ancestors", "frame-src https://accounts.google.com/gsi/; frame-ancestors");
+// The organizer console and the sign-in landing (owner rule 20 Nov 2026: login is at home, payment is in the console). No Google, no Razorpay. The console page may ASK the console (connect-src) and may frame ONLY the payment window of IT Services (frame-src), nothing else, no wildcard.
+const NORAZORPAY = (c) => c.replace(" https://checkout.razorpay.com https://api.razorpay.com;", ";");
+const CONSOLE_ORIGIN = "https://console.corporatetambola.com", PAYFRAME_ORIGIN = "https://itservices-rajat-agarwal.pages.dev";
+const ZCCSP = NORAZORPAY(PLAINCSP).replace("connect-src 'self'", `connect-src 'self' ${CONSOLE_ORIGIN}`).replace("frame-ancestors", `frame-src ${PAYFRAME_ORIGIN}; frame-ancestors`);
+const SIGNCSP = NORAZORPAY(PLAINCSP);
 // Cloudflare Pages serves "/z.html" as "/z" (a 308), so every page needs a rule for BOTH spellings or the header silently never applies (found in the 2026-10-05 audit, G-07).
 const hdr = (csp, extra = "") => `\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()${extra || "\n  X-Robots-Tag: noai, noimageai"}\n`;
 const NOINDEX = "\n  X-Robots-Tag: noindex, noai, noimageai";
 const PAGES = [ // [clean path, csp, noindex]
-  ["/pay", PAYCSP, true], ["/paytest", PAYCSP, true], ["/paylink", PAYCSP, true], ["/z", GAMECSP, true], ["/trust", PLAINCSP, false], ["/zc", GOOGLECSP, true], ["/report", PLAINCSP, true], ["/signin", GOOGLECSP, true], ["/owner-visits", PLAINCSP, true], ["/owner-versions", PLAINCSP, true], ["/ai-link", PLAINCSP, true],
+  ["/pay", PAYCSP, true], ["/paytest", PAYCSP, true], ["/paylink", PAYCSP, true], ["/z", GAMECSP, true], ["/trust", PLAINCSP, false], ["/zc", ZCCSP, true], ["/report", PLAINCSP, true], ["/signin", SIGNCSP, true], ["/owner-visits", PLAINCSP, true], ["/owner-versions", PLAINCSP, true], ["/ai-link", PLAINCSP, true],
   ["/partner", PLAINCSP, true], ["/helpdesk", PLAINCSP, false], ["/helpdesk-accept", PLAINCSP, true], ["/helpdesk-approve", PLAINCSP, true], ["/legal", PLAINCSP, false], ["/terms", PLAINCSP, false], ["/privacy", PLAINCSP, false], ["/legal-position", PLAINCSP, false], ["/about", PLAINCSP, false], ["/contact", PLAINCSP, false], ["/pricing", PLAINCSP, false], ["/refund-policy", PLAINCSP, false], ["/dpa", PLAINCSP, false], ["/subprocessors", PLAINCSP, false], ["/partner-terms", PLAINCSP, false], ["/organizer-guide", PLAINCSP, true], ["/guide", PLAINCSP, false], ["/how-it-works", PLAINCSP, false], ["/brochure", PLAINCSP, false], ["/404", PLAINCSP, true], ["/index", GOOGLECSP, false],
 ];
 let rules = "";

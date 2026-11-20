@@ -12,10 +12,7 @@
       ${viaConsole ? `<p class="zsmall" style="margin-top:0">You come from your console. This link works once, for a minute.</p>` : t ? `<p class="zsmall" style="margin-top:0">This is Option 2 from your e-mail. It works once, for 10 minutes.</p>` : ""}
       ${msg ? `<div class="zbanner bad" role="alert">${esc(msg)}</div>` : ""}
       ${t ? `<button class="zbtn" id="go">${viaConsole ? "Open your game" : "Sign in"}</button>` : `<div class="zbanner bad" role="alert">This page lost your sign-in link, which can happen when it is reloaded or opened in another app. Open your e-mail and tap the button again, or type the 6-digit code from the same e-mail on the sign-in page. Both still work for 10 minutes.</div>`}
-      <p id="gOr" class="gor" hidden>or</p><div id="gWrap" class="gwrap" hidden></div>
       <p class="zsmall">Something wrong? <a href="https://home.corporatetambola.com/">Go to sign-in at home</a> and open your console again.</p></div>`;
-    const gw = document.getElementById("gWrap"); // "Continue with Google" shows only when the server has a Google client id; it signs in exactly like the e-mail does
-    if (gw && window.TB && TB.google) TB.google.mount(gw, { intent: "signin", onDone: (j) => { try { CTK.set("cbz-org", j.token); } catch {} location.replace(go); }, onError: (m) => draw(m) }).then((shown) => { const o = document.getElementById("gOr"); if (o && shown) o.hidden = false; }).catch(() => {});
     const b = document.getElementById("go");
     if (b) b.onclick = async () => {
       b.disabled = true; b.textContent = "Opening your game...";
