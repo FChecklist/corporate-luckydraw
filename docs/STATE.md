@@ -56,7 +56,7 @@ Result of the second pass (a test, `apps/web/test/owner-claims.test.ts`, now kee
 8. **Chat.** This game has no chat on its pages (checked and tested). The help bot lives in the Moneypenny chat, another repo.
 
 ## Exact commit
-COMMIT_PLACEHOLDER
+Code, tests and this file (except this line) are at commit **`02efdff`** on branch `p1/owner-rules-v1-1` (full sha: `02efdff21c70f16c2373a6435503e18eff87f233`). The one commit after it only fills in this line. Based on `f051e22` (head of `feat/luckydraw-on-engine-2026-10-31`).
 
 ## Audits
 Two independent audits (PASS or FAIL, with reasons) are requested before anything is merged or deployed. Auditors should read this file, `docs/CONTRACT_V1.md`, `docs/PAY_STEP.md`, and run `bun test packages apps tools/control-worker`.
