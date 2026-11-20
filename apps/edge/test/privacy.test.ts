@@ -1,6 +1,7 @@
 // Privacy and lifecycle, end to end through the real Worker code and a real SQLite: names and numbers are sealed, invitations obey the organizer's rules,
 // the winners record outlives the personal data, the report is built and e-mailed, and everything is deleted on time.
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(30_000); // six of these build a whole game, a report and a purge; they pass alone in under a second but pass the 5 s default when the whole suite runs in parallel (audit M4)
 import { SEEN_DEVICES, withDevice } from "./device";
 import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
@@ -209,7 +210,7 @@ describe("the report and the deletion", () => {
     const r = await buildReport(link); const pdf = r.text;
     expect(pdf.startsWith("%PDF-1.4")).toBe(true); expect(pdf).toMatch(/%%EOF\s*$/);
     for (const needle of ["Organizer Olga", "Guest 3", "98765 00001", "98765 00002", "Zed ??", "organizer", "Blackout", "Line", "boss@acme.com", "Link e-mailed on:", "deleted", "365th day"]) expect(pdf.toLowerCase()).toContain(needle.toLowerCase());
-    for (const needle of ["How your data is handled", "permanently auto-deleted from the Corporate Lucky Draw systems within 24 hours", "DPDP", "GDPR", "US privacy laws", "advertising", "encryption", "winners record", "Agreed by", "Prize given"]) expect(pdf).toContain(needle);
+    for (const needle of ["How your data is handled", "Player details", "within 24 hours of the draw", "DPDP", "GDPR", "US privacy laws", "advertising", "encryption", "winners record", "Agreed by", "Prize given"]) expect(pdf).toContain(needle);
     expect(pdf).not.toMatch(/personal data(?! protection)/i);
     expect(pdf).not.toMatch(/the law requires|required by law/i);
     expect(pdf).not.toMatch(/(rs|inr|usd|price)[^\n(]{0,12}per (person|participant|head|user)/i);

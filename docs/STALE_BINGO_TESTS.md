@@ -71,3 +71,5 @@ Six cases updated to the new words, not loosened: unplayed.test.ts (3 strings: "
 
 ## Wording sweep (owner rule: no we/our/us in customer text)
 Customer text rewritten to third person on public pages, scripts, e-mails, API messages, report PDF text and legal pages (facts unchanged). Expected strings in tests were changed to the new wording only (consent, pay, unplayed, terms, billing, contact-honest, privacy, rights, branding, account, storage registry). guide.js keeps old message strings as matchers beside the new ones. Two slow tests (gamelog chain, phone-runtime 40 phones) got a 30 s limit.
+
+- `apps/web/test/room-mode.test.ts` (whole file): the big screen (`big.js`, `big.html`, `audio.js`) is a Bingo-only page and does not exist in Lucky Draw; the file stopped the whole run with 7 errors at load time. The API side of the room setting stays tested in `apps/edge/test/room-mode.test.ts`.
