@@ -3,9 +3,9 @@
   const $ = TB.$, esc = TB.esc, ic = TB.ic;
   const nf = (n) => Number(n).toLocaleString("en-IN");
   const S = { cur: TB.guessCurrency(), pack: 1000 };
-  const DEMO = "demo"; // the first choice in both size lists: a demo game, a real game for 10 people at Rs 0; every other step is the same
+  const DEMO = "demo"; // the first choice in both size lists: a demo game, a real game for 10 people at ₹0; every other step is the same
   const isDemo = () => S.pack === DEMO;
-  const packOptions = (sel) => `<option value="${DEMO}" ${sel === DEMO ? "selected" : ""}>Demo game · 10 people · Rs 0</option>` + TB.PACKS.map(([n]) => `<option value="${n}" ${n === sel ? "selected" : ""}>Up to ${nf(n)} players</option>`).join("");
+  const packOptions = (sel) => `<option value="${DEMO}" ${sel === DEMO ? "selected" : ""}>Demo game · 10 people · ₹0</option>` + TB.PACKS.map(([n]) => `<option value="${n}" ${n === sel ? "selected" : ""}>Up to ${nf(n)} players</option>`).join("");
   const FREE = { on: true, cap: 1e9 }; // the process: sign in, build the engagement, pay only when publishing
   let ORDER = null;
 
@@ -23,10 +23,10 @@
     $("pack").innerHTML = packOptions(S.pack); $("pack").value = String(S.pack);
     { const pb = $("payBtn"), bt = pb && pb.querySelector(".bt"); if (bt) bt.innerHTML = isDemo() ? "Start your demo game" : "Create your Corporate Lucky Draw <small>(closed-group lucky draw)</small>"; }
     if (isDemo()) { // the demo game: the same process (sign in, then the draft), nothing to pay
-      if ($("heroBrk")) $("heroBrk").innerHTML = `<span>Total <b>Rs 0</b></span><span>Demo game · 10 people</span>`;
-      $("packs").innerHTML = `<div class="pcard"><div class="pwho"><label for="pack2">How many players?</label><div class="selwrap"><select id="pack2" aria-label="Number of players">${packOptions(S.pack)}</select><svg class="ic chev"><use href="#i-chev"/></svg></div></div><div class="pmain"><div class="pamt"><span class="tot"><small>Demo game</small> Rs 0</span></div><button type="button" class="btn pcta" data-demo="1" aria-label="Start your demo game">Start your demo game ${ic("arrow")}</button></div><ul class="pperks"><li><span class="tick" aria-hidden="true">&#10003;</span>Up to 10 people, nothing to pay</li><li><span class="tick" aria-hidden="true">&#10003;</span>A real game with every feature</li><li><span class="tick" aria-hidden="true">&#10003;</span>Need more people? Make a new game for the size you need</li></ul></div>`;
+      if ($("heroBrk")) $("heroBrk").innerHTML = `<span>Total <b>₹0</b></span><span>Demo game · 10 people</span>`;
+      $("packs").innerHTML = `<div class="pcard"><div class="pwho"><label for="pack2">How many players?</label><div class="selwrap"><select id="pack2" aria-label="Number of players">${packOptions(S.pack)}</select><svg class="ic chev"><use href="#i-chev"/></svg></div></div><div class="pmain"><div class="pamt"><span class="tot"><small>Demo game</small> ₹0</span></div><button type="button" class="btn pcta" data-demo="1" aria-label="Start your demo game">Start your demo game ${ic("arrow")}</button></div><ul class="pperks"><li><span class="tick" aria-hidden="true">&#10003;</span>Up to 10 people, nothing to pay</li><li><span class="tick" aria-hidden="true">&#10003;</span>A real game with every feature</li><li><span class="tick" aria-hidden="true">&#10003;</span>Need more people? Make a new game for the size you need</li></ul></div>`;
       if ($("pack2")) $("pack2").value = String(S.pack);
-      $("priceNote").textContent = "A demo game is for up to 10 people and costs Rs 0. Sign in with your e-mail and build it the same way as any game."; return;
+      $("priceNote").textContent = "A demo game is for up to 10 people and costs ₹0. Sign in with your e-mail and build it the same way as any game."; return;
     }
     if ($("heroBrk")) $("heroBrk").innerHTML = breakdown(S.pack, S.cur);
     { // one price card: the organizer picks the size, then sees the festive price (never a list of every pack)
@@ -123,7 +123,7 @@
     TB.sheet(`${xbtn}<div class="openfree" role="group" aria-labelledby="ofTitle">
       <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Lucky Draw"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Lucky Draw<i>.</i></span></span></div>
       <div class="eyebrow ofeye">Build it and publish it free.</div><h2 id="ofTitle">Create your game</h2>
-      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>Add a message or video as a break</span></li><li><span class="bico">${ic("trophy")}</span><span>Set the winners and their prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group lucky draw for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>Everyone joins once, with an ID</span></li><li><span class="bico">${ic("phone")}</span><span>Each guest joins on their phone</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are auto-deleted within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
+      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>Add a message or video as a break</span></li><li><span class="bico">${ic("trophy")}</span><span>Set the winners and their prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group lucky draw for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>Everyone joins once, with an ID</span></li><li><span class="bico">${ic("phone")}</span><span>Each guest joins on their phone</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are auto-deleted within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Games are designed to follow US privacy laws, the EU GDPR and India's DPDP</span></li></ul>
       <div id="k2wrap">${CBConsent.html("K2")}</div>${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your e-mail</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" aria-describedby="fErr"><div id="fErr" role="alert"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled aria-disabled="true">Create my game ${ic("arrow")}</button></form>
       <p class="trust">${ic("shield")}Free to build and publish. No password.</p>

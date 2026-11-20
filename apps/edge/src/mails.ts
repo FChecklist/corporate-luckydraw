@@ -5,8 +5,8 @@
 
 import { aiPaste } from "./ai-link";
 
-export const AI_WARNING = "DO NOT FORWARD: this email holds your personal AI work link";
-export const HOST_WARNING = "DO NOT FORWARD: this email holds a Host AI work link";
+export const AI_WARNING = "Please do not forward: this email holds your personal AI work link";
+export const HOST_WARNING = "Please do not forward: this email holds a Host AI work link";
 export const AI_SUBJECT = "Your personal AI work link - Corporate Lucky Draw";
 export const HOST_SUBJECT = "A Host AI work link for your Corporate Lucky Draw account";
 
@@ -56,12 +56,12 @@ export function aiLinkMail(origin: string, key: string, why: "start" | "replace"
     title: why === "replace" ? "Your NEW personal AI work link" : why === "fresh" ? "Your fresh personal AI work link" : "Your personal AI work link",
     intro: why === "replace" ? "New link below. Every older link stopped at once." : "A free AI assistant can do the work for you.",
     expiry: `THIS LINK WORKS FOR 24 HOURS ONLY (until ${istStamp(expiresMs)}). ${FRESH}`,
-    button: { label: "Show my AI work link", url: `${origin}/ai-link.html`, note: "Sign in with your 6-digit code. It always gives a fresh link." },
+    button: { label: "Show your AI work link", url: `${origin}/ai-link.html`, note: "Sign in with your 6-digit code. It always gives a fresh link." },
     pasteLabel: "COPY THIS BOX",
     paste: aiPaste(origin, key),
     steps: ["Copy the box.", "Paste it into any AI chat: ChatGPT, Claude, Gemini, Grok, DeepSeek, z.ai.", "Answer its questions. It does the work."],
     can: AI_CAN, stays: AI_STAYS,
-    replace: "Press \"Replace my AI link\" in your console. Every AI link stops at once.",
+    replace: "Press \"Replace your AI link\" in your console. Every AI link stops at once.",
     footer: "",
   });
   return { subject: AI_SUBJECT, text, html };
@@ -72,9 +72,9 @@ export function coHostLinkMail(origin: string, key: string, owner: string, expir
   const { text, html } = shell({
     origin, warning: HOST_WARNING,
     title: "A Host AI work link",
-    intro: `For the Corporate Lucky Draw engagements of ${owner}. Watch and announce only. Give it to your Host by pasting the box. Do not forward this email.`,
+    intro: `For the Corporate Lucky Draw engagements of ${owner}. Watch and announce only. Give it to your Host by pasting the box. Please do not forward this email.`,
     expiry: `THIS HOST LINK WORKS FOR 24 HOURS ONLY (until ${istStamp(expiresMs)}).`,
-    button: { label: "Open my console", url: `${origin}/zc.html`, note: "Your lasting Host link is in your console." },
+    button: { label: "Open your console", url: `${origin}/zc.html`, note: "Your lasting Host link is in your console." },
     pasteLabel: "YOUR HOST PASTES THIS INTO AN AI CHAT",
     paste: aiPaste(origin, key).replace("MY OWN Corporate Lucky Draw account. I am the owner,", `the Corporate Lucky Draw account of ${owner}. I am their Host,`),
     steps: ["Copy the box. Give it only to your Host.", "They paste it into any AI chat.", "They ask how the game is going, or to message the guests."],
@@ -86,16 +86,16 @@ export function coHostLinkMail(origin: string, key: string, owner: string, expir
 }
 
 export const HOST_LINK_SUBJECT = "You are a Host: your Corporate Lucky Draw link";
-export const HOST_LINK_WARNING = "DO NOT FORWARD: this email holds your personal Host link";
+export const HOST_LINK_WARNING = "Please do not forward: this email holds your personal Host link";
 /** The Host's OWN link (their console), e-mailed to the Host when the Organizer adds them. Not an AI link; it opens the Host's console. Only the Organizer and Hosts have an e-mail. */
 export function hostLinkMail(origin: string, key: string, name: string, eid = ""): BuiltMail {
   const url = `${origin}/zc.html?k=${key}${eid ? "&e=" + encodeURIComponent(eid) : ""}`; // with a game id the link opens that game
   const hello = name ? `Hello ${name},` : "Hello,";
-  const text = [HOST_LINK_WARNING, "", hello, "You have been added as a Host of a Corporate Lucky Draw game.", "As a Host you can look after the game, add Co-hosts and pay. Only the Organizer can change the account.", "", `OPEN MY CONSOLE: ${url}`, "", "This link is only for you. Keep it to yourself. Do not forward it.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
+  const text = [HOST_LINK_WARNING, "", hello, "You have been added as a Host of a Corporate Lucky Draw game.", "As a Host you can look after the game, add Co-hosts and pay. Only the Organizer can change the account.", "", `OPEN YOUR CONSOLE: ${url}`, "", "This link is only for you. Please keep it to yourself and do not forward it.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
   const warn = `<tr><td style="padding:16px 22px 0;"><div style="background:#fdecea;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;color:#b71c1c;font-weight:700;font-size:14px;line-height:1.4;text-align:center;">${esc(HOST_LINK_WARNING)}</div></td></tr>`;
   const html = pageHtml("You are a Host", `${warn}<tr><td style="padding:18px 22px 4px;"><h1 style="margin:0;font-size:24px;line-height:1.25;color:#0B3D91;">You are a Host</h1><p style="margin:10px 0 0;font-size:15px;line-height:1.5;">${esc(hello)} You have been added as a Host of a Corporate Lucky Draw game. You can look after the game, add Co-hosts and pay. Only the Organizer can change the account.</p></td></tr>
-<tr><td align="center" style="padding:16px 22px 4px;"><a href="${esc(url)}" style="display:inline-block;background:#FFC93C;color:#0B3D91;font-weight:700;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:8px;">Open my console</a></td></tr>
-<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">This link is only for you. Keep it to yourself. Do not forward it.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
+<tr><td align="center" style="padding:16px 22px 4px;"><a href="${esc(url)}" style="display:inline-block;background:#FFC93C;color:#0B3D91;font-weight:700;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:8px;">Open your console</a></td></tr>
+<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">This link is only for you. Please keep it to yourself and do not forward it.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
   return { subject: HOST_LINK_SUBJECT, text, html };
 }
 
@@ -105,12 +105,12 @@ export function helpDeskPublishedMail(origin: string, o: { eid: string; hostKey?
   const consoleUrl = o.hostKey ? `${origin}/zc.html?k=${o.hostKey}&e=${encodeURIComponent(o.eid)}` : "", aiUrl = `${origin}/ai/${o.aiHostKey}`;
   const intro = `The Organizer published the game ${o.eid}. You are now a Host of this game, as the Help desk.`;
   const once = "This link works once, for 7 days. Confirm your e-mail and add your mobile number. After that, sign in with your e-mail code.";
-  const text = [HOST_LINK_WARNING, "", intro, "", ...(consoleUrl ? [`OPEN MY HOST CONSOLE: ${consoleUrl}`, once, ""] : ["Open your Host console by signing in with your e-mail code.", ""]), `HOST AI LINK FOR THIS GAME (works 24 hours, until ${istStamp(o.expiresMs)}): ${aiUrl}`, "", "These links are only for you. Keep them to yourself. Do not forward them.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
+  const text = [HOST_LINK_WARNING, "", intro, "", ...(consoleUrl ? [`OPEN YOUR HOST CONSOLE: ${consoleUrl}`, once, ""] : ["Open your Host console by signing in with your e-mail code.", ""]), `HOST AI LINK FOR THIS GAME (works 24 hours, until ${istStamp(o.expiresMs)}): ${aiUrl}`, "", "These links are only for you. Please keep them to yourself and do not forward them.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
   const warn = `<tr><td style="padding:16px 22px 0;"><div style="background:#fdecea;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;color:#b71c1c;font-weight:700;font-size:14px;line-height:1.4;text-align:center;">${esc(HOST_LINK_WARNING)}</div></td></tr>`;
   const html = pageHtml(subject, `${warn}<tr><td style="padding:18px 22px 4px;"><h1 style="margin:0;font-size:24px;line-height:1.25;color:#0B3D91;">Your game is published</h1><p style="margin:10px 0 0;font-size:15px;line-height:1.5;">${esc(intro)}</p></td></tr>
-${consoleUrl ? `<tr><td align="center" style="padding:16px 22px 4px;"><a href="${esc(consoleUrl)}" style="display:inline-block;background:#FFC93C;color:#0B3D91;font-weight:700;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:8px;">Open my Host console</a><div style="font-size:12px;color:#666;margin-top:6px;">${esc(once)}</div></td></tr>` : ""}
+${consoleUrl ? `<tr><td align="center" style="padding:16px 22px 4px;"><a href="${esc(consoleUrl)}" style="display:inline-block;background:#FFC93C;color:#0B3D91;font-weight:700;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:8px;">Open your Host console</a><div style="font-size:12px;color:#666;margin-top:6px;">${esc(once)}</div></td></tr>` : ""}
 <tr><td style="padding:14px 22px 6px;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A5A00;margin-bottom:6px;">HOST AI LINK FOR THIS GAME (WORKS 24 HOURS)</div><div style="background:#FBF6EC;border:2px dashed #FFC93C;border-radius:8px;padding:14px;font-family:Consolas,'Courier New',monospace;font-size:13px;line-height:1.5;color:#111;overflow-wrap:anywhere;text-decoration:none;">${esc(aiUrl)}</div></td></tr>
-<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">These links are only for you. Keep them to yourself. Do not forward them.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
+<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">These links are only for you. Please keep them to yourself and do not forward them.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
   return { subject, text, html };
 }
 
@@ -119,9 +119,9 @@ export function newUseAlertMail(info: { when: string; country: string; program: 
   const text = [
     `Someone new used your ${info.kind} work link`, "",
     `When: ${info.when}`, `Country: ${info.country || "unknown"}`, `Program: ${info.program || "unknown"}`, "",
-    "Not you? Press \"Replace my AI link\" in your console.", "", footerText(info.origin), "",
+    "Not you? Press \"Replace your AI link\" in your console.", "", footerText(info.origin), "",
   ].join("\n");
-  const html = pageHtml("Someone new used your " + info.kind + " work link", `<tr><td style="padding:20px 22px 8px;"><h1 style="font-size:22px;color:#0B3D91;margin:0 0 8px;">Someone new used your ${esc(info.kind)} work link</h1><p style="font-size:15px;line-height:1.5;margin:0 0 12px;">When: ${esc(info.when)}<br>Country: ${esc(info.country || "unknown")}<br>Program: ${esc(info.program || "unknown")}</p><p style="font-size:15px;line-height:1.5;margin:0;">Not you? Press <b>Replace my AI link</b> in your console.</p></td></tr>`, info.origin);
+  const html = pageHtml("Someone new used your " + info.kind + " work link", `<tr><td style="padding:20px 22px 8px;"><h1 style="font-size:22px;color:#0B3D91;margin:0 0 8px;">Someone new used your ${esc(info.kind)} work link</h1><p style="font-size:15px;line-height:1.5;margin:0 0 12px;">When: ${esc(info.when)}<br>Country: ${esc(info.country || "unknown")}<br>Program: ${esc(info.program || "unknown")}</p><p style="font-size:15px;line-height:1.5;margin:0;">Not you? Press <b>Replace your AI link</b> in your console.</p></td></tr>`, info.origin);
   return { subject: `Someone new used your ${info.kind} work link`, text, html };
 }
 
@@ -130,7 +130,7 @@ export const SIGNIN_SUBJECT = "Your Corporate Lucky Draw sign-in: a 6-digit code
  *  (single use, 10 minutes). Nothing else: no AI link, no extra choices (people were confused by "sign-in link" and three options). */
 export function signInMail(origin: string, code: string, token: string, linkOverride?: string): BuiltMail {
   const link = linkOverride ?? `${origin}/signin.html?t=${token}&go=console`;
-  const foot = "If you did not ask for this, ignore this e-mail. Do not forward it: it opens your account.";
+  const foot = "If you did not ask for this, ignore this e-mail. Please do not forward it: it opens your account.";
   const text = [
     "SIGN IN TO YOUR ACCOUNT", "", "Do ONE of these two things. You do not need both.", "",
     "OPTION 1 - TYPE THE 6-DIGIT CODE", "Go back to the sign-in page, type these 6 numbers in the six boxes and press Submit:", code, "It works for 10 minutes.", "",
