@@ -1,5 +1,5 @@
 // The life of an engagement's personal data. When a game ends (as seen from the public schedule, or sooner when enough phones say so):
-//   1. the organizer's report is built from the sealed records and e-mailed as PDF(s), in small steps because a free Worker has ~10 ms of CPU per call;
+//   1. the organizer's report is built from the sealed records and laid out as a PDF on the organizer's own device from a link that is e-mailed, in small steps because a free Worker has ~10 ms of CPU per call;
 //   2. the report link stops working REPORT_LINK_MS (19 hours) after the end; PURGE_AFTER_MS (20 hours) after the end (we promise 24) every participant's name, number, seat, invite record and card link is deleted, the report's working copies too,
 //      and the participants' personal part of the audit log is crypto-shredded (audit.ts `shredParticipantAudit`: its per-engagement key is destroyed, the hash chain still verifies);
 //   3. only the organizer / host / co-host details and the winners record (seat, prize, round, time) remain, until 00:00 IST at the end of the 365th day, then everything goes.
@@ -150,7 +150,7 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
     env.DB.prepare("DELETE FROM claim WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM settled WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rcand WHERE eid=?").bind(eid),
     env.DB.prepare("DELETE FROM participant WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM consent_log WHERE kind='K4' AND ref=?").bind(eid), env.DB.prepare("DELETE FROM seat WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM person WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM waiting WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM overvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(eid), // players' data requests (rights.ts) go with the people they are about
     env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR (k >= ? AND k < ?) OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/`, prefixEnd(`rptc/${eid}/`), `seats-blk/${eid}`),
-    env.DB.prepare("DELETE FROM kv WHERE (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?)").bind(`present/${eid}/`, prefixEnd(`present/${eid}/`), `ckfail/${eid}/`, prefixEnd(`ckfail/${eid}/`), `idx/${eid}/`, prefixEnd(`idx/${eid}/`)), // the check-in records of every participant go with their data (the winners' evidence, wev/, stays with the winners record for 365 days)
+    env.DB.prepare("DELETE FROM kv WHERE (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?)").bind(`present/${eid}/`, prefixEnd(`present/${eid}/`), `ckfail/${eid}/`, prefixEnd(`ckfail/${eid}/`), `idx/${eid}/`, prefixEnd(`idx/${eid}/`), `idmiss/${eid}/`, prefixEnd(`idmiss/${eid}/`)), // idmiss/: the wrong-ID guess counters (a hash of the network address) go too; // the check-in records of every participant go with their data (the winners' evidence, wev/, stays with the winners record for 365 days)
     env.DB.prepare(eraseCohostsSql).bind(eid), // the game's Co-hosts: name, mobile number and key go with the participants' data
     env.DB.prepare("INSERT INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?, 'organizer', ?, ?) ON CONFLICT(eid) DO UPDATE SET purged_ms=?, report_state=COALESCE(life.report_state, ?)").bind(eid, now, now, by, now, by),
   ]);
@@ -244,18 +244,18 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
 
 const bodyFor = (eid: string, d: ReportData, link: string) => [
   `Hello,`, ``,
-  `Your engagement ${eid} has ended. Your complete report is ready: when the game started, how many people took part at each stage, every prize and who won it, the invite tree, all statistics, and the name and mobile number of every participant.`, ``,
+  `Your engagement ${eid} has ended. Your complete report is ready: when the game started, how many people took part at each stage, every prize and who won it, the invite tree, all statistics, and the ID of every participant.`, ``,
   `Open it here (the PDF is built on your own computer or phone, so this link is all that is sent):`,
   link, ``,
   `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once the stored copy is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully. Winners confirm the name and mobile number their prize goes to on their own phone; the report shows what they confirmed, whether they changed anything, and whether you have handed the prize over, so open it again after you have ticked "Prize given" in your console.`, ``,
   `What happens to the data:`,
-  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) every participant's name, mobile number, seat, join record and invite record is permanently auto-deleted from the system.`,
+  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the draw) every player's ID, seat, join record and invite record is permanently auto-deleted from the system.`,
   `- For 365 days only this is kept: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (which prize, which round, what time, which seat, and the name and mobile number each winner confirmed so the prize can be handed over, with whether it was given).`,
-  `- Everything about this engagement is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). Billing data is kept for audit and tax reasons.`,
+  `- Everything about this engagement is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons. Invoices are kept as the law requires.`,
   ``,
   `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can the seller.`, ``,
   `Everything can be deleted sooner on request: press Delete in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
-  `Corporate Lucky Draw is built to follow India's DPDP Act, the EU and UK GDPR and US privacy laws (including CCPA / CPRA): only what is needed to run your game is collected, it is protected with encryption, kept for the shortest time possible and never sold, and every request to see, correct or delete data is honoured.`, ``,
+  `Corporate Lucky Draw is designed to follow US privacy laws, the EU GDPR and India's DPDP: only what is needed to run your game is collected, it is protected with encryption, kept for the shortest time possible and never sold, and every request to see, correct or delete data is honoured.`, ``,
   `Sent on ${istFull(d.sentAtMs)} to ${d.organizerEmail}.`,
 ].join("\n");
 

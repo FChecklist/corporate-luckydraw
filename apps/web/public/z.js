@@ -8,15 +8,16 @@
   try { if (EID) localStorage.setItem(LAST, EID); else EID = localStorage.getItem(LAST) || ""; } catch (e) { /* the page still works */ }
   const BASE = (q.get("api") || "").replace(/\/$/, "");
   const TOKEN = (q.get("t") || "").trim().slice(0, 80); // a personal invitation link: sent as `token`
+  const FROM = Number.isInteger(Number(q.get("from"))) && Number(q.get("from")) > 0 ? Number(q.get("from")) : 0; // a family link: the person who invited this guest
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* kept for this visit only */ } } };
-  const PRIVACY = "No personal details needed. All participant information is deleted within 24 hours of the game.";
+  const PRIVACY = "Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires.";
   const api = async (method, path, body) => {
     let r;
     try { r = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }); }
     catch (e) { throw Object.assign(new Error("The service could not be reached. Check your internet and try again."), { status: 0 }); }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { const err = Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, code: j.code }); if (window.CTG) { try { CTG.wrap(err, { what: method + " " + path.split("?")[0].replace(/\/[A-Za-z0-9_-]{6,}(?=\/|$)/g, "/...") }); } catch (e2) { /* the guide is a help */ } } throw err; }
+    if (!r.ok) { const err = Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, code: j.code, body: j }); if (window.CTG) { try { CTG.wrap(err, { what: method + " " + path.split("?")[0].replace(/\/[A-Za-z0-9_-]{6,}(?=\/|$)/g, "/...") }); } catch (e2) { /* the guide is a help */ } } throw err; }
     return j;
   };
   const device = () => { let d = store.get("cbz:device"); if (!d || !/^[0-9a-f]{32}$/.test(d)) { d = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join(""); store.set("cbz:device", d); } return d; };
@@ -25,7 +26,9 @@
   const left = (ms) => { let s = Math.max(0, Math.round(ms / 1000)); const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60; return (d ? d + "d " : "") + (d || h ? h + "h " : "") + m + "m " + s + "s"; };
   const brandHead = (I) => { const b = I.brand; if (!b || !b.name) return ""; const c = /^#[0-9a-fA-F]{6}$/.test(b.color || "") ? b.color : "#0B3D91"; return `<div class="zbanner" style="background:${c};color:#fff;display:flex;align-items:center;gap:10px">${b.logo && /^data:image\/(png|jpeg|webp);base64,/.test(b.logo) ? `<img src="${esc(b.logo)}" alt="" style="height:28px;max-width:96px;background:#fff;border-radius:6px;padding:2px">` : ""}<span>${esc(b.name)}</span></div>`; };
   const head = (I) => `<div class="zhead"><b>Corporate Lucky Draw</b></div>${brandHead(I)}`;
-  let I = null, D = null, timer = null, S = { pid: store.get("ld-pid-" + EID) || "", err: "", busy: false, won: false, prize: null, prizeDone: false, tick: 0 };
+  let I = null, D = null, timer = null, S = { pid: store.get("ld-pid-" + EID) || "", err: "", busy: false, won: false, prize: null, prizeDone: false, tick: 0, wait: null, fam: null, famCopied: false };
+  const WAITKEY = "ld-wait-" + EID;
+  try { const w = store.get(WAITKEY); if (w && !S.pid) S.wait = { id: w, with: "" }; } catch (e) { /* the page still works */ }
 
   const prizeList = (d) => { const rows = []; for (let i = 0; i < d.winners && i < 12; i++) rows.push(`<li><b>${["1st", "2nd", "3rd"][i] || i + 1 + "th"}</b>${d.prizes[i] ? " " + esc(d.prizes[i]) : ""}</li>`); return `<ul class="zlist">${rows.join("")}${d.winners > 12 ? `<li>and ${d.winners - 12} more places</li>` : ""}</ul>`; };
 
@@ -40,22 +43,28 @@
     const title = esc((I.name || EID));
     let h = head(I) + `<div class="zcard"><h2>${title}</h2>`;
     if (d.rehearsal) h += `<p class="zsmall"><b>Rehearsal.</b> Up to 10 people. No prizes.</p>`;
-    h += `<p><b>${d.winners}</b> winner${d.winners === 1 ? "" : "s"}. ${d.mode === "auto" ? "The draw happens by itself on " + esc(when(d.drawMs)) + "." : "The organizer presses Draw. The time is " + esc(when(d.drawMs)) + "."}</p>`;
+    h += `<p><b>${d.winners}</b> winner${d.winners === 1 ? "" : "s"}. ${d.mode === "auto" ? "The draw happens by itself on " + esc(when(d.drawMs)) + "." : "The organizer presses Start. The time is " + esc(when(d.drawMs)) + "."}</p>`;
     if (!d.rehearsal && d.prizes.some(Boolean)) h += prizeList(d);
     h += `</div>`;
-    if (d.paused) h += `<div class="zbanner warn">Paused. The draw waits until the organizer or host resumes it.</div>`;
+    if (d.paused && !d.drawing) h += `<div class="zbanner warn">Paused. The draw waits until the organizer or host resumes it.</div>`;
+    if (d.drawing) h += `<div class="zbanner info" role="status">The game has been started. The list of entries is now closed. The winners appear in a few seconds.</div>`;
     if (d.drawn) return h + resultView(d);
     if (S.pid) {
       h += `<div class="zbanner ok">You are in the draw.</div>`;
+      if (S.fam && S.fam.on && S.fam.canInvite && !d.drawn) h += `<div class="zcard"><h3>Invite your family</h3><p>You can invite up to ${esc(S.fam.per)} family members or friends. Share this link with them. They enter their own ID, and the organizer says yes.</p><p><code style="word-break:break-all">${esc(famLink())}</code></p><button class="zbtn" id="famcopy" type="button" style="min-height:44px">Copy link</button>${S.famCopied ? `<p class="zsmall">Link copied.</p>` : ""}<p class="zsmall">${esc(S.fam.used)} of ${esc(S.fam.per)} invited so far.</p></div>`;
       h += `<div class="zcard zwait"><h3>${d.paused ? "Paused" : now < d.drawMs ? "Draw in" : "The draw is starting"}</h3><div class="zcount" id="cd">${d.paused ? "–" : now < d.drawMs ? left(d.drawMs - now) : "…"}</div><p class="zsmall">${!d.paused && now < d.drawMs && d.drawMs - now <= 120000 ? "<b>Waiting room: the draw starts in under 2 minutes.</b> " : ""}Keep this page open. The result appears here.${!d.paused && now >= d.drawMs ? " The draw can take a few minutes to start." : ""}</p></div>`;
     } else if (d.closed) {
       h += `<div class="zbanner bad">Registration is closed.</div>`;
+    } else if (S.wait && S.wait.declined) {
+      h += `<div class="zbanner bad" role="alert">${esc(S.wait.message || "Thank you for asking. This game could not add you this time. Please talk to whoever shared the link with you.")}</div>`;
+    } else if (S.wait) {
+      h += `<div class="zcard zwait"><h3>Your request is on its way</h3><p>${esc(S.wait.message || "This game is by invitation. Your request is with the organizer. You can come in as soon as they say yes.")}</p><p class="zsmall">Keep this page open. It checks by itself.</p><button class="zbtn" id="wcancel" type="button" style="min-height:44px;background:transparent;color:inherit;border:1px solid currentColor">Use a different ID</button></div>`;
     } else {
       const email = I.idKind === "email";
       h += `<form class="zcard zform" id="reg" novalidate><h2>Register once</h2>
-        <label for="rid">${email ? "Your Email ID" : "Your Employee ID"}</label>
+        <label for="rid">${email ? "Enter your Email ID" : "Enter your ID"}</label>
         <input id="rid" name="id" autocomplete="${email ? "email" : "off"}" inputmode="${email ? "email" : "text"}" maxlength="80" required>
-        <label for="rnm">Your name (optional)</label><input id="rnm" name="name" autocomplete="name" maxlength="60">
+        ${I.whoCanJoin === "list" ? `<p class="zsmall">If your ID is on the list, you join straight away. If it is not, the organizer gets a request to say yes or no.</p>` : ""}
         <div id="k4"></div>
         ${S.err ? `<div class="zbanner bad" role="alert" style="margin-top:12px">${esc(S.err)}</div>` : ""}
         <button class="zbtn" id="go" type="submit" data-needs="K4" style="min-height:48px">Register</button>
@@ -63,6 +72,7 @@
     }
     return h + footer();
   }
+  const famLink = () => `${location.origin}/z.html?e=${encodeURIComponent(EID)}&from=${S.fam ? S.fam.seat : ""}`;
   const footer = () => `<p class="zsmall" style="text-align:center">${PRIVACY}</p>`;
 
   function resultView(d) {
@@ -78,7 +88,7 @@
   }
   function prizeForm(m) {
     if (S.prizeDone) return `<div class="zbanner ok">Thank you. Your details are saved for the prize hand-over.</div>`;
-    return `<form class="zcard zform" id="pz"><h2>Where should the prize go?</h2><label for="pn">Your name</label><input id="pn" maxlength="60" autocomplete="name" value="${esc(S.pname || "")}"><label for="pp">Mobile number (optional)</label><input id="pp" type="tel" inputmode="tel" maxlength="20" autocomplete="tel">${S.perr ? `<div class="zbanner bad" role="alert">${esc(S.perr)}</div>` : ""}<button class="zbtn" type="submit">Save details</button><p class="zsmall">Winners' details are kept for 365 days so the prize can be handed over. Everyone else's are deleted within 24 hours.</p></form>`;
+    return `<form class="zcard zform" id="pz"><h2>Where should the prize go?</h2><label for="pn">Your name</label><input id="pn" name="name" maxlength="60" autocomplete="name" value="${esc(S.pname || "")}"><label for="pp">Mobile number (optional)</label><input id="pp" type="tel" inputmode="tel" maxlength="20" autocomplete="tel">${S.perr ? `<div class="zbanner bad" role="alert">${esc(S.perr)}</div>` : ""}<button class="zbtn" type="submit">Save details</button><p class="zsmall">Winners' details are kept for 365 days so the prize can be handed over. Everyone else's are deleted within 24 hours.</p></form>`;
   }
 
   function paint() {
@@ -90,17 +100,20 @@
       if (window.CBConsent && k) { k.innerHTML = CBConsent.html("K4"); CBConsent.wire(reg, "K4", S.k4 || (S.k4 = {})); }
       reg.onsubmit = async (ev) => {
         ev.preventDefault(); if (S.busy) return;
-        const id = document.getElementById("rid").value.trim(), name = document.getElementById("rnm").value.trim();
-        if (!id) { S.err = I.idKind === "email" ? "Enter your Email ID." : "Enter your Employee ID."; return paint(); }
+        const id = document.getElementById("rid").value.trim();
+        if (!id) { S.err = I.idKind === "email" ? "Enter your Email ID." : "Enter your ID."; return paint(); }
         S.busy = true; S.err = "";
         try {
-          const body = { empId: id, name: name || undefined, device: device(), consent: CBConsent.payload(reg, "K4"), ...(TOKEN ? { token: TOKEN } : {}) };
+          const body = { empId: id, device: device(), consent: CBConsent.payload(reg, "K4"), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM } : {}) };
+          S.waitBody = { empId: id, device: device(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM } : {}) };
           let r; try { r = await api("POST", `/api/z/${EID}/join`, body); } catch (e) { if (e && e.status) throw e; await new Promise((ok) => setTimeout(ok, 1500)); r = await api("POST", `/api/z/${EID}/join`, body); } // a join call lost on a slow network is asked once more by itself
-          S.pid = r.pid; store.set(pidKey(), r.pid); rx("hello");
-        } catch (e) { S.err = e.code === "draw-closed" ? e.message : e.code === "device-used" ? "This phone has already registered. One entry for each person." : e.status === 423 ? "This ID is already in the draw from another phone." : e.status === 409 ? "The draw is full." : e.status === 429 ? "It is busy right now. Please try again in a few minutes." : e.message; }
+          S.pid = r.pid; store.set(pidKey(), r.pid); S.wait = null; rx("hello");
+        } catch (e) { if (e.code === "waiting" || e.code === "invite-full") { S.wait = { id: id, with: e.body && e.body.with, message: e.message }; store.set(WAITKEY, id); S.err = ""; S.busy = false; return paint(); } S.err = e.code === "draw-closed" ? e.message : e.code === "declined" ? e.message : e.code === "device-used" ? "This phone has already registered. One entry for each person." : e.status === 423 ? "This ID is already in the draw from another phone." : e.status === 409 ? "The draw is full." : e.status === 429 ? "It is busy right now. Please try again in a few minutes." : e.message; }
         S.busy = false; await refresh();
       };
     }
+    const wc = document.getElementById("wcancel"); if (wc) wc.onclick = () => { S.wait = null; S.waitBody = null; try { localStorage.removeItem(WAITKEY); } catch (e) { /* kept */ } paint(); };
+    const fc = document.getElementById("famcopy"); if (fc) fc.onclick = async () => { try { await navigator.clipboard.writeText(famLink()); S.famCopied = true; } catch (e) { S.famCopied = false; } paint(); };
     const won = document.getElementById("won"); if (won) won.onclick = () => { S.won = !S.won; paint(); };
     const pz = document.getElementById("pz");
     if (pz) pz.onsubmit = async (ev) => {
@@ -116,9 +129,10 @@
     try {
       I = await api("GET", `/api/z/${EID}/info`);
       D = I.draw || null;
-      if (D && D.drawMs && Date.now() + (S.skew || 0) >= D.drawMs && !D.drawn && !D.paused) { const r = await api("GET", `/api/z/${EID}/draw${S.pid ? "?pid=" + encodeURIComponent(S.pid) : ""}`); D = r.draw; }
+      if (D && D.drawMs && (Date.now() + (S.skew || 0) >= D.drawMs || D.drawing) && !D.drawn && (!D.paused || D.drawing)) { const r = await api("GET", `/api/z/${EID}/draw${S.pid ? "?pid=" + encodeURIComponent(S.pid) : ""}`); D = r.draw; }
       else if (D && D.drawn && S.pid) { const r = await api("GET", `/api/z/${EID}/draw?pid=${encodeURIComponent(S.pid)}`); D = r.draw; }
       S.err = S.err && !I ? S.err : S.err;
+      if (S.pid && I && I.invites && I.invites.on && !(D && D.drawn)) { try { S.fam = await api("GET", `/api/z/${EID}/invites?pid=${encodeURIComponent(S.pid)}`); } catch (e) { S.fam = null; } }
       if (D) { // one short word at the big moments, only when this page saw the change happen
         if (S.wasPaused === false && D.paused) rx("hang_on");
         if (S.wasDrawn === false && D.drawn) { if (window.CBFunnel) CBFunnel.report("game_completed"); rx("ta_da"); if (D.mine) setTimeout(() => rx("champion", 1), 2700); }
@@ -127,12 +141,20 @@
     } catch (e) { if (!I) { I = e.status === 404 ? { draft: false } : null; S.err = e.status === 404 ? "This link is not valid. Ask the organizer to send it again." : e.message; if (e.status === 404) { D = null; I = { name: "" }; } } }
     paint();
   }
+  async function checkWait() {
+    if (S.checking || !S.waitBody) { if (!S.waitBody && S.wait && S.wait.id) S.waitBody = { empId: S.wait.id, device: device(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM } : {}) }; if (!S.waitBody) return; }
+    S.checking = true;
+    try { const r = await api("POST", `/api/z/${EID}/join`, S.waitBody); S.pid = r.pid; store.set(pidKey(), r.pid); S.wait = null; try { localStorage.removeItem(WAITKEY); } catch (e) { /* kept */ } rx("hello"); await refresh(); }
+    catch (e) { if (e.code === "declined") { S.wait = Object.assign(S.wait || {}, { declined: true, message: e.message }); paint(); } /* still waiting: nothing to do */ }
+    S.checking = false;
+  }
   function loop() {
     clearInterval(timer);
     timer = setInterval(() => {
       const cd = document.getElementById("cd");
       if (cd && D && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("tick_tock"); if (window.CBFunnel) CBFunnel.report("game_started"); } }
       S.tick++;
+      if (S.wait && !S.wait.declined && !S.pid && S.tick % 10 === 0) checkWait();
       const near = D && !D.drawn && Date.now() + (S.skew || 0) >= D.drawMs - 120000;
       if (!document.hidden && !document.getElementById("reg") && (near ? S.tick % 3 === 0 : S.tick % 15 === 0)) refresh();
     }, 1000);

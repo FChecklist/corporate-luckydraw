@@ -12,6 +12,7 @@ import { emailKey } from "./emailkey";
 import { consentMissing, recordConsent } from "./consent";
 import { deviceMatches } from "./checkin";
 import type { D1, Env } from "./worker";
+import { whoCanJoinOf } from "./invite-only";
 import { waitingLapsed, familyCutoffPassed, roundStartMs, approvalRulesOn, waitSince, LAPSED_MESSAGE, FAMILY_CLOSED_MESSAGE, DECLINED_MESSAGE, WAIT_LIMIT_MS } from "./approvals";
 
 /** 0016_people.sql: who invited whom, the personal links, the waiting room, and the flag that stops a removed person's phone without touching the public seat list. */
@@ -50,29 +51,41 @@ export const tokenHash = async (token: string) => (await sha("pj|" + token.toLow
 /** Same formula as the Worker's join (worker.ts `phoneHash`): +91 98765 43210, 098765 43210 and 9876543210 are one person; one hash in every game. */
 export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, digits: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|${digits.slice(-10)}`);
 
-/** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
-export const EMP_CLEAN_FROM_MS = Date.UTC(2099, 0, 1); // RELEASE SESSION: set this to the exact deploy instant (Date.UTC(...) or epoch ms) in the same commit that is deployed. Until it is set it is far in the future, so NO game takes the uniform employee ID rule early. A game created before the deploy instant keeps the old behaviour.
-/** THE one cleaning rule for an employee ID (owner rule 2026-10-30): NFKC, upper case, then keep only A-Z and 0-9. 1B-678, 1b-678, 1B/678 and 1B 678 all become 1B678. */
+/** OWNER RULE (20 Nov 2026): ONE ID rule for every game, old or new. Every character that is not a letter or a number is dropped, then capitals: A-1101, A 1101 and A/1101 are all A1101.
+ *  The same function runs at upload, join, approval and matching. Why: people type an ID in many ways, and one ID must be one person. */
+export const EMP_CLEAN_FROM_MS = 0; // every game uses the uniform rule (it was a far-future placeholder before 20 Nov 2026)
+/** A game made before this instant may still hold IDs stored under the OLD rule (spaces dropped, upper case, . _ - / kept). For such a game an ID is ALSO looked up in its old form (legacyEmpFor), so nobody already on a list is locked out. Nothing stored is rewritten.
+ *  RELEASE SESSION: set this to the exact deploy instant in the commit that is deployed. Until then it is far in the future, so every game is looked up both ways (harmless: the extra lookup finds nobody in a new game). */
+export const EMP_LEGACY_BEFORE_MS = Date.UTC(2099, 0, 1);
+/** THE one cleaning rule for an ID: NFKC, upper case, then keep only A-Z and 0-9. 1B-678, 1b-678, 1B/678 and 1B 678 all become 1B678. */
 export const empClean = (raw: unknown): string => String(raw ?? "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, "");
-/** An employee ID as typed. "" = nothing typed, null = not a usable ID (only symbols, or over 30 characters after cleaning). `createdMs` is when the game was made; an older game keeps the old rule. */
-export const normEmp = (raw: unknown, createdMs?: number | null): string | null => {
-  if (createdMs != null && createdMs < EMP_CLEAN_FROM_MS) { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); if (!s) return ""; return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; }
+/** An ID as typed. "" = nothing typed, null = not a usable ID (only symbols, or over 30 characters after cleaning). The second argument is kept so old callers still compile: the rule no longer depends on when the game was made. */
+export const normEmp = (raw: unknown, _createdMs?: number | null): string | null => {
   if (!String(raw ?? "").replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, "")) return "";
   const s = empClean(raw); return s && s.length <= 30 ? s : null;
 };
+/** Could this game hold IDs stored under the old rule? */
+export const isLegacyGame = (e: { created_ms?: number | null } | null | undefined): boolean => Number(e?.created_ms) < EMP_LEGACY_BEFORE_MS;
+/** The old-rule form of an ID, only for a game that may still hold such IDs, and only when it differs from the cleaned form. null = nothing more to try. */
+export function legacyEmpFor(raw: unknown, e: { created_ms?: number | null } | null | undefined): string | null {
+  if (!isLegacyGame(e)) return null;
+  const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase();
+  if (!s || !/^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s)) return null;
+  return s === empClean(raw) ? null : s;
+}
 /** An Email ID shape check on the cleaned form. */
 const EMAIL_ID_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 /** Does the text look like an e-mail address (an "@" after NFKC)? An employee-ID box never turns one into letters and digits. */
 export const looksLikeEmail = (raw: unknown): boolean => String(raw ?? "").normalize("NFKC").includes("@");
-export const EMP_LOOKS_LIKE_EMAIL = "This looks like an Email ID. This game asks for an employee ID: letters and numbers only.";
+export const EMP_LOOKS_LIKE_EMAIL = "This looks like an e-mail address. Please enter your ID: letters and numbers only.";
 /** The ID a person gives, by what this game asks for: an employee ID (cleaned to A-Z 0-9) or an Email ID (cleaned with emailKey). "" = nothing typed, null = not usable. */
 export const normId = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string | null => {
   if (kind === "email") { const t = String(raw ?? ""); if (!emailKey(t)) return ""; const k = emailKey(t); return EMAIL_ID_RE.test(k) && k.length <= 254 && !k.includes("..") && !k.split("@")[1]!.startsWith(".") && !k.endsWith(".") ? k : null; }
-  if ((createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && looksLikeEmail(raw)) return null; // an Email ID typed where an employee ID is asked is refused, never mangled
+  if (looksLikeEmail(raw)) return null; // an e-mail typed where an ID is asked is refused, never mangled
   return normEmp(raw, createdMs);
 };
-export const EMP_TOO_LONG = "This ID is too long. An employee ID may be up to 30 characters once cleaned.";
-export const badIdMessage = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string => kind === "email" ? "Please check your Email ID. It looks incomplete." : (createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && looksLikeEmail(raw) ? EMP_LOOKS_LIKE_EMAIL : (createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && empClean(raw).length > 30 ? EMP_TOO_LONG : "An employee ID has letters and numbers only (up to 30).";
+export const EMP_TOO_LONG = "This ID is too long. An ID may be up to 30 characters once cleaned.";
+export const badIdMessage = (raw: unknown, kind: "emp" | "email", _createdMs?: number | null): string => kind === "email" ? "Please check your Email ID. It looks incomplete." : looksLikeEmail(raw) ? EMP_LOOKS_LIKE_EMAIL : empClean(raw).length > 30 ? EMP_TOO_LONG : "An ID has letters and numbers only (up to 30). Spaces, dashes and symbols are ignored.";
 /** Does anybody in this game hold an identity made from an ID (an employee ID or an Email ID)? A listed person or a joined person with an ID, in pages of 100. A name-only or mobile-only guest does not count:
  *  only a stored ID hash is orphaned when "what a person must give" changes, so only that locks the setting. */
 export async function anyoneHoldsIdHash(env: Env, eid: string): Promise<boolean> {
@@ -132,6 +145,8 @@ export interface Ctx {
   a: { plat: boolean; org: string | null; kind: string | null; eid?: string | null; viaLink?: boolean };
   keyId7: string; viaLink: boolean; origin: string; gameName: string; block?: string; invites: { on: boolean; per: number; cats: string[] };
   started: boolean; draft: boolean; cancelled: boolean;
+  /** Lucky Draw only: the entry list has closed (draw time or Start). Nobody can be added or put back after that. */
+  listClosed?: boolean;
   json: (o: unknown, status?: number) => Response;
   body: (req: Request, max?: number) => Promise<any | null>;
   spend: (n?: number) => Promise<boolean>;
@@ -267,6 +282,7 @@ export async function peopleRoute(c: Ctx): Promise<Response> {
   if (parts.length === 1 && method === "GET") return listPeople(c, who);
   if (parts.length === 1 && method === "POST") return addPeople(c, who, bodyObj);
   if (parts.length === 2 && parts[1] === "export" && method === "GET") return exportPeople(c, who);
+  if (parts.length === 2 && parts[1] === "log" && method === "GET") return peopleLog(c, who);
   if (parts.length === 2 && parts[1] === "me" && (method === "GET" || method === "POST")) return myOwnSeat(c, who, bodyObj);
   if (parts.length === 3 && parts[2] === "remove" && method === "POST") return removePerson(c, who, parts[1]!, bodyObj);
   if (parts.length === 3 && parts[2] === "resend" && method === "POST") return resendPerson(c, who, parts[1]!, bodyObj);
@@ -286,18 +302,20 @@ async function listPeople(c: Ctx, who: Caller): Promise<Response> {
   const code = fromCodeOf(who.id);
   return c.json({
     people, limit: who.limit ?? c.e.cap, used, total: who.all ? await totalCount(c.env.DB, c.eid) : used, cap: c.e.cap, offset, waiting: waitingCount,
-    whoCanJoin: c.e.closed ? "list" : "anyone", role: who.kind, canExport: who.all,
+    whoCanJoin: whoCanJoinOf(c.env, c.e), role: who.kind, canExport: who.all,
     commonLink: c.draft || c.cancelled || code === null ? null : `${c.origin}/z.html?e=${c.eid}&from=${code}`,
   });
 }
 
+const LIST_CLOSED_MSG = "The list of entries has closed, so nobody can be added or put back now. This keeps the draw fair for everyone.";
 async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
+  if (c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (!b || !Array.isArray(b.people) || b.people.length < 1) return c.json({ error: "Send at least one person: {people:[{name, phone}]}." }, 400);
-  { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these names and numbers for this game. The people have been told."
+  { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these IDs for this game, and the people on my list have been told."
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string; name?: string; id?: string }[] = []; let duplicates = 0; const sameAfterCleaning: { raw: string; as: string }[] = []; const duplicateRows: { raw: string; name: string; why: string }[] = []; const DUP_WHY = "Already on the list."; const typedOf = (x: any): string => String(x?.empId ?? x?.employeeId ?? x?.phone ?? "").slice(0, 120); // the same employee ID typed two ways in one list: named, never dropped silently
-  const seen = new Set<string>(); const todo: { typed?: string; name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
+  const seen = new Set<string>(); const todo: { typed?: string; name: string; digits: string; ph: string; empId?: string; idHash?: string; lph?: string }[] = [];
   const vf = verifyOf(c.e);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
@@ -311,7 +329,8 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
       if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, name: cleanName(x?.name), id: String(x?.empId ?? x?.employeeId ?? "").slice(0, 120), why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
       const ph = await empHashOf(c.env, emp);
       if (seen.has(ph)) { duplicates++; duplicateRows.push({ raw: typedOf(x), name: cleanName(x?.name), why: DUP_WHY }); sameAfterCleaning.push({ raw: String(x?.empId ?? x?.employeeId ?? ""), as: emp }); continue; }
-      seen.add(ph); todo.push({ typed: typedOf(x), name: cleanName(x?.name), digits, ph, empId: emp }); continue;
+      const lg = vf.idKind === "email" ? null : legacyEmpFor(empRaw, c.e); // an older game may already hold this person under the form an older release stored
+      seen.add(ph); todo.push({ typed: typedOf(x), name: cleanName(x?.name), digits, ph, empId: emp, ...(lg ? { lph: await empHashOf(c.env, lg) } : {}) }); continue;
     }
     const cl = cleanPhone(x?.phone);
     if (!cl.ok) { invalid.push({ raw, name: cleanName(x?.name), id: String(x?.empId ?? x?.employeeId ?? "").slice(0, 120), why: cl.why }); continue; }
@@ -325,13 +344,14 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
     }
     seen.add(ph); todo.push({ typed: typedOf(x), name: cleanName(x?.name), digits: keptFromClean(cl.digits), ph, ...(emp && vf.mode !== "mobile" ? { empId: emp } : {}), ...(idHash ? { idHash } : {}) });
   }
-  const db = c.env.DB, hashes = todo.map((t) => t.ph);
+  const db = c.env.DB, hashes = todo.flatMap((t) => (t.lph ? [t.ph, t.lph] : [t.ph]));
   const persons = await existingBy(db, "person", c.eid, hashes, "ph, status, id, inviter, removed_by");
   const seats = await existingBy(db, "seat", c.eid, hashes, "ph, blocked");
   const waits = await existingBy(db, "waiting", c.eid, hashes, "ph, id, status");
   const fresh: typeof todo = [], revive: typeof todo = [];
   for (const t of todo) {
     const p = persons.get(t.ph);
+    if (!p && t.lph && persons.has(t.lph)) { duplicates++; duplicateRows.push({ raw: t.typed || t.empId || t.digits, name: t.name, why: DUP_WHY }); continue; } // already listed under the older form of the same ID
     if (p) { if (p.status === "removed" && (who.all || (p.inviter === who.id && p.removed_by === who.id))) revive.push(t); /* an Organizer or Host puts anyone back; a Co-host or guest only takes back a person they removed themselves */ else if (p.status === "removed") invalid.push({ raw: `${t.name} ${t.digits ? "+" + phoneDigits(t.digits) : ""}`.trim(), why: "This person was removed. Ask the Organizer or a Host to put them back." }); else { duplicates++; duplicateRows.push({ raw: t.typed || t.empId || t.digits, name: t.name, why: DUP_WHY }); } continue; }
     if (seats.has(t.ph)) { duplicates++; duplicateRows.push({ raw: t.typed || t.empId || t.digits, name: t.name, why: DUP_WHY }); continue; } // a seat from an older flow (a loaded list): already in the game
     fresh.push(t);
@@ -428,7 +448,7 @@ async function removePerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
   const stmts: ReturnType<D1["prepare"]>[] = [];
   for (const t of targets) {
     stmts.push(db.prepare("UPDATE person SET status='removed', removed_ms=?, removed_by=?, tok_hash=NULL, tok_sealed=NULL WHERE eid=? AND id=? AND status<>'removed'").bind(c.now, who.id, c.eid, t.id));
-    if (c.started) stmts.push(db.prepare("UPDATE seat SET blocked=1 WHERE eid=? AND ph=?").bind(c.eid, t.ph)); // the seat stays in the public list: winners must be identical on every phone
+    if (c.started) stmts.push(db.prepare("UPDATE seat SET blocked=1, blk_ms=? WHERE eid=? AND ph=?").bind(c.now, c.eid, t.ph)); // the seat stays in the public list: winners must be identical on every phone
     else stmts.push(db.prepare("DELETE FROM claim WHERE eid=? AND pid IN (SELECT pid FROM seat WHERE eid=? AND ph=?)").bind(c.eid, c.eid, t.ph), db.prepare("DELETE FROM participant WHERE eid=? AND phone_hash=?").bind(c.eid, t.ph), db.prepare("DELETE FROM seat WHERE eid=? AND ph=?").bind(c.eid, t.ph));
   }
   await batched(db, stmts);
@@ -523,6 +543,26 @@ async function listWaiting(c: Ctx, who: Caller): Promise<Response> {
   }
   return c.json({ waiting: out });
 }
+/** The invite and approval log (OWNER RULE 20 Nov 2026: only the Organizer and the Hosts see the full list and the invite chain). Every ID that was listed, asked to come in, was let in or declined, and who it came through, newest first.
+ *  Only the ID is shown: no name, no number. A Co-host or a guest gets a plain refusal. */
+async function peopleLog(c: Ctx, who: Caller): Promise<Response> {
+  if (!who.all) return c.json({ error: "Only the organizer and the hosts can see the invite log.", code: "not-yours" }, 403);
+  const label = await labelsOf(c), rows: { ms: number; id: string; kind: string; through: string; by?: string }[] = [];
+  const idOf = async (pii: string) => String((await openPii(c.env, pii))?.empId ?? "").slice(0, 30);
+  for (const r of (await c.env.DB.prepare("SELECT pii, via, inviter, status, decided_by, decided_ms, at_ms FROM waiting WHERE eid=? ORDER BY at_ms DESC LIMIT 300").bind(c.eid).all<any>()).results ?? []) {
+    const id = await idOf(r.pii), through = label(r.inviter) || "the game link";
+    rows.push({ ms: Number(r.at_ms), id, kind: "asked", through });
+    if (r.status === "admitted" || r.status === "declined") rows.push({ ms: Number(r.decided_ms) || Number(r.at_ms), id, kind: r.status === "admitted" ? "let in" : "declined", through, by: label(r.decided_by) || "someone" });
+    else if (r.status === "lapsed") rows.push({ ms: Number(r.decided_ms) || Number(r.at_ms), id, kind: "request ran out", through });
+  }
+  for (const r of (await c.env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND role IS NULL ORDER BY added_ms DESC LIMIT 300`).bind(c.eid).all<PersonRow>()).results ?? []) {
+    const id = await idOf(r.pii);
+    if (!r.approved_by) rows.push({ ms: Number(r.added_ms) || 0, id, kind: "listed", through: label(r.inviter) || "the Organizer" });
+    if (r.joined_ms) rows.push({ ms: Number(r.joined_ms), id, kind: "joined", through: label(r.inviter) || "the Organizer" });
+  }
+  rows.sort((a, b) => b.ms - a.ms);
+  return c.json({ log: rows.slice(0, 400) });
+}
 /** Puts an admitted person on a list, but only while the waiting request is still "waiting" (so a decline that won the race leaves nobody inside). */
 const admitInsert = (db: D1, eid: string, wid: string, id: string, ph: string, pii: string, inviter: string, tokHash: string, tokSealed: string, by: string, now: number) =>
   db.prepare("INSERT OR IGNORE INTO person(eid,id,ph,pii,inviter,role,status,tok_hash,tok_sealed,approved_by,approved_ms,added_ms) SELECT ?,?,?,?,?,NULL,'invited',?,?,?,?,? WHERE EXISTS (SELECT 1 FROM waiting WHERE eid=? AND id=? AND status='waiting')")
@@ -538,6 +578,7 @@ async function decideWaiting(c: Ctx, who: Caller, wid: string, b: any): Promise<
   const w = await db.prepare("SELECT id, ph, pii, inviter, chain, overlimit, status, at_ms FROM waiting WHERE eid=? AND id=?").bind(c.eid, wid).first<any>();
   if (!w || (!who.all && !String(w.chain).includes(`,${who.id},`))) return c.json({ error: "No such request." }, 404);
   if (w.status !== "waiting") return c.json({ ok: true, already: w.status });
+  if (decision === "admit" && c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (approvalRulesOn(c.e) && waitingLapsed(Number(w.at_ms), c.now)) { await db.prepare("UPDATE waiting SET status='lapsed', decided_ms=? WHERE eid=? AND id=? AND status='waiting'").bind(c.now, c.eid, wid).run(); return c.json({ error: "This request waited more than 30 minutes, so it has lapsed. The person can ask again.", code: "lapsed" }, 409); }
   if (approvalRulesOn(c.e) && decision === "admit" && !who.all && String(w.inviter).startsWith("s:") && familyCutoffPassed(roundStartMs(c.e.start_round), c.now)) return c.json({ error: FAMILY_CLOSED_MESSAGE, code: "family-closed" }, 409);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so this request has lapsed." }, 409);
@@ -566,6 +607,7 @@ async function decideAll(c: Ctx, who: Caller, b: any): Promise<Response> {
   const decision = b?.decision;
   if (decision !== "admit" && decision !== "decline") return c.json({ error: "Say admit or decline." }, 400);
   const db = c.env.DB;
+  if (decision === "admit" && c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so these requests have lapsed." }, 409);
   const cols = "id, ph, pii, inviter, overlimit";
   const familyClosed = approvalRulesOn(c.e) && !who.all && familyCutoffPassed(roundStartMs(c.e.start_round), c.now);
@@ -614,7 +656,7 @@ async function meRoute(c: Ctx): Promise<Response> {
     if (!s) return c.json({ error: "Not a participant of this game." }, 404);
     const p = await db.prepare("SELECT inviter, approved_by FROM person pe JOIN seat se ON se.eid=pe.eid AND se.ph=pe.ph WHERE se.eid=? AND se.pid=?").bind(c.eid, pid).first<{ inviter: string; approved_by: string | null }>().catch(() => null);
     const ownList = s.inv === null && !s.role;
-    return c.json({ state: s.blocked ? "removed" : "playing", removed: !!s.blocked, role: s.role ?? null, seat: s.seq, canInvite: !s.blocked && ownList && c.invites.on, per: c.invites.per, used: ownList ? await listCount(db, c.eid, "s:" + s.seq) : 0, whoCanJoin: c.e.closed ? "list" : "anyone", ...(p ? { listed: true } : {}) });
+    return c.json({ state: s.blocked ? "removed" : "playing", removed: !!s.blocked, role: s.role ?? null, seat: s.seq, canInvite: !s.blocked && ownList && c.invites.on, per: c.invites.per, used: ownList ? await listCount(db, c.eid, "s:" + s.seq) : 0, whoCanJoin: whoCanJoinOf(c.env, c.e), ...(p ? { listed: true } : {}) });
   }
   if (wid && /^[0-9a-f]{12}$/.test(wid)) {
     const w = await db.prepare("SELECT status, inviter, overlimit, at_ms FROM waiting WHERE eid=? AND id=?").bind(c.eid, wid).first<{ status: string; inviter: string; overlimit: number; at_ms: number }>();
@@ -663,6 +705,16 @@ export async function personByToken(env: Env, eid: string, token: string): Promi
 }
 export async function personByPhone(env: Env, eid: string, ph: string): Promise<PersonRow | null> {
   return (await env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND ph=?`).bind(eid, ph).first<PersonRow>()) ?? null;
+}
+/** A listed person by the ID typed: the cleaned form first, then (only for a game that may hold older IDs) the form an older release stored. Each form may also be an alias to another identity (the "idx" key of a person known by mobile number and ID). */
+export async function personByEmpId(env: Env, eid: string, id: string, legacyId: string | null): Promise<PersonRow | null> {
+  for (const k of legacyId ? [id, legacyId] : [id]) {
+    const eh = await empHashOf(env, k);
+    let hit = await personByPhone(env, eid, eh);
+    if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid, al.v); }
+    if (hit) return hit;
+  }
+  return null;
 }
 export type { PersonRow };
 

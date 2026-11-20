@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-11-20",
+    "commit": "this release",
+    "title": "A fair draw you can check, by invitation only, one true privacy line, and a payment notice that can be repeated safely",
+    "changes": [
+      "The list of entries closes at the draw time (or when you press Start) and cannot change after that: removing or adding someone later does not change the draw",
+      "When you press Start, the winners come from a public beacon round that is published after your press, so nobody can see the result before it is made",
+      "The scheduled job (every minute) makes the draw even when nobody opens a page",
+      "Every game is by invitation only and asks for an ID only; the server refuses \"anyone with the link\"",
+      "One privacy line everywhere: player details are deleted within 24 hours of the draw; the organizer's, hosts' and winners' details are kept for 365 days; invoices as the law requires",
+      "The paid notice from the console can be repeated safely if a first try stopped half way",
+      "Going live is one step with a health check; the old sign-in and pay routes go away together"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-30",
     "commit": "this release",
@@ -78,7 +93,7 @@
     "changes": [
       "Lucky Draw on its own Cloudflare stack",
       "Cards for every guest, winners decided by the software from the public numbers",
-      "Payment through the central payment service, report by e-mail"
+      "Payment through the central payment service, an e-mail with a link to your report"
     ]
   }
 ]

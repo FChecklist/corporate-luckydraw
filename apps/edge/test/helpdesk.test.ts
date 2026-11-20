@@ -253,7 +253,7 @@ describe("the one-tap publish approval", () => {
     expect((await call("POST", "/api/helpdesk/approve/start", { t })).status).toBe(410);
     expect((await call("POST", "/api/helpdesk/approve/done", { t })).status).toBe(410);
     const m = lastMail("asha@partner.example", /is published/);
-    expect(m.body).toMatch(/OPEN MY HOST CONSOLE: https:\/\/bingo\.test\/zc\.html\?k=cbh_[0-9a-f]{48}&e=HD-GAME-1/); expect(m.body).toMatch(/\/ai\/cbh_[0-9a-f]{48}/);
+    expect(m.body).toMatch(/OPEN YOUR HOST CONSOLE: https:\/\/bingo\.test\/zc\.html\?k=cbh_[0-9a-f]{48}&e=HD-GAME-1/); expect(m.body).toMatch(/\/ai\/cbh_[0-9a-f]{48}/);
   });
   test("an approval link expires after 7 days", async () => {
     const w = await world(); await makeGame(w.aiKey); await askAt(w, "HD-GAME-1");
@@ -286,7 +286,7 @@ describe("the helper becomes the desk Host", () => {
     await makeGame(w.aiKey, "HD-GAME-2"); await req("POST", "/api/helpdesk/request-publish", { linkId: w.linkId, eid: "HD-GAME-2" }, part(w.p.partnerKey), T + 20 * 60_000);
     const t2 = approvalToken(); const r = await approveAndPublish(t2, "HD-GAME-2", T + 20 * 60_000); expect(r.done.status).toBe(200);
     expect(raw.query("SELECT COUNT(*) c FROM organizer_key WHERE created_by='d' AND kind='host' AND expires_ms IS NULL AND host_id=hash").get()).toEqual({ c: 1 });
-    expect(lastMail("asha@partner.example", /HD-GAME-2 is published/).body).not.toContain("OPEN MY HOST CONSOLE");
+    expect(lastMail("asha@partner.example", /HD-GAME-2 is published/).body).not.toContain("OPEN YOUR HOST CONSOLE");
   });
   test("the helper's key does not trigger the unfamiliar-use alert, an Organizer's own AI key does", async () => {
     const w = await world();

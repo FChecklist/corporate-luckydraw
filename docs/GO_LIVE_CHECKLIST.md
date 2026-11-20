@@ -62,6 +62,10 @@ Order (owner): 1 all 5 games, 2 master console, 3 Lucky Draw.
 ## M. Campaign (Tambola, then each game)
 - [ ] M1 Layer A: 1000 games x 10 players (DONE for Tambola 1000/1000 after runner fix). M2 Layer B: 100 use cases real Chromium local. M3 Layer C: 25 cases on the real site with the 25,000-request meter, then cleanup of TEST-RUN games.
 ## N. Lucky Draw (after games and console): own site, rules, lifecycle, payment, roles, claims, prizes, console row, all of A-K.
+- [ ] N1 Go-live is ONE step: set `CONSOLE_PUBKEYS` and `PAY_VIA_CONSOLE=1` together (Pages variables). Then open `/api/status/health`: `go_live.ready` must be true and `go_live.problems` empty; a half switch makes the health check fail on purpose. Then check by hand: `/pay.html`, `/signin.html` and `POST /api/start` answer 302 (console, home, home), `/api/console/capabilities` answers 200.
+- [ ] N2 `TEST_OPEN_JOIN` is NOT set anywhere (not in `pages/wrangler.toml`, not in the dashboard).
+- [ ] N3 The scheduled job (`apps/cron`, every minute) runs and holds `CRON_KEY`: it makes the draw at the draw time. Run migration `0032_draw_freeze.sql` before the deploy.
+- [ ] N4 The owner has read the new consent wording K4 and K6 (legal text) and the one privacy line.
 
 ## Status (boss updates)
 Tambola: live 1.8.3; open: 1.8.4 UI gaps, 1.8.5 ID/email rules, campaign B/C. Bingo/TTT/Snakes/Luck: parity in progress, Email ID criterion and console flow to build. Console: live; 30-min/persistent/look pending. Lucky Draw: not started.

@@ -60,7 +60,7 @@ const settle = (paymentId: string, orderId: string, payId: string, now = T, stat
 beforeEach(() => {
   const d = makeD1(); raw = d.raw; ipN = 0;
   rz = { orders: [], payments: {}, mail: [], mailDown: false };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" };
+  env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" };
   installGateway();
 });
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -359,7 +359,7 @@ describe("D. participants", () => {
     const ok = rs.filter((r) => r.status === 200).length, full = rs.filter((r) => r.status === 409).length;
     expect((raw.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid='CROWD-1'").get() as any).c).toBeLessThanOrEqual(5);
     expect(ok).toBe(5); expect(full).toBe(35);
-    expect((await call("POST", "/api/z/CROWD-1/join", { phone: phone(1) })).status).toBe(200); // someone who already has a place can always come back
+    const inIdx = rs.findIndex((r) => r.status === 200); expect((await call("POST", "/api/z/CROWD-1/join", { phone: phone(inIdx + 1) })).status).toBe(200); // someone who already has a place can always come back (one of the five that got in: which five is a race, so the test asks one of them)
   });
   test("UC-33 invite-only: an unlisted number is refused, a listed one gets in", async () => {
     const o = await published("INVITE-1", { closed: true });
