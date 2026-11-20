@@ -22,14 +22,22 @@ Commit: see "Exact commit" at the end of this file (filled in at the last commit
 | 7 | Rupee sign, banned claims, billing and privacy lines | See "Copy sweep" below. | see below |
 
 ## Copy sweep (items 1 and 7 on static pages)
-Done by a second pass over all pages, scripts, mails and manuals (result filled in below).
-COPYSWEEP_RESULT_PLACEHOLDER
+Done by a second pass over all pages, scripts, mails and manuals.
+Result of the second pass (a test, `apps/web/test/owner-claims.test.ts`, now keeps it so):
+- **Banned claims:** "100% secure", "most secure gateway", "played by major companies" were not in the repo. The nearest claims were removed ("Safe and secure payment", "trusted by businesses across the world" on the payment-page brand block). The test fails if any of the three phrases or a close variant appears in a page, script or customer text.
+- **Billing line:** one wording everywhere, "We keep billing data for audit and tax reasons." (9 places, including the report text and invoice terms). The consent table keeps its own owner-approved sentence.
+- **Privacy line:** "designed to follow US privacy laws, the EU GDPR and India's DPDP" in about 15 places (also replaced "designed to comply" in Terms 11.6 and "handled as required by..." on the payment-page brand block, and the report text in `lifecycle.ts`).
+- **Rupee sign:** about 17 places (pricing text, guide, `site.js`, `paytest.js`, credit and cancel mails, AI price lists). The invoice PDF writer (`pdf.ts`) still prints "Rs" because its font cannot draw the rupee sign.
+- **PDF by e-mail:** 8 places fixed. The only true statement is kept: the organizer gets one e-mail with a link and the PDF is made on their own device.
+- **You and polite wording:** about 55 places (guide, Help Desk, AI-link pages, AI mails and manuals; buttons and "Please ..." in place of blunt text). Start wording: the AI manuals and guided path now say "The game starts by itself" / "You start the game" / "Start the game".
+- **Not changed (listed so nobody thinks they were missed):** "my / me" in labels on the home page, the sign-in mail ("Sign me in", the old own sign-in), the pay pages, "Use my credit", the console tab names "My people" and "My games", "Take me there" in the guide pop-up, and the text an organizer pastes to their own AI ("MY OWN account. I am the owner"), which is the organizer's own voice. "Secure payment by Razorpay" lines stay (they say who takes the payment; no superlative). `brochure.pdf` is a stale binary with old Bingo wording and "with a PDF": rebuild it with `tools/make-brochure.mjs` after refreshing `brochure-print.html`. `make_site.py` cannot run here (its design kit path is missing), so the home page source in that kit still holds the old "report by e-mail" sentence: regenerating from it would bring the old text back.
 
 ## Tests
 - Baseline before any change (branch head `f051e22`): 1847 pass, 7 fail, 7 errors. The failures were not caused by this work: 1 date test that expired (`owner-test-free.test.ts`: the owner's test-account end date, 1 Nov 2026, has passed), 1 stale Bingo test that needs a file that does not exist (`room-mode.test.ts`: `big.js`), and 5 tests in `privacy.test.ts` that time out at 5 seconds only when the whole suite runs together (they pass when run alone).
 - New test files: `apps/edge/test/id-invite.test.ts`, `apps/edge/test/console-paid.test.ts`, `apps/web/test/id-invite-pages.test.ts`, `apps/web/test/console-voice.test.ts` (and `owner-claims.test.ts` from the copy sweep).
 - Old tests that pinned the OLD behaviour were changed to the new owner rule, with the reason in the same line: `emp-clean.test.ts`, `email-id.test.ts`, `verify.test.ts` (the ID rule), and wording tests touched by the copy sweep.
-- FINAL_TEST_RESULT_PLACEHOLDER
+- **After this PR** (`bun test packages apps tools/control-worker`, whole suite): 1921 pass, 5 fail, 7 errors. The 5 failures and 7 errors are exactly the baseline ones that were not fixed: `owner-test-free` (expired date), `room-mode.test.ts` (the missing `big.js`: this is the 7 errors), and 5 tests of `privacy.test.ts` that hang only in a whole-suite run (they pass in the same run of that file alone: 25 pass). Nothing that passed before fails now. One flaky test (`UC-32`, which raced which five of forty people got in) now asks one of the five who did get in.
+- A third of a minute on a quiet machine per run of the whole suite is about 3 minutes; typecheck (`bun run typecheck`) is clean.
 
 ## Falsifiability checks (break the logic, see a test fail, restore)
 1. ID cleaning changed to keep the dash: 8+ cases in `id-invite.test.ts` and `emp-clean.test.ts` failed. Restored.
