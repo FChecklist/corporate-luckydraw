@@ -151,7 +151,7 @@ describe("manual start: the beacon round is one that does not exist yet", () => 
     // when the chosen round is published the scheduled job completes the draw with exactly that round
     const later = roundMs(d.target_round!) + 5_000;
     expect(await tick(later)).toBe(1);
-    expect(asked).toEqual([d.target_round]);
+    expect(asked).toEqual([d.target_round!]);
     expect(resultPid()).toEqual([expectedWinner(d.target_round!)]);
     expect((raw.query("SELECT by_role FROM draw WHERE eid=?").get(eidOf) as any).by_role).toBe("organizer");
   });
