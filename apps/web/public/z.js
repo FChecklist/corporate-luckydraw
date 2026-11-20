@@ -87,7 +87,7 @@
   }
   function prizeForm(m) {
     if (S.prizeDone) return `<div class="zbanner ok">Thank you. Your details are saved for the prize hand-over.</div>`;
-    return `<form class="zcard zform" id="pz"><h2>Where should the prize go?</h2><label for="pn">Your name</label><input id="pn" maxlength="60" autocomplete="name" value="${esc(S.pname || "")}"><label for="pp">Mobile number (optional)</label><input id="pp" type="tel" inputmode="tel" maxlength="20" autocomplete="tel">${S.perr ? `<div class="zbanner bad" role="alert">${esc(S.perr)}</div>` : ""}<button class="zbtn" type="submit">Save details</button><p class="zsmall">Winners' details are kept for 365 days so the prize can be handed over. Everyone else's are deleted within 24 hours.</p></form>`;
+    return `<form class="zcard zform" id="pz"><h2>Where should the prize go?</h2><label for="pn">Your name</label><input id="pn" name="name" maxlength="60" autocomplete="name" value="${esc(S.pname || "")}"><label for="pp">Mobile number (optional)</label><input id="pp" type="tel" inputmode="tel" maxlength="20" autocomplete="tel">${S.perr ? `<div class="zbanner bad" role="alert">${esc(S.perr)}</div>` : ""}<button class="zbtn" type="submit">Save details</button><p class="zsmall">Winners' details are kept for 365 days so the prize can be handed over. Everyone else's are deleted within 24 hours.</p></form>`;
   }
 
   function paint() {

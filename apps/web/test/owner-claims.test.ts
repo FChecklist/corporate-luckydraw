@@ -54,8 +54,7 @@ describe("1: no 'most secure' or 'played by major companies' boasts", () => {
 // ---- 2 ----------------------------------------------------------------------------------------------------------------------------------
 const BILLING_LINE = "We keep billing data for audit and tax reasons.";
 // The consent wording is approved word for word by the owner (consent-text.json, its copy in consent.js and the table on the Terms page): it keeps its own sentence.
-// lifecycle.ts holds the report e-mail text and is edited by another engineer: its sentence is still the old one. Remove it from this list when that file is changed.
-const BILLING_OLD_ALLOWED = /^(apps\/edge\/src\/consent-text\.json|apps\/web\/public\/consent\.js|apps\/web\/public\/terms\.html|apps\/edge\/src\/lifecycle\.ts)$/;
+const BILLING_OLD_ALLOWED = /^(apps\/edge\/src\/consent-text\.json|apps\/web\/public\/consent\.js|apps\/web\/public\/terms\.html)$/;
 
 describe("2: billing data has one sentence", () => {
   test("the old 'is kept' form is gone everywhere except the owner-approved consent wording", () => {
@@ -94,8 +93,7 @@ describe("3: one privacy-law line", () => {
     for (const f of ["ai-facts.ts", "trust-page.ts", "report-layout.ts"]) expect([f, plain(read(join(EDGE, f))).replace(/"/g, "").includes(PRIVACY_LINE)]).toEqual([f, true]);
   });
   test("the older, longer wording is gone", () => {
-    // lifecycle.ts holds the report e-mail text and is edited by another engineer: its privacy sentence is still the old one. Remove it from this list when that file is changed.
-    expect(hits(everything(), /designed to follow (?:India's|DPDP|the EU GDPR, US)|built to follow|state privacy laws such as|India(?:'|&rsquo;|\u2019)s DPDP Act 2023, the EU GDPR/i, /^apps\/edge\/src\/lifecycle\.ts$/)).toEqual([]);
+    expect(hits(everything(), /designed to follow (?:India's|DPDP|the EU GDPR, US)|built to follow|state privacy laws such as|India(?:'|&rsquo;|\u2019)s DPDP Act 2023, the EU GDPR/i)).toEqual([]);
   });
 });
 

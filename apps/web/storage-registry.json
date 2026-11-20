@@ -20,6 +20,14 @@
       ]
     },
     {
+      "id": "player-wait",
+      "store": "localStorage",
+      "say": "On a player's phone, while a request to join waits for a yes: the ID that was typed, so the page can ask again by itself. It is removed when the answer comes.",
+      "keys": [
+        "ld-wait-*"
+      ]
+    },
+    {
       "id": "organizer-tab",
       "store": "sessionStorage",
       "say": "In an organizer's browser tab, until the tab is closed: the sign-in, the e-mail and mobile number typed, the page to open next, and a note that the page already updated itself to the newest version.",

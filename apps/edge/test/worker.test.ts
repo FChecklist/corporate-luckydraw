@@ -380,7 +380,7 @@ describe("organizers, their AI assistant, and what the AI may not do", () => {
     const r = await (await call("POST", "/api/z/MINE1/erase", {}, asA())).json() as any;
     expect(r.error).toMatch(/AI assistant may not/);
     const mf = await (await call("GET", "/api/z/ai-manifest")).json() as any;
-    expect(JSON.stringify(mf.you_cannot)).toMatch(/Choose, change or remove winners, or press Draw now/);
+    expect(JSON.stringify(mf.you_cannot)).toMatch(/Choose, change or remove winners, or press Start/);
     expect(JSON.stringify(mf)).not.toMatch(/lottery|bogey|player\b|prize\b|admin/i);
   });
   test("a new AI key replaces the old one; revoking stops it at once; the master key is unaffected", async () => {

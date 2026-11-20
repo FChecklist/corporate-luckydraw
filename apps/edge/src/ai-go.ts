@@ -77,7 +77,7 @@ const summaryLines = (q: URLSearchParams): string[] => {
   const pk = packFor(c);
   return [`Game: ${o!.label}`, `Draw day and time: ${dayLabel(d)}, ${timeLabel(t)} ${zoneLabel(q)} (registration closes then)`, `People: up to ${c}${pk ? ` (${money(pk)})` : ""}`,
     "Each person registers once, with an ID", j ? "Invite-only: only people on your list can register" : "Anyone with the link can register",
-    v ? `Each participant may invite up to ${v} more people` : "Participants may not invite others", `Winners: ${w} (you name the prizes next)`, manual ? "The draw starts when you or a Host press Draw now" : "The draw runs by itself at the draw time", "Nothing is charged until you pay, before the start time."];
+    v ? `Each participant may invite up to ${v} more people` : "Participants may not invite others", `Winners: ${w} (you name the prizes next)`, manual ? "The draw starts when you or a Host press Start" : "The game starts by itself at the time you set", "Nothing is charged until you pay, before the start time."];
 };
 const consoleOf = (ctx: GoCtx, id: string, act = "") => `${ctx.origin}/zc.html?e=${encodeURIComponent(id)}${act ? "&do=" + act : ""}`;
 
@@ -99,7 +99,7 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
       return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [j ? "Open to anyone with the link" : "Invite-only (only people on my list)", L("play", { j: j ? "o" : "c" })], [v ? "Participants may not invite others" : "Let each participant invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
     }
     case "prizes": return { say: "How many winners? (You give the prizes; only the software is provided. You name each prize afterwards. The software picks the winners at draw time.)", choices: choices(WINNER_CHOICES.map((n) => [`${n} winner${n === 1 ? "" : "s"}`, L("extras", { w: String(n) }), n === 3] as [string, string, boolean?])), ifWrong: WRONG };
-    case "extras": return { say: "How should the draw start?", choices: choices([["Automatic: it runs by itself at the draw time", L("review", { h: "a" }), true], ["Manual: the organizer or a Host presses Draw now", L("review", { h: "m" })]]), ifWrong: WRONG };
+    case "extras": return { say: "How should the game start?", choices: choices([["The game starts by itself: it begins at the time you set", L("review", { h: "a" }), true], ["You start the game: it waits until you or a Host press Start", L("review", { h: "m" })]]), ifWrong: WRONG };
     case "review": {
       if (!validDay(q.get("d")) || !validTime(q.get("t")) || !q.get("c")) return goScreen(ctx, "new", q);
       return { say: ["Please read this back to the organizer and ask for a clear yes:", ...summaryLines(q).map((l) => "- " + l), "", "Nothing has been saved yet."].join("\n"), choices: choices([["Yes, save my draft", L("save"), true], ["Change the day or time", L("new", { d: "", t: "" })], ["Change the size", L("size")], ["Change who can join", L("play")], ["Change the winners", L("prizes")], ["Change how the draw starts", L("extras")]]), ifWrong: WRONG };

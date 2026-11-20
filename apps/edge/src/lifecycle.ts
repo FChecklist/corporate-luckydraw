@@ -1,5 +1,5 @@
 // The life of an engagement's personal data. When a game ends (as seen from the public schedule, or sooner when enough phones say so):
-//   1. the organizer's report is built from the sealed records and e-mailed as PDF(s), in small steps because a free Worker has ~10 ms of CPU per call;
+//   1. the organizer's report is built from the sealed records and laid out as a PDF on the organizer's own device from a link that is e-mailed, in small steps because a free Worker has ~10 ms of CPU per call;
 //   2. the report link stops working REPORT_LINK_MS (19 hours) after the end; PURGE_AFTER_MS (20 hours) after the end (we promise 24) every participant's name, number, seat, invite record and card link is deleted, the report's working copies too,
 //      and the participants' personal part of the audit log is crypto-shredded (audit.ts `shredParticipantAudit`: its per-engagement key is destroyed, the hash chain still verifies);
 //   3. only the organizer / host / co-host details and the winners record (seat, prize, round, time) remain, until 00:00 IST at the end of the 365th day, then everything goes.
@@ -251,11 +251,11 @@ const bodyFor = (eid: string, d: ReportData, link: string) => [
   `What happens to the data:`,
   `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) every participant's name, mobile number, seat, join record and invite record is permanently auto-deleted from the system.`,
   `- For 365 days only this is kept: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (which prize, which round, what time, which seat, and the name and mobile number each winner confirmed so the prize can be handed over, with whether it was given).`,
-  `- Everything about this engagement is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). Billing data is kept for audit and tax reasons.`,
+  `- Everything about this engagement is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,
   `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can the seller.`, ``,
   `Everything can be deleted sooner on request: press Delete in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
-  `Corporate Lucky Draw is built to follow India's DPDP Act, the EU and UK GDPR and US privacy laws (including CCPA / CPRA): only what is needed to run your game is collected, it is protected with encryption, kept for the shortest time possible and never sold, and every request to see, correct or delete data is honoured.`, ``,
+  `Corporate Lucky Draw is designed to follow US privacy laws, the EU GDPR and India's DPDP: only what is needed to run your game is collected, it is protected with encryption, kept for the shortest time possible and never sold, and every request to see, correct or delete data is honoured.`, ``,
   `Sent on ${istFull(d.sentAtMs)} to ${d.organizerEmail}.`,
 ].join("\n");
 
