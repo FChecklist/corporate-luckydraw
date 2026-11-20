@@ -205,14 +205,14 @@ describe("the report and the deletion", () => {
     expect(m.to).toBe("boss@acme.com"); expect(m.subject).toMatch(/PRV-1/); expect(m.attachments.length).toBe(0);
     expect(m.text).toMatch(/built on your own/); expect(m.text).toMatch(/within 24 hours/); expect(m.text).toMatch(/365 days/); expect(m.text).not.toMatch(/backup/i); expect(m.text).toMatch(/winners record/);
     expect(m.text).toContain("designed to follow US privacy laws, the EU GDPR and India's DPDP"); /* the owner's one privacy line, 20 Nov 2026 */ expect(m.text).toContain("We keep billing data for audit and tax reasons."); expect(m.text).not.toMatch(/personal data(?! protection)/i);
-    expect(m.text + "").not.toMatch(/the law requires|required by law/i);
+    expect(m.text + "").toMatch(/invoices as the law requires|invoices are kept/i); /* owner wording 20 Nov 2026 (audit H3): invoices as the law requires (it was "not at all" before) */
     const link = linkOf(m); expect(link).toMatch(/report\.html\?e=PRV-1&k=/);
     const r = await buildReport(link); const pdf = r.text;
     expect(pdf.startsWith("%PDF-1.4")).toBe(true); expect(pdf).toMatch(/%%EOF\s*$/);
     for (const needle of ["Organizer Olga", "Guest 3", "98765 00001", "98765 00002", "Zed ??", "organizer", "Blackout", "Line", "boss@acme.com", "Link e-mailed on:", "deleted", "365th day"]) expect(pdf.toLowerCase()).toContain(needle.toLowerCase());
     for (const needle of ["How your data is handled", "Player details", "within 24 hours of the draw", "DPDP", "GDPR", "US privacy laws", "advertising", "encryption", "winners record", "Agreed by", "Prize given"]) expect(pdf).toContain(needle);
     expect(pdf).not.toMatch(/personal data(?! protection)/i);
-    expect(pdf).not.toMatch(/the law requires|required by law/i);
+    expect(pdf).toMatch(/Invoices are kept for as long as the law requires/);
     expect(pdf).not.toMatch(/(rs|inr|usd|price)[^\n(]{0,12}per (person|participant|head|user)/i);
     expect(pdf).toMatch(/Who invited whom/); expect(pdf).toMatch(/\+- Guest 3/);
     expect(raw.query("SELECT report_ms FROM life").get()).not.toEqual({ report_ms: null });
