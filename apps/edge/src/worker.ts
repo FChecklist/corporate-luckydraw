@@ -1666,7 +1666,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const vf = verifyOf(e), empNorm = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
     if (empNorm === null) return json({ error: badIdMessage(b?.empId, vf.idKind, (e as any)?.created_ms), code: "bad-id" }, 400);
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
-    if (!testOpenJoin(env) && !empNorm && !tok) return json({ error: "Enter your ID.", code: "need-id" }, 400); // by invitation, with an ID only: a name or a mobile number is never a way in and is never kept
+    if (!testOpenJoin(env) && !empNorm && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400); // by invitation, with an ID only: a name or a mobile number is never a way in and is never kept
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !empNorm && !tok) return json({ error: vf.mode === "id" ? "Enter your employee ID." : "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
     if (vf.employeesOnly && vf.mode === "either" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your mobile number or your employee ID.", code: "need-id" }, 400);
     let extraDigits: string | null = null, idHit = false; // a mobile number given together with an employee ID that is on the list: kept as the person's contact, never a reason to refuse

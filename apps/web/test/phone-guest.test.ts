@@ -98,11 +98,11 @@ describe("the pay link page (no sign-in)", () => {
 
 describe("sign-in has one way: the e-mail (no Google button, even when the server has a Google client id)", () => {
   const GID = "test-id.apps.googleusercontent.com";
-  const signin = async (o: O) => openPage(o.world, { url: "http://localhost/signin.html?t=abc", html: "signin.html", scripts: ["google.js", "signin.js"] });
+  const signin = async (o: O) => openPage(o.world, { url: "http://localhost/signin.html?t=abc", html: "signin.html", scripts: ["signin.js"] });
   test("the one-tap page shows only its own button; no Google button, nothing is loaded from Google, with or without a client id", async () => {
     for (const env of [{}, { GOOGLE_CLIENT_ID: GID }]) {
       const o = await organizer(env); const p = await signin(o); await p.waitFor((x) => /Sign in\b/.test(x)); await new Promise((r) => setTimeout(r, 300));
-      expect(p.text()).not.toMatch(/Continue with Google/); expect((p.$("#gWrap") as any).hidden).toBe(true);
+      expect(p.text()).not.toMatch(/Continue with Google/); expect(p.$("#gWrap")).toBeNull(); /* audit M2: the sign-in landing has no Google at all */
       expect(Array.from(p.win.document.querySelectorAll("script")).some((s: any) => /google/.test(s.src || ""))).toBe(false);
     }
   });

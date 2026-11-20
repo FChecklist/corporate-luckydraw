@@ -12,7 +12,7 @@
     K2: { A: "I have read and agree to the Terms & Conditions and the Privacy Policy." },
     K3: { A: "I agree to the Terms and the Refund Policy. I understand there is no refund; my payment stays as credit." },
     K4: {
-      A: "I am happy for my ID to be used for this game alone, and I know it is deleted within 24 hours of the draw. I understand that the record of who invited me stays only until then. If I am lucky enough to win, I may share my name and mobile number so my prize can reach me: these and the prize record are kept for 365 days and are then deleted. Billing records are kept as the law requires for audit and tax. This notice is available in Hindi on request.",
+      A: "I am happy for my ID to be used for this game alone, and I know it is deleted within 24 hours of the draw. I understand that the record of who invited me stays only until then. If I am lucky enough to win, I may share my name and mobile number, only if I choose to, so my prize can reach me: these and the prize record are kept for 365 days and are then deleted. Billing records are kept as the law requires for audit and tax. This notice is available in Hindi on request.",
       B: "I am 18 or older.",
     },
     K5: { A: "I will not charge any player. I will hand over prizes as the organizer decides. I follow the Terms." },

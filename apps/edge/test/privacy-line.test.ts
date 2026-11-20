@@ -39,7 +39,7 @@ describe("one true privacy line", () => {
 describe("the consent boxes speak of IDs", () => {
   test("K4 names the ID, the 24 hours after the draw and the winner's 365 days; K6 names IDs, not names and numbers", () => {
     const k4 = CONSENT_TEXT.K4.A as string, k6 = CONSENT_TEXT.K6.A as string;
-    expect(k4).toMatch(/my ID/); expect(k4).toMatch(/deleted within 24 hours of the draw/); expect(k4).toMatch(/kept for 365 days/); expect(k4).toMatch(/Billing records are kept as the law requires/);
+    expect(k4).toMatch(/my ID/); expect(k4).toMatch(/only if I choose to/); expect(k4).toMatch(/deleted within 24 hours of the draw/); expect(k4).toMatch(/kept for 365 days/); expect(k4).toMatch(/Billing records are kept as the law requires/);
     expect(k4).not.toMatch(/name \(and my mobile number, only if this game asks for it\)/);
     expect(k6).toMatch(/these IDs/); expect(k6).not.toMatch(/names|numbers/);
     expect(read("apps/web/public/consent.js")).toContain(JSON.stringify(k6)); // the page shows the very words the server records

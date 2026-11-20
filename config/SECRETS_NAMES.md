@@ -56,4 +56,5 @@ Where things are set:
 | `AI_LINK_MAIL_AT_SIGNUP` | Switch for the AI work-link welcome e-mail sent when an account is made; the live site turns it off because the AI link is hidden in the console | wrangler var | setting |
 | `FUNNEL` | "1" turns on funnel events: POST /stats/e logs fixed fields only; off when unset | Optional Pages variable | setting |
 | `CONSOLE_PUBKEYS` | The console's PUBLIC signing keys (`k1:<key>,k2:<key>`); not a secret. Empty or missing: every /api/console route answers the normal 404 (the bridge is dark). The owner sets it at go-live | Optional Pages variable | setting |
+| `TEST_OPEN_JOIN` | TEST ONLY: lets the older engine tests make open games. Never set in any deploy file or Pages setting; `apps/edge/test/invite-only.test.ts` proves the game is closed and ID only without it | Nowhere (the tests set it in code) | setting |
 | `PAY_VIA_CONSOLE` | "1" sends this game's old payment pages and routes (and the old sign-in page) to the console and home with a 302; nothing is deleted. Off by default; the owner sets it with the console go-live | Optional Pages variable | setting |

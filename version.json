@@ -1,0 +1,9 @@
+{
+  "name": "corporate-luckydraw",
+  "version": "1.5.0",
+  "date": "2026-11-20",
+  "title": "A fair draw you can check, by invitation only, one true privacy line, and a payment notice that can be repeated safely",
+  "changelog": "CHANGELOG.md",
+  "knowledge": "docs/KNOWLEDGE.md",
+  "releases": "apps/edge/src/releases.json"
+}
