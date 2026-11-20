@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
 import { makeD1 } from "./d1-sqlite";
+import { erasePersonal, lifecycleTick, PURGE_AFTER_MS } from "../src/lifecycle";
 import { EMP_LEGACY_BEFORE_MS, empClean, empHashOf, legacyEmpFor, normEmp, normId } from "../src/people";
 
 const NEW_T = Date.UTC(2026, 10, 20, 10, 0, 0);
@@ -149,5 +150,31 @@ describe("family invite: one listed person may invite 4 more", () => {
     // a family member opens the listed person's link: not listed, so the request goes to the person who invited them
     const fam = await join(NEW_T, "Z-77", 2, "IDI-1", { from: seat.seq }); expect(fam.status).toBe(403); expect((await j(fam)).code).toBe("waiting");
     const w = raw.query("SELECT inviter FROM waiting WHERE eid='IDI-1'").get() as any; expect(w.inviter).toBe("s:" + seat.seq);
+  });
+});
+
+describe("within 24 hours after the game ends, the list and every ID are deleted", () => {
+  test("the promise is kept by the numbers: the scheduled deletion comes at 20 hours, which is inside the 24 hours promised", () => {
+    expect(PURGE_AFTER_MS).toBeLessThanOrEqual(24 * 3_600_000); expect(PURGE_AFTER_MS).toBeGreaterThan(0);
+  });
+  test("the list, the waiting requests, the ID lookups, the guess counters and the log are empty after the erasure", async () => {
+    const m = await setup(NEW_T); await add(NEW_T, m, ["E1", "E2"]); await join(NEW_T, "E1", 1); await join(NEW_T, "X-9", 2);
+    await env.DB.prepare("INSERT INTO kv(k,v) VALUES('idmiss/IDI-1/2026-11-20T10:0/abc','3')").run();
+    await env.DB.prepare("INSERT INTO kv(k,v) VALUES('idx/IDI-1/zzz','p')").run();
+    expect(await count("SELECT COUNT(*) AS c FROM person WHERE eid='IDI-1'")).toBeGreaterThan(0); expect(await count("SELECT COUNT(*) AS c FROM waiting WHERE eid='IDI-1'")).toBe(1);
+    await erasePersonal(env as any, "IDI-1", NEW_T + 86_400_000, "test");
+    for (const t of ["person", "waiting", "seat", "participant"]) expect(await count(`SELECT COUNT(*) AS c FROM ${t} WHERE eid='IDI-1'`)).toBe(0);
+    expect(await count("SELECT COUNT(*) AS c FROM kv WHERE k LIKE 'idx/IDI-1/%' OR k LIKE 'idmiss/IDI-1/%'")).toBe(0);
+    const log = (await j(await call(NEW_T + 86_400_000, "GET", "/api/z/IDI-1/people/log", undefined, m))).log as any[];
+    expect(log.length).toBe(0);
+  });
+  test("the scheduled tick does it by itself: 22 hours after the draw no ID is left anywhere (sealed or not)", async () => {
+    const m = await setup(NEW_T); await add(NEW_T, m, ["T1"]); await join(NEW_T, "T-1", 1); await join(NEW_T, "T 2", 2);
+    raw.run("UPDATE engagement SET pack=100 WHERE id='IDI-1'");
+    const startMs = (GEN + (Number((raw.query("SELECT start_round FROM engagement WHERE id='IDI-1'").get() as any).start_round) - 1) * 3) * 1000;
+    raw.run("UPDATE draw SET drawn_ms=?, result='[]' WHERE eid='IDI-1'", [startMs]);
+    raw.run("INSERT OR REPLACE INTO life(eid,end_ms,end_src) VALUES('IDI-1',?, 'draw')", [startMs]);
+    await lifecycleTick(env as any, startMs + 22 * 3_600_000);
+    for (const t of ["person", "waiting", "seat", "participant"]) expect([t, await count(`SELECT COUNT(*) AS c FROM ${t} WHERE eid='IDI-1'`)]).toEqual([t, 0]);
   });
 });
