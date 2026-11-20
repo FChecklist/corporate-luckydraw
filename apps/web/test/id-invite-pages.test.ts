@@ -150,7 +150,7 @@ describe("no page of this game has a login, a payment or a chat of its own (owne
   test("only the three old pay pages load the payment provider, and no page has a password box or a chat widget", () => {
     const withProvider = files.filter((f) => /\.(html|js)$/.test(f) && /checkout\.razorpay\.com/.test(pub(f))); // common.js holds the old payment loader: it runs only from the old pay pages (answered with a 302 to the console behind PAY_VIA_CONSOLE) and from the gated checkout
     expect(withProvider.sort()).toEqual([...withProvider].filter((f) => /^(pay|paylink|paytest)\.(html|js)$|^common\.js$/.test(f)).sort());
-    for (const f of files.filter((x) => /\.html$/.test(x))) { const h = pub(f); expect([f, /type="password"/.test(h)]).toEqual([f, false]); expect([f, /(intercom|crisp\.chat|tawk\.to|drift\.com|livechat|chatbot widget|moneypennychat)/i.test(h)]).toEqual([f, false]); }
+    for (const f of files.filter((x) => /\.html$/.test(x))) { const h = pub(f); expect([f, !/^owner-/.test(f) && /type="password"/.test(h)]).toEqual([f, false]); /* the owner-only desk pages (owner-*.html) ask for the platform key: they are for the owner, not a login for organizers or players */ expect([f, /(intercom|crisp\.chat|tawk\.to|drift\.com|livechat|chatbot widget|moneypennychat)/i.test(h)]).toEqual([f, false]); }
   });
   test("the console page is the only place that says where to sign in and where to pay", () => {
     const z = pub("zc.js"); expect(z).toContain('const HOME = "https://home.corporatetambola.com", CONSOLE = "https://console.corporatetambola.com", OWN_PAY = false;');
