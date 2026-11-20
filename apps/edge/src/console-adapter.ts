@@ -33,8 +33,50 @@ async function statusOf(env: Env, e: any, now: number): Promise<{ status: string
 }
 const nameOf = (e: any): string => { try { const j = e.config ? JSON.parse(e.config) : {}; return String(j.name || e.id).slice(0, 80); } catch { return String(e.id).slice(0, 80); } };
 
+
+/** Who owns the game and what size it is, read only. `owner` is true only when the game exists and belongs to the account `sub` names; to anybody else the answer is the same as for a game that does not exist. */
+export async function payInfo(env: Env, o: { eid: string; sub: string }): Promise<{ owner: boolean; item: string | null; paid: boolean }> {
+  const e = await env.DB.prepare("SELECT id, org, cap, pack FROM engagement WHERE id=?").bind(o.eid).first<any>();
+  const who = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(o.sub).first<{ org: string }>();
+  if (!e || !who || who.org !== e.org) return { owner: false, item: null, paid: false };
+  const size = sizeOf(e.cap);
+  return { owner: true, item: size === null ? null : String(size), paid: (e.pack ?? 0) > 0 };
+}
+
+/** The paid notice (see the adapter). Exported so the tests can call it with a database that fails on purpose. */
+export async function markPaid(env: Env, o: { eid: string; sub: string; item: string; orderRef: string; nowMs: number }): Promise<void> {
+  const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(o.eid).first<any>();
+  const who = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(o.sub).first<{ org: string }>();
+  if (!e || !who || who.org !== e.org) throw refuse("This game does not belong to the person who paid.");
+  const size = sizeOf(e.cap);
+  if (size === null) throw refuse("This game is free: nothing needs to be paid.");
+  if (String(size) !== o.item) throw refuse("The size paid for is not the size of this game.");
+  const note = async () => { // the two notes; each is written only if it is not there yet, so repeating changes nothing
+    await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`pub/${e.id}`, String(o.nowMs)).run(); // paying also publishes, as with every other way of paying
+    await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`paidby/${e.id}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console", order: o.orderRef })).run();
+  };
+  const already = async () => { // paid already: the same order finishes what a stopped call left; another order is a second payment and is refused (nothing changed, so the credits go back)
+    const rec = (await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`paidby/${e.id}`).first<{ v: string }>())?.v;
+    let order: string | null = null; try { order = rec ? (JSON.parse(rec).order ?? null) : null; } catch { order = null; }
+    if (rec && order !== o.orderRef) throw refuse("This game is already paid.");
+    await note();
+  };
+  if ((e.pack ?? 0) > 0) return already();
+  if (e.cancelled_ms || e.unplayed_ms) throw refuse("This game was cancelled or did not start, so it cannot be paid.");
+  if ((await drawRow(env.DB, e.id))?.drawn_ms) throw refuse("The draw is already done.");
+  const late = roundMs(e.start_round) <= o.nowMs; // it was held because it was not paid at its start time: the draw now comes 2 minutes after the payment
+  const restart = late ? Math.floor((o.nowMs / 1000 - GEN) / 3) + 2 + LATE_PAY_LEAD_ROUNDS - GRACE_ROUNDS : null;
+  const up = await env.DB.prepare("UPDATE engagement SET pack=?, cap=MIN(cap, ?), start_round=COALESCE(?, start_round) WHERE id=? AND org=? AND pack=0 AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(size, size, restart, e.id, e.org).run();
+  if ((up.meta?.changes ?? 0) < 1) { // somebody else (the same order, called twice at once) got there first: it is paid now, or it was cancelled meanwhile
+    const now = await env.DB.prepare("SELECT pack FROM engagement WHERE id=?").bind(e.id).first<{ pack: number }>();
+    if ((now?.pack ?? 0) > 0) return already();
+    throw refuse("This game could not be marked paid. Nothing was changed.");
+  }
+  await note();
+}
+
 /** The adapter for one request (`now` is the request's own clock, so tests can set the time). */
-export function consoleAdapter(now: number): Adapter<Env> {
+export function consoleAdapter(now: number): Adapter<Env> & { payInfo: typeof payInfo } {
   const ad: Adapter<Env> = {
     game: "luckydraw", gameName: "Corporate Lucky Draw", gameVersion: String((releases as any[])[0]?.version ?? "1.0.0"),
     nowMs: () => now,
@@ -87,28 +129,12 @@ export function consoleAdapter(now: number): Adapter<Env> {
     sendRoleInvite: async () => { /* roles through the console are not wired in this game yet */ },
     seal: async (env, text) => sealText(env as any, text),
     unseal: async (env, sealed) => (await openText(env as any, sealed)) ?? "",
-    /** THE PAID NOTICE. The bridge has already checked the signature, the audience, the purpose, the 60-second life and the one-time id, and that this order id is new for this game.
-     *  Here the game decides from its own tables: it exists, it belongs to the person who paid, the size paid is its own size, and it is not yet paid. Only then it is marked PAID, and the draw may start (runDraw refuses an unpaid game).
-     *  A refusal is `definite` (nothing was changed), so the console can return the credits. */
-    markPaid: async (env, o) => {
-      const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(o.eid).first<any>();
-      const who = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(o.sub).first<{ org: string }>();
-      if (!e || !who || who.org !== e.org) throw refuse("This game does not belong to the person who paid.");
-      if (e.cancelled_ms || e.unplayed_ms) throw refuse("This game was cancelled or did not start, so it cannot be paid.");
-      const size = sizeOf(e.cap);
-      if (size === null) throw refuse("This game is free: nothing needs to be paid.");
-      if (String(size) !== o.item) throw refuse("The size paid for is not the size of this game.");
-      if ((e.pack ?? 0) > 0) throw refuse("This game is already paid.");
-      if ((await drawRow(env.DB, e.id))?.drawn_ms) throw refuse("The draw is already done.");
-      const up = await env.DB.prepare("UPDATE engagement SET pack=?, cap=MIN(cap, ?) WHERE id=? AND org=? AND pack=0 AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(size, size, e.id, e.org).run();
-      if ((up.meta?.changes ?? 0) < 1) throw refuse("This game could not be marked paid. Nothing was changed.");
-      await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`pub/${e.id}`, String(o.nowMs)).run(); // paying also publishes, as with every other way of paying
-      await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`paidby/${e.id}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console" })).run();
-      if (roundMs(e.start_round) <= o.nowMs) { // it was held because it was not paid at its start time: the draw now comes 2 minutes after the payment
-        const restart = Math.floor((o.nowMs / 1000 - GEN) / 3) + 2 + LATE_PAY_LEAD_ROUNDS - GRACE_ROUNDS;
-        await env.DB.prepare("UPDATE engagement SET start_round=? WHERE id=?").bind(restart, e.id).run();
-      }
-    },
+    /** THE PAID NOTICE, safe to repeat. The bridge has already checked the signature, the audience, the purpose, the 60-second life and the one-time id.
+     *  Here the game decides from its own tables, EVERY time it is called (a repeat too): the game exists, it belongs to the person who paid, the size paid is its own size.
+     *  Wrong owner or wrong size is a `definite` refusal (nothing was changed), so the console can return the credits.
+     *  The work is ONE statement that sets the size, the people limit and (for a late payment) the new time together, and then two notes written with INSERT OR IGNORE. So a call that stopped half way is
+     *  finished by the next call with the same order: nothing is done twice, and an already paid game is never touched again (its time is never moved on a repeat). */
+    markPaid: async (env, o) => markPaid(env, o),
   };
-  return ad;
+  return Object.assign(ad, { payInfo }); // payInfo(env,{eid,sub}): read only, {owner,item,paid}
 }

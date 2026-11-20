@@ -8,6 +8,8 @@ import type { PayEnv } from "../src/pay";
 import { makeD1 } from "./d1-sqlite";
 import { makeKeyPair, signAssertion, b64uEncode, type Payload } from "../src/console-bridge/assertion";
 import { drawTick } from "../src/draw";
+import { consoleAdapter, payInfo } from "../src/console-adapter";
+import { roundMs } from "../src/lifecycle";
 import { drawTiming } from "../src/lifecycle";
 import { legacyPayRedirect } from "../src/console-bridge/bridge";
 import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA, HOME_ORIGIN, signinRedirect } from "../src/console-origin";
@@ -160,3 +162,70 @@ describe("the console's hand-off: the organizer arrives from the console, not fr
     void g;
   });
 });
+
+// AUDIT M1: a paid notice that stopped half way must be finishable by repeating it. The console repo is fixing the bridge so that it repeats a stuck order; this game's own side is made safe for that.
+// FALSIFIED BY: (1) the game saves the size and then the notes in the old order with a throw in between and a repeat that says "already paid" (the repeat then failed), (2) a repeat that moves the draw time again, (3) a second order accepted on a paid game.
+describe("markPaid: repeatable, recoverable, never resets", () => {
+  /** A database that makes one write fail on purpose: the first write whose first bound value starts with `startsWith`. */
+  const flaky = (startsWith: string) => { let armed = true; const db = env.DB; return { prepare: (sql: string) => { const st = db.prepare(sql); return { ...st, bind: (...v: unknown[]) => { const b = st.bind(...v); return { ...b, run: async () => { if (armed && typeof v[0] === "string" && v[0].startsWith(startsWith) && /INTO kv/.test(sql)) { armed = false; throw new Error("disk full"); } return b.run(); } }; } }; }, batch: db.batch } as any; };
+  const args = (g: { sub: string }, eid: string, orderRef: string, nowMs: number, item = "100") => ({ eid, sub: g.sub, item, orderRef, nowMs });
+  const snap = (eid: string) => JSON.stringify([raw.prepare("SELECT * FROM engagement WHERE id=?").get(eid), raw.prepare("SELECT k, v FROM kv WHERE k IN (?,?) ORDER BY k").all(`pub/${eid}`, `paidby/${eid}`)]);
+  test("the size is saved, the note write fails (not a refusal); the SAME call repeated an hour later finishes it, and a third repeat changes nothing", async () => {
+    const g = await game("rec1@acme.com", { id: "REC-1" });
+    raw.run("UPDATE engagement SET start_round=? WHERE id='REC-1'", [roundAt(T) - 100]); // already past its start: a late payment moves the draw to 2 minutes after the payment
+    await expect(consoleAdapter(T).markPaid!({ ...env, DB: flaky("paidby/") } as any, args(g, "REC-1", "ord-r001", T))).rejects.toThrow("disk full");
+    expect(packOf("REC-1")).toBe(100); // the half-done state the audit found: paid, but the notes are missing
+    expect(raw.prepare("SELECT COUNT(*) AS c FROM kv WHERE k='paidby/REC-1'").get()).toEqual({ c: 0 });
+    const restart = (raw.prepare("SELECT start_round FROM engagement WHERE id='REC-1'").get() as any).start_round;
+    expect(restart).toBeGreaterThan(roundAt(T)); // the new draw time was set in the SAME statement as the size
+    await consoleAdapter(T + 3_600_000).markPaid!(env as any, args(g, "REC-1", "ord-r001", T + 3_600_000)); // one hour later, the console repeats the order
+    expect(JSON.parse((raw.prepare("SELECT v FROM kv WHERE k='paidby/REC-1'").get() as any).v)).toMatchObject({ via: "console", order: "ord-r001" });
+    expect(raw.prepare("SELECT COUNT(*) AS c FROM kv WHERE k='pub/REC-1'").get()).toEqual({ c: 1 });
+    expect((raw.prepare("SELECT start_round FROM engagement WHERE id='REC-1'").get() as any).start_round).toBe(restart); // a repeat NEVER moves the draw time again
+    const done = snap("REC-1");
+    await consoleAdapter(T + 9_000_000).markPaid!(env as any, args(g, "REC-1", "ord-r001", T + 9_000_000)); expect(snap("REC-1")).toBe(done); // a completed order repeated: nothing changes
+  });
+  test("a failure before the size is saved leaves the game unpaid and the repeat does the whole job once", async () => {
+    const g = await game("rec2@acme.com", { id: "REC-2" });
+    const real = env.DB; let n = 0;
+    const dying = { prepare: (sql: string) => { const st = real.prepare(sql); return { ...st, bind: (...v: unknown[]) => { const b = st.bind(...v); return { ...b, run: async () => { if (/^UPDATE engagement SET pack=/.test(sql) && n++ === 0) throw new Error("network"); return b.run(); } }; } }; }, batch: real.batch } as any;
+    await expect(consoleAdapter(T).markPaid!({ ...env, DB: dying } as any, args(g, "REC-2", "ord-r002", T))).rejects.toThrow("network");
+    expect(packOf("REC-2")).toBe(0);
+    await consoleAdapter(T).markPaid!(env as any, args(g, "REC-2", "ord-r002", T)); expect(packOf("REC-2")).toBe(100);
+    expect(raw.prepare("SELECT COUNT(*) AS c FROM kv WHERE k IN ('pub/REC-2','paidby/REC-2')").get()).toEqual({ c: 2 });
+  });
+  test("on a repeat the owner and the size are still checked (definite refusal), and a DIFFERENT order on a paid game is refused (nothing changes, the credits can go back)", async () => {
+    const g = await game("rec3@acme.com", { id: "REC-3" }), other = await game("rec4@acme.com", { id: "REC-4" });
+    await consoleAdapter(T).markPaid!(env as any, args(g, "REC-3", "ord-r003", T)); const done = snap("REC-3");
+    const def = async (p: Promise<unknown>) => { try { await p; return "no refusal"; } catch (e: any) { return e?.definite === true ? "definite" : "other"; } };
+    expect(await def(consoleAdapter(T).markPaid!(env as any, args(other, "REC-3", "ord-r003", T)))).toBe("definite"); // another person's account
+    expect(await def(consoleAdapter(T).markPaid!(env as any, args(g, "REC-3", "ord-r003", T, "250")))).toBe("definite"); // a wrong size
+    expect(await def(consoleAdapter(T).markPaid!(env as any, args(g, "REC-3", "ord-r999", T)))).toBe("definite"); // a second order
+    expect(snap("REC-3")).toBe(done);
+  });
+  test("two calls of the same order at the same moment: the game is paid once and both answer", async () => {
+    const g = await game("rec5@acme.com", { id: "REC-5" });
+    raw.run("UPDATE engagement SET start_round=? WHERE id='REC-5'", [roundAt(T) - 100]);
+    await Promise.all([consoleAdapter(T).markPaid!(env as any, args(g, "REC-5", "ord-r005", T)), consoleAdapter(T).markPaid!(env as any, args(g, "REC-5", "ord-r005", T))]);
+    expect(packOf("REC-5")).toBe(100); expect(raw.prepare("SELECT COUNT(*) AS c FROM kv WHERE k='paidby/REC-5'").get()).toEqual({ c: 1 });
+  });
+});
+
+describe("payInfo: read only, owner, item (the size), paid", () => {
+  test("the owner sees {owner:true, item, paid}; a stranger and a missing game both see the same nothing; nothing is written", async () => {
+    const g = await game("pi1@acme.com", { id: "PI-1" }), s = await game("pi2@acme.com", { id: "PI-2" });
+    const before = JSON.stringify(raw.prepare("SELECT * FROM engagement ORDER BY id").all()) + JSON.stringify(raw.prepare("SELECT k,v FROM kv ORDER BY k").all());
+    expect(await payInfo(env as any, { eid: "PI-1", sub: g.sub })).toEqual({ owner: true, item: "100", paid: false });
+    expect(await payInfo(env as any, { eid: "PI-1", sub: s.sub })).toEqual({ owner: false, item: null, paid: false });
+    expect(await payInfo(env as any, { eid: "NO-SUCH", sub: g.sub })).toEqual({ owner: false, item: null, paid: false });
+    expect(await consoleAdapter(T).payInfo(env as any, { eid: "PI-1", sub: g.sub })).toEqual({ owner: true, item: "100", paid: false }); // it is on the adapter the bridge is given
+    expect(JSON.stringify(raw.prepare("SELECT * FROM engagement ORDER BY id").all()) + JSON.stringify(raw.prepare("SELECT k,v FROM kv ORDER BY k").all())).toBe(before);
+    await consoleAdapter(T).markPaid!(env as any, { eid: "PI-1", sub: g.sub, item: "100", orderRef: "ord-p001", nowMs: T });
+    expect(await payInfo(env as any, { eid: "PI-1", sub: g.sub })).toEqual({ owner: true, item: "100", paid: true });
+  });
+  test("a free game (up to the free size) has no item", async () => {
+    const g = await game("pi3@acme.com", { id: "PI-3", cap: 10 });
+    expect(await payInfo(env as any, { eid: "PI-3", sub: g.sub })).toEqual({ owner: true, item: null, paid: false });
+  });
+});
+void roundMs;
