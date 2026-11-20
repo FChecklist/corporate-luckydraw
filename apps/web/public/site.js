@@ -1,5 +1,7 @@
 /* Corporate Lucky Draw public website: pricing, checkout, organizer login. Vanilla JS; needs common.js (window.TB). */
 (function () {
+  /* OWNER RULES v1.1 (20 Nov 2026): login is only at home.corporatetambola.com and payment only in console.corporatetambola.com. The old sign-in sheet and the old checkout stay in this file behind CONSOLE_ONLY (nothing is deleted). */
+  const CONSOLE_ONLY = true, HOME = "https://home.corporatetambola.com/", CONSOLE = "https://console.corporatetambola.com/";
   const $ = TB.$, esc = TB.esc, ic = TB.ic;
   const nf = (n) => Number(n).toLocaleString("en-IN");
   const S = { cur: TB.guessCurrency(), pack: 1000 };
@@ -83,6 +85,7 @@
     S.cur = india ? "INR" : "USD"; renderPrices(); sumRefresh();
   }
   function openCheckout(pack) {
+    if (CONSOLE_ONLY) { location.href = CONSOLE; return; }
     if (FREE.on) return openFree();
     ORDER = { pack };
     const def = TB.guessCountry();
@@ -168,7 +171,7 @@
       ${o.organizerKey ? `<div class="note info" role="note"><b>Your organizer key</b> (shown only once, and it has been emailed to you):<div class="mono" id="orgKey" style="word-break:break-all;margin:6px 0">${esc(o.organizerKey)}</div><button class="btn sm" type="button" id="cpKey">Copy key</button></div>` : `<p class="small muted center">You already have an organizer key. Sign in with your e-mail to continue.</p>`}
       <p class="small muted center">Next step: open your console to set the date, pick your prizes and share the link. The details and your invoice were sent to <b>${esc(o.email)}</b>.</p>
       <div id="fErr"></div>
-      <button class="btn block" id="toLogin" type="button">Open my console ${ic("arrow")}</button>`);
+      <button class="btn block" id="toLogin" type="button">Open your console ${ic("arrow")}</button>`);
     const cp = $("cpKey"); if (cp) cp.addEventListener("click", () => { try { navigator.clipboard.writeText(o.organizerKey); TB.toast("Key copied"); } catch {} });
     $("toLogin").addEventListener("click", () => { if (o.organizerKey) { try { CTK.set("cbz-org", o.organizerKey); } catch {} location.href = "/zc.html"; } else askCode(o.email, $("toLogin")); });
   }
@@ -177,6 +180,7 @@
   /** Where a signed-in organizer goes next: the page the visit began on (the console, a pay page, or the free demo link) or the console. */
   function nextAfterSignIn() { let nx = "/zc.html"; try { const n = sessionStorage.getItem("cbz-next"); if (n && /^\/(zc|pay)(\.html)?(\?(e=[A-Za-z0-9_-]{4,40}|demo=1|quick=1(&cap=\d{1,5})?))?$/.test(n)) nx = n; sessionStorage.removeItem("cbz-next"); } catch {} return nx; }
   function openLogin(email) {
+    if (CONSOLE_ONLY) { location.href = HOME; return; }
     TB.sheet(`${xbtn}<div class="eyebrow">Organizer sign-in</div><h2>Sign in or create your account</h2><p class="muted small">Type your e-mail and press Continue. That is all: there is no password. New here? Your account is made at once. Coming back? Two ways to get in are e-mailed to you; use <b>one</b> of them. Participants never sign in here: they join with your game link.</p>
       ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Your e-mail</label><input class="inp big" id="lMail" data-need="1" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" value="${esc(email || "")}"><div id="k2slot"></div><div id="fErr" role="alert"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="lgGo">Continue ${ic("arrow")}</button></form>
@@ -269,7 +273,7 @@
       const k = (await r.json()).kind, who = k === "host" ? "Host" : k === "master" ? "Organizer" : "";
       if (!who) return;
       let both = false; try { both = !!CTK.get("cbz-alt"); } catch {}
-      a.textContent = `Signed in as ${who}${both ? " (also " + (who === "Host" ? "Organizer" : "Host") + ")" : ""} · Open my console`;
+      a.textContent = `Signed in as ${who}${both ? " (also " + (who === "Host" ? "Organizer" : "Host") + ")" : ""} · Open your console`;
       a.href = "/zc.html"; a.classList.add("signedin");
       a.addEventListener("click", (e) => e.stopImmediatePropagation(), true);
     } catch { /* offline: the normal link stays */ }

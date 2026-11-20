@@ -6,7 +6,7 @@ import { newWorld, openPage, roundAt, T, type Page } from "./harness";
 import { makeKeyPair } from "../../edge/src/console-bridge/assertion";
 import { createHash } from "node:crypto";
 import { consentFor } from "../../edge/test/with-terms";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 setDefaultTimeout(60_000);
@@ -138,3 +138,22 @@ describe("the console hand-off page: one press opens the game, with no sign-in f
     expect(String(p.win.sessionStorage.getItem("cbz-org"))).toMatch(/^cbk_[0-9a-f]{48}$/);
   });
 });
+
+describe("no page of this game has a login, a payment or a chat of its own (owner rule 4)", () => {
+  const files = readdirSync(join(import.meta.dir, "../public"));
+  test("the website's Log in and its checkout go to home and to the console", () => {
+    const site = pub("site.js");
+    expect(site).toMatch(/const CONSOLE_ONLY = true, HOME = "https:\/\/home\.corporatetambola\.com\/", CONSOLE = "https:\/\/console\.corporatetambola\.com\/"/);
+    expect(site).toMatch(/function openLogin\(email\) \{\n\s+if \(CONSOLE_ONLY\) \{ location\.href = HOME; return; \}/);
+    expect(site).toMatch(/function openCheckout\(pack\) \{\n\s+if \(CONSOLE_ONLY\) \{ location\.href = CONSOLE; return; \}/);
+  });
+  test("only the three old pay pages load the payment provider, and no page has a password box or a chat widget", () => {
+    const withProvider = files.filter((f) => /\.(html|js)$/.test(f) && /checkout\.razorpay\.com/.test(pub(f))); // common.js holds the old payment loader: it runs only from the old pay pages (answered with a 302 to the console behind PAY_VIA_CONSOLE) and from the gated checkout
+    expect(withProvider.sort()).toEqual([...withProvider].filter((f) => /^(pay|paylink|paytest)\.(html|js)$|^common\.js$/.test(f)).sort());
+    for (const f of files.filter((x) => /\.html$/.test(x))) { const h = pub(f); expect([f, /type="password"/.test(h)]).toEqual([f, false]); expect([f, /(intercom|crisp\.chat|tawk\.to|drift\.com|livechat|chatbot widget|moneypennychat)/i.test(h)]).toEqual([f, false]); }
+  });
+  test("the console page is the only place that says where to sign in and where to pay", () => {
+    const z = pub("zc.js"); expect(z).toContain('const HOME = "https://home.corporatetambola.com", CONSOLE = "https://console.corporatetambola.com", OWN_PAY = false;');
+  });
+});
+

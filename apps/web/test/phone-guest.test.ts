@@ -106,11 +106,11 @@ describe("sign-in has one way: the e-mail (no Google button, even when the serve
       expect(Array.from(p.win.document.querySelectorAll("script")).some((s: any) => /google/.test(s.src || ""))).toBe(false);
     }
   });
-  test("the home page Log in sheet has the e-mail box and no Google button, with a client id", async () => {
+  test("the home page has no Log in sheet of its own any more (OWNER RULE 20 Nov 2026: login is only at home.corporatetambola.com); with a client id there is still no Google button", async () => {
     const o = await organizer({ GOOGLE_CLIENT_ID: GID });
     const home = await openPage(o.world, { url: "http://localhost/#login", html: "index.html", scripts: ["keep.js", "common.js", "google.js", "site.js"] }); open.push(home);
     await new Promise((r) => setTimeout(r, 600));
     const t = home.win.document.body.textContent || "";
-    expect(t).not.toMatch(/Continue with Google/); expect(t).toMatch(/Type your e-mail and press Continue/); expect(home.errors).toEqual([]);
+    expect(t).not.toMatch(/Continue with Google/); expect(t).not.toMatch(/Type your e-mail and press Continue/); expect(home.$("#lMail")).toBeNull(); expect(home.errors).toEqual([]);
   });
 });
