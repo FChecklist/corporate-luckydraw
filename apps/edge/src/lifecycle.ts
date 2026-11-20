@@ -244,12 +244,12 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
 
 const bodyFor = (eid: string, d: ReportData, link: string) => [
   `Hello,`, ``,
-  `Your engagement ${eid} has ended. Your complete report is ready: when the game started, how many people took part at each stage, every prize and who won it, the invite tree, all statistics, and the name and mobile number of every participant.`, ``,
+  `Your engagement ${eid} has ended. Your complete report is ready: when the game started, how many people took part at each stage, every prize and who won it, the invite tree, all statistics, and the ID of every participant.`, ``,
   `Open it here (the PDF is built on your own computer or phone, so this link is all that is sent):`,
   link, ``,
   `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once the stored copy is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully. Winners confirm the name and mobile number their prize goes to on their own phone; the report shows what they confirmed, whether they changed anything, and whether you have handed the prize over, so open it again after you have ticked "Prize given" in your console.`, ``,
   `What happens to the data:`,
-  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) every participant's name, mobile number, seat, join record and invite record is permanently auto-deleted from the system.`,
+  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the draw) every player's ID, seat, join record and invite record is permanently auto-deleted from the system.`,
   `- For 365 days only this is kept: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (which prize, which round, what time, which seat, and the name and mobile number each winner confirmed so the prize can be handed over, with whether it was given).`,
   `- Everything about this engagement is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,

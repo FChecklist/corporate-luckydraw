@@ -7,7 +7,7 @@
   const BASE = (q.get("api") || "").replace(/\/$/, "");
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const ss = { get: (k) => (window.CTK ? window.CTK.get(k) : (() => { try { return sessionStorage.getItem(k); } catch (e) { return null; } })()), set: (k, v) => { if (window.CTK) window.CTK.set(k, v); else try { sessionStorage.setItem(k, v); } catch (e) { /* kept for this page only */ } } };
-  const PRIVACY = "No personal details needed. All participant information is deleted within 24 hours of the game.";
+  const PRIVACY = "Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires.";
   /* OWNER RULES v1.1 (20 Nov 2026): login is only at home, payment is only in the console. The old own-payment block stays in the file behind this flag (nothing is deleted). */
   const HOME = "https://home.corporatetambola.com", CONSOLE = "https://console.corporatetambola.com", OWN_PAY = false;
   /* The owner's invite text, word for word. */

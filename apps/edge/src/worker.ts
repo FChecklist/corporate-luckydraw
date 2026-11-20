@@ -2095,7 +2095,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (a.kind === "ai") return CONSOLE_ONLY();
     const b = await body(req, 32_768);
     if (!b || !Array.isArray(b.people) || b.people.length < 1 || b.people.length > 100) return json({ error: "Send between 1 and 100 people at a time." }, 400);
-    { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these names and numbers"
+    { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these IDs for this game"
     await recordConsent(env.DB, { subject: e.org ?? "platform", kind: "K6", ref: eid!, now });
     const have = await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>();
     let room = e.cap - (have?.c ?? 0);

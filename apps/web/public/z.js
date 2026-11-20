@@ -11,7 +11,7 @@
   const FROM = Number.isInteger(Number(q.get("from"))) && Number(q.get("from")) > 0 ? Number(q.get("from")) : 0; // a family link: the person who invited this guest
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* kept for this visit only */ } } };
-  const PRIVACY = "No personal details needed. All participant information is deleted within 24 hours of the game.";
+  const PRIVACY = "Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires.";
   const api = async (method, path, body) => {
     let r;
     try { r = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }); }

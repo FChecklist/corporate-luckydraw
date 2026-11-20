@@ -58,11 +58,11 @@ export function layoutReport(d: ReportData): Uint8Array {
   pdf.box("Made for you", [
     `Link e-mailed to: ${d.organizerEmail}`,
     `Link e-mailed on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`,
-    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once the copy held by Corporate Lucky Draw is deleted.",
+    "This PDF is the complete record of your game, including the IDs of everyone who took part (and the name and mobile number a winner chose to give for the prize). Please keep it safe: it is the only copy of the player data once the copy held by Corporate Lucky Draw is deleted.",
   ], [0.93, 0.96, 1], NAVY);
 
   pdf.box("What is kept, and what is deleted", [
-    `You have been given ALL the data held about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, every participant's name, mobile number, join record, card assignment and invite link record is permanently auto-deleted from the Corporate Lucky Draw systems. After that nobody at Corporate Lucky Draw, and nothing in the software or database, holds them.`,
+    `You have been given ALL the player data held about this game. Within 24 hours of the draw, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, every player's ID, join record, seat and invite record is permanently auto-deleted from the Corporate Lucky Draw systems. After that nobody at Corporate Lucky Draw, and nothing in the software or database, holds them. The details of the organizer, the hosts and the winners are kept for 365 days, as listed below.`,
     "Kept for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); (2) the winners record: which prize, which round, at what time, and the card seat number; and (3) the name (and mobile number, if given) each winner confirmed for the prize hand-over, with the date it was given. The winners record itself holds no names or numbers.",
     `Everything about this game, including those two records, is permanently deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. We keep billing data for audit and tax reasons.`,
     "For your next game you can reuse the people list until it is deleted (the reuse button in your console), or upload your own list again afterwards from this report.",
@@ -141,16 +141,16 @@ export function layoutReport(d: ReportData): Uint8Array {
 
   pdf.h1("7. When your data is deleted");
   pdf.table([{ head: "Data", width: 62 }, { head: "Deleted by", width: 48 }], [
-    ["Participants' names and mobile numbers, seats, invite links", istFull(d.personalDeleteAtMs, d.tz)],
+    ["Players' IDs, seats, join and invite records", istFull(d.personalDeleteAtMs, d.tz)],
     ["Organizer / host / co-host details and the winners record", `00:00 hours IST, ${istDate(d.fullDeleteAtMs)}`],
   ]);
   pdf.para("Everything can be deleted sooner: press 'Delete' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail IT Services by Rajat Agarwal from your registered address.", { size: 9 });
 
   pdf.h1("8. How your data is handled");
-  pdf.box("All of it is deleted. Here is exactly what, and when.", [
-    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently auto-deleted from the Corporate Lucky Draw systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that none of it is held.`,
-    "2. Only these are kept, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), the winners record (which prize, which round, at what time, which seat number), and the name (and mobile number, if given) each winner confirmed for the prize hand-over. The winners record itself has no names and no mobile numbers.",
-    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is permanently deleted too. We keep billing data for audit and tax reasons.`,
+  pdf.box("Here is exactly what is deleted, what is kept, and when.", [
+    `1. Player details (every ID, seat, join record and invite record) are permanently auto-deleted from the Corporate Lucky Draw systems within 24 hours of the draw, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that none of the player details is held.`,
+    "2. Only these are kept, for 365 days: the details of the organizer, hosts and co-hosts (name, e-mail address and mobile number), the winners record (which prize, which round, at what time, which seat number), and the name (and mobile number, if given) each winner confirmed for the prize hand-over. The winners record itself has no names and no mobile numbers.",
+    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is permanently deleted too. Invoices are kept for as long as the law requires.`,
     "4. Names and mobile numbers are stored encrypted while they are held, and only your own game's report is ever built from them.",
   ]);
   pdf.box("The laws followed", [
@@ -200,7 +200,7 @@ function treeSection(pdf: PdfDoc, people: ReportPerson[]) {
   else { for (const l of lines) pdf.pre(l); if (lines.length >= 4000) pdf.para("(The list is cut at 4,000 lines.)", { size: 8.5 }); }
 }
 function listSection(pdf: PdfDoc, people: ReportPerson[], tz?: string) {
-  pdf.h1("6. Everyone, with name and mobile number");
+  pdf.h1("6. Everyone, by ID");
   pdf.para(`${people.length} people. 'Joined' is the time they opened the link (${zoneAbbr(people.find((x) => x.joinedMs)?.joinedMs ?? 0, tz)}). Names in scripts other than Latin letters print as ? in this PDF.`, { size: 9, gap: 4 });
   const cols: Column[] = [{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 20 }, { head: "Mobile", width: 16 }, { head: "Joined", width: 8 }, { head: "Late", width: 4 }, { head: "Role", width: 9 }, { head: "By", width: 5, align: "r" }, { head: "List", width: 4 }];
   pdf.table(cols, [...people].sort((a, b) => (a.seat ?? 1e9) - (b.seat ?? 1e9)).map((p) => [p.seat === null ? "-" : String(p.seat), p.name || "(no name)", mob(p.phone), p.joinedMs ? hm(p.joinedMs, tz) : "-", p.late ? "yes" : "", p.role || "", p.invitedBy ? String(p.invitedBy) : "", p.onRoster ? "yes" : ""]), { zebra: true });

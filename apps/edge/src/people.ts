@@ -311,7 +311,7 @@ const LIST_CLOSED_MSG = "The list of entries has closed, so nobody can be added 
 async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   if (c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (!b || !Array.isArray(b.people) || b.people.length < 1) return c.json({ error: "Send at least one person: {people:[{name, phone}]}." }, 400);
-  { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these names and numbers for this game. The people have been told."
+  { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these IDs for this game, and the people on my list have been told."
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string; name?: string; id?: string }[] = []; let duplicates = 0; const sameAfterCleaning: { raw: string; as: string }[] = []; const duplicateRows: { raw: string; name: string; why: string }[] = []; const DUP_WHY = "Already on the list."; const typedOf = (x: any): string => String(x?.empId ?? x?.employeeId ?? x?.phone ?? "").slice(0, 120); // the same employee ID typed two ways in one list: named, never dropped silently
