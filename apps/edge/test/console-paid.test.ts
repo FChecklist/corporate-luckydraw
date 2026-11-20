@@ -138,3 +138,25 @@ describe("old payment and login routes go to the console and to home, behind a f
     expect((await call(T, "GET", "/api/z/FL-1/summary", undefined, g.key, { PAY_VIA_CONSOLE: "1" })).status).toBe(200);
   });
 });
+
+describe("the console's hand-off: the organizer arrives from the console, not from a sign-in of this game", () => {
+  test("a signed session notice gives an organizer key; a hand-off address redeems once into a key that works; a second try is refused", async () => {
+    const g = await game("hand1@acme.com", { id: "HO-1" });
+    const ses = await call(T, "POST", "/api/console/session", { assertion: await note({ sub: g.sub, eid: "", act: "session" }) });
+    expect(ses.status).toBe(200); const sj = await j(ses); expect(sj.organizer.key).toMatch(/^cbk_[0-9a-f]{48}$/);
+    const ho = await call(T, "POST", "/api/console/handoff", { eid: "HO-1", target: "organizer" }, sj.organizer.key); expect(ho.status).toBe(200);
+    const url = new URL((await j(ho)).url); expect(url.pathname).toBe("/signin.html"); expect(url.searchParams.get("go")).toBe("console");
+    const tok = url.searchParams.get("t")!;
+    const red = await call(T, "POST", "/api/console/handoff/redeem", { t: tok }); expect(red.status).toBe(200); const rj = await j(red);
+    expect(rj.eid).toBe("HO-1");
+    expect((await call(T, "GET", "/api/whoami", undefined, rj.key)).status).toBe(200); // the key made by the hand-off is an ordinary organizer key of this game
+    expect((await call(T, "GET", "/api/z/HO-1/summary", undefined, rj.key)).status).toBe(200);
+    const again = await call(T, "POST", "/api/console/handoff/redeem", { t: tok }); expect(again.status).toBe(401);
+  });
+  test("the old platform key and a stranger's key never open a hand-off", async () => {
+    const g = await game("hand2@acme.com", { id: "HO-2" }); const other = await game("hand3@acme.com", { id: "HO-3" });
+    expect((await call(T, "POST", "/api/console/handoff", { eid: "HO-2", target: "organizer" }, "plat")).status).toBe(403);
+    expect((await call(T, "POST", "/api/console/handoff", { eid: "HO-2", target: "organizer" }, other.key)).status).toBe(403);
+    void g;
+  });
+});

@@ -151,6 +151,18 @@ describe("family invite: one listed person may invite 4 more", () => {
     const fam = await join(NEW_T, "Z-77", 2, "IDI-1", { from: seat.seq }); expect(fam.status).toBe(403); expect((await j(fam)).code).toBe("waiting");
     const w = raw.query("SELECT inviter FROM waiting WHERE eid='IDI-1'").get() as any; expect(w.inviter).toBe("s:" + seat.seq);
   });
+  test("a listed person can bring 4 more, not 5: the fifth request goes to the organizer, not to the family list", async () => {
+    const m = await setup(NEW_T, { invites: { on: true, per: 4, cats: ["family"] } });
+    await add(NEW_T, m, ["F1"]);
+    const me = await j(await join(NEW_T, "F1", 1)); const seat = (raw.query("SELECT seq FROM seat WHERE eid='IDI-1' AND pid=?").get(me.pid) as any).seq;
+    for (let i = 1; i <= 5; i++) { const r = await join(NEW_T, "FAM-" + i, 10 + i, "IDI-1", { from: seat }); expect(r.status).toBeGreaterThanOrEqual(403); }
+    const list = (await j(await call(NEW_T, "GET", "/api/z/IDI-1/waiting", undefined, m))).waiting as any[];
+    expect(list.length).toBe(5);
+    for (const w of list.filter((x) => !x.overLimit)) expect((await call(NEW_T, "POST", `/api/z/IDI-1/waiting/${w.id}`, { decision: "admit" }, m)).status).toBe(200);
+    const under = raw.query("SELECT COUNT(*) AS c FROM person WHERE eid='IDI-1' AND inviter=?").get("s:" + seat) as any;
+    expect(under.c).toBeLessThanOrEqual(4);
+    const info = await j(await call(NEW_T, "GET", `/api/z/IDI-1/invites?pid=${me.pid}`)); expect(info.per).toBe(4); expect(info.canInvite).toBe(true);
+  });
 });
 
 describe("within 24 hours after the game ends, the list and every ID are deleted", () => {

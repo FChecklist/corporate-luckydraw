@@ -3,6 +3,8 @@
 // FALSIFIED BY: the 3 planted breaks listed in docs/STATE.md
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { newWorld, openPage, roundAt, T, type Page } from "./harness";
+import { makeKeyPair } from "../../edge/src/console-bridge/assertion";
+import { createHash } from "node:crypto";
 import { consentFor } from "../../edge/test/with-terms";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -115,5 +117,24 @@ describe("this game's pages have no sign-in, payment or chat of their own", () =
   });
   test("the scripts of the console and the player page contain no own login form, card form or chat", () => {
     for (const f of ["zc.js", "z.js"]) { const s = pub(f); expect(s).not.toMatch(/razorpay|checkout\.razorpay|x-organizer.*password|<input[^>]*type="password"|chat/i); }
+  });
+});
+
+describe("the console hand-off page: one press opens the game, with no sign-in form of this game", () => {
+  test("a hand-off address opens the game after one press; the key is kept for the console page", async () => {
+    const kp = await makeKeyPair();
+    const w = newWorld({ CONSOLE_PUBKEYS: "k1:" + kp.publicB64u });
+    const st = await w.json(await w.api("POST", "/api/start", { email: "boss@acme.com" })); const token = st.token as string;
+    await w.api("POST", "/api/z", { id: "HAND-1", startRound: START, callSeconds: 12, cap: 100, verify: "id", idKind: "emp", whoCanJoin: "anyone" }, token);
+    await w.api("GET", "/api/console/capabilities"); // the bridge makes its tables on its first request
+    const org = (w.world.raw.prepare("SELECT org FROM engagement WHERE id='HAND-1'").get() as any).org as string;
+    const t = "ab".repeat(24);
+    w.world.raw.prepare("INSERT INTO console_handoff(token_hash,eid,kind,org,created_by,expires_ms) VALUES(?,?,?,?,?,?)").run(createHash("sha256").update("handoff|" + t).digest("hex"), "HAND-1", "master", org, "c:test", T + 60_000);
+    const p = await openPage(w.world, { url: `http://localhost/signin.html?t=${t}&go=console&e=HAND-1&to=organizer`, html: "signin.html", scripts: ["signin.js"], session: {} }); open.push(p);
+    await p.waitFor((x) => /Press the button to open your game/.test(x));
+    expect(p.text()).not.toMatch(/6-digit code|Sign me in|e-mail me/i);
+    expect(p.$("#go").textContent.trim()).toBe("Open your game");
+    p.click("#go"); await until(() => !!p.win.sessionStorage.getItem("cbz-org") || p.errors.length > 0, 8000);
+    expect(String(p.win.sessionStorage.getItem("cbz-org"))).toMatch(/^cbk_[0-9a-f]{48}$/);
   });
 });

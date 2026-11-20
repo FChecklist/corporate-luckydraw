@@ -78,7 +78,7 @@
     "changes": [
       "Lucky Draw on its own Cloudflare stack",
       "Cards for every guest, winners decided by the software from the public numbers",
-      "Payment through the central payment service, report by e-mail"
+      "Payment through the central payment service, an e-mail with a link to your report"
     ]
   }
 ]
