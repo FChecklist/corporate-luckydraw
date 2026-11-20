@@ -12,6 +12,7 @@ import { emailKey } from "./emailkey";
 import { consentMissing, recordConsent } from "./consent";
 import { deviceMatches } from "./checkin";
 import type { D1, Env } from "./worker";
+import { whoCanJoinOf } from "./invite-only";
 import { waitingLapsed, familyCutoffPassed, roundStartMs, approvalRulesOn, waitSince, LAPSED_MESSAGE, FAMILY_CLOSED_MESSAGE, DECLINED_MESSAGE, WAIT_LIMIT_MS } from "./approvals";
 
 /** 0016_people.sql: who invited whom, the personal links, the waiting room, and the flag that stops a removed person's phone without touching the public seat list. */
@@ -301,7 +302,7 @@ async function listPeople(c: Ctx, who: Caller): Promise<Response> {
   const code = fromCodeOf(who.id);
   return c.json({
     people, limit: who.limit ?? c.e.cap, used, total: who.all ? await totalCount(c.env.DB, c.eid) : used, cap: c.e.cap, offset, waiting: waitingCount,
-    whoCanJoin: c.e.closed ? "list" : "anyone", role: who.kind, canExport: who.all,
+    whoCanJoin: whoCanJoinOf(c.env, c.e), role: who.kind, canExport: who.all,
     commonLink: c.draft || c.cancelled || code === null ? null : `${c.origin}/z.html?e=${c.eid}&from=${code}`,
   });
 }
@@ -655,7 +656,7 @@ async function meRoute(c: Ctx): Promise<Response> {
     if (!s) return c.json({ error: "Not a participant of this game." }, 404);
     const p = await db.prepare("SELECT inviter, approved_by FROM person pe JOIN seat se ON se.eid=pe.eid AND se.ph=pe.ph WHERE se.eid=? AND se.pid=?").bind(c.eid, pid).first<{ inviter: string; approved_by: string | null }>().catch(() => null);
     const ownList = s.inv === null && !s.role;
-    return c.json({ state: s.blocked ? "removed" : "playing", removed: !!s.blocked, role: s.role ?? null, seat: s.seq, canInvite: !s.blocked && ownList && c.invites.on, per: c.invites.per, used: ownList ? await listCount(db, c.eid, "s:" + s.seq) : 0, whoCanJoin: c.e.closed ? "list" : "anyone", ...(p ? { listed: true } : {}) });
+    return c.json({ state: s.blocked ? "removed" : "playing", removed: !!s.blocked, role: s.role ?? null, seat: s.seq, canInvite: !s.blocked && ownList && c.invites.on, per: c.invites.per, used: ownList ? await listCount(db, c.eid, "s:" + s.seq) : 0, whoCanJoin: whoCanJoinOf(c.env, c.e), ...(p ? { listed: true } : {}) });
   }
   if (wid && /^[0-9a-f]{12}$/.test(wid)) {
     const w = await db.prepare("SELECT status, inviter, overlimit, at_ms FROM waiting WHERE eid=? AND id=?").bind(c.eid, wid).first<{ status: string; inviter: string; overlimit: number; at_ms: number }>();

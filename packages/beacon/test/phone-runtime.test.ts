@@ -54,7 +54,7 @@ const kvOf = (): KV => ({ get: async (k) => (await env.DB.prepare("SELECT v FROM
 
 beforeEach(async () => {
   const d = makeD1();
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
+  env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
   T0 = roundTimeMs(START - 3); t = 0;
   await D.headCall("POST", "/api/z", { id: EID, startRound: START - GRACE_ROUNDS, callSeconds: CALL_SECONDS, cap: 200 }, { "x-organizer": SECRET });
 });

@@ -30,7 +30,7 @@ const paid = (a: string, eid: string, orderRef: string, item = "100", now = T) =
 async function game(email: string, o: { id: string; cap?: number; mode?: "auto" | "manual" } ) {
   const st = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `8.8.8.${++ipN}` }, body: JSON.stringify({ email }) }), env as any, T));
   const key = st.token as string;
-  expect((await call(T, "POST", "/api/z", { id: o.id, startRound: roundAt(T) + 1200, callSeconds: 12, cap: o.cap ?? 100, whoCanJoin: "anyone", verify: "id", idKind: "emp" }, key)).status).toBe(200);
+  expect((await call(T, "POST", "/api/z", { id: o.id, startRound: roundAt(T) + 1200, callSeconds: 12, cap: o.cap ?? 100, whoCanJoin: "list", verify: "id", idKind: "emp" }, key)).status).toBe(200);
   expect((await call(T, "POST", `/api/z/${o.id}/drawset`, { winners: 1, prizes: [], mode: o.mode ?? "auto" }, key)).status).toBe(200);
   return { key, sub: await sha("email|" + email) };
 }

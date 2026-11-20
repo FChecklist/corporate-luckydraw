@@ -22,7 +22,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
 const j = async (r: Response) => (await r.json()) as any;
 const root = join(import.meta.dir, "..", "..", "..");
 
-beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" }; });
+beforeEach(() => { const d = makeD1(); env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" }; });
 async function organizer() {
   const x = await j(await call("POST", "/api/start", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.1" }));
   return { key: x.aiKey as string, token: x.token as string, base: `${ORIGIN}/ai/${x.aiKey}` };
@@ -69,7 +69,7 @@ describe("the guided path, followed like an outside AI", () => {
     t = await pick(t, /^4 pm/); expect(t).toMatch(/What is the occasion/);
     t = await pick(t, /Diwali party/); expect(t).toMatch(/How many people at most/); expect(t).toMatch(/₹2,399 \(about US\$/); // price from the software's own list
     t = await pick(t, /Up to 250/); expect(t).toMatch(/recommended choices/);
-    t = await pick(t, /Invite-only/); expect(t).toMatch(/Invite-only\./); // a toggle: same screen, changed
+    expect(t).toMatch(/By invitation only/); expect(t).not.toMatch(/anyone with the link/i); // audit H2: there is no open choice; the only toggle left is family invites
     t = await pick(t, /Looks good/); expect(t).toMatch(/How many winners/);
     t = await pick(t, /^5 winners/); expect(t).toMatch(/How should the game start/);
     t = await pick(t, /^You start the game/);

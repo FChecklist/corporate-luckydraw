@@ -60,7 +60,7 @@ const settle = (paymentId: string, orderId: string, payId: string, now = T, stat
 beforeEach(() => {
   const d = makeD1(); raw = d.raw; ipN = 0;
   rz = { orders: [], payments: {}, mail: [], mailDown: false };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" };
+  env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" };
   installGateway();
 });
 afterEach(() => { globalThis.fetch = realFetch; });

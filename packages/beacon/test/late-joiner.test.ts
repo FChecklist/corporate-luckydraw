@@ -36,7 +36,7 @@ const shape = (xs: { pattern: string; ordinal: number; idx: number; count: numbe
 
 beforeEach(async () => {
   const d = makeD1();
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
+  env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
   T0 = roundTimeMs(FIRST - 3); t = 0;
   await head("POST", "/api/z", { id: EID, startRound: FIRST - GRACE_ROUNDS, callSeconds: CALL_SECONDS, cap: 100 }, { "x-organizer": SECRET });
 });

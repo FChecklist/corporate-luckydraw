@@ -24,7 +24,7 @@ const START = roundAt(T) + 1200;
 const dev = (i: number) => (String(i).padStart(2, "0") + "d".repeat(32)).slice(0, 32);
 async function consolePage(o: O, url: string) { const p = await openPage(o.world, { url: "http://localhost" + url, html: "zc.html", scripts: ["control.js", "zc.js"], session: { "cbz-org": o.token } }); open.push(p); return p; }
 async function playerPage(o: O, url: string) { const p = await openPage(o.world, { url: "http://localhost" + url, html: "z.html", scripts: ["z.js"], session: {} }); open.push(p); return p; }
-const draft = (o: O, id: string, over: Record<string, unknown> = {}) => o.api("POST", "/api/z", { id, startRound: START, callSeconds: 12, cap: 100, verify: "id", idKind: "emp", whoCanJoin: "anyone", ...over }, o.token);
+const draft = (o: O, id: string, over: Record<string, unknown> = {}) => o.api("POST", "/api/z", { id, startRound: START, callSeconds: 12, cap: 100, verify: "id", idKind: "emp", whoCanJoin: "list", ...over }, o.token);
 const until = async (cond: () => boolean, ms = 8000) => { const t0 = Date.now(); while (!cond()) { if (Date.now() - t0 > ms) throw new Error("timed out"); await new Promise((r) => setTimeout(r, 40)); } };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -56,7 +56,8 @@ describe("Invite people with just an ID (the owner's text, word for word)", () =
     const p = await consolePage(o, "/zc.html?e=INV-1"); await p.waitFor((t) => /Name of the draw/.test(t));
     p.click('[data-step="2"]'); await p.waitFor((t) => /Who can register/.test(t));
     expect(p.text()).toContain("Your game link"); expect(p.text()).toContain("/z.html?e=INV-1");
-    p.click('[data-who="list"]'); await p.waitFor((t) => /Invite people with just an ID/.test(t));
+    expect(p.$('[data-who="anyone"]')).toBeNull(); // audit H2: there is no "Anyone with the link" choice; the list is the only way in
+    await p.waitFor((t) => /Invite people with just an ID/.test(t));
     for (const t of TEXT) expect([t, p.text().includes(t)]).toEqual([t, true]);
     expect(p.text()).not.toMatch(/mobile number|e-mail address of/i);
     p.$("#f-ids").value = "A-1101\nA 1102, B/2203\nA-1101"; p.click("#addids");
@@ -125,7 +126,7 @@ describe("the console hand-off page: one press opens the game, with no sign-in f
     const kp = await makeKeyPair();
     const w = newWorld({ CONSOLE_PUBKEYS: "k1:" + kp.publicB64u });
     const st = await w.json(await w.api("POST", "/api/start", { email: "boss@acme.com" })); const token = st.token as string;
-    await w.api("POST", "/api/z", { id: "HAND-1", startRound: START, callSeconds: 12, cap: 100, verify: "id", idKind: "emp", whoCanJoin: "anyone" }, token);
+    await w.api("POST", "/api/z", { id: "HAND-1", startRound: START, callSeconds: 12, cap: 100, verify: "id", idKind: "emp", whoCanJoin: "list" }, token);
     await w.api("GET", "/api/console/capabilities"); // the bridge makes its tables on its first request
     const org = (w.world.raw.prepare("SELECT org FROM engagement WHERE id='HAND-1'").get() as any).org as string;
     const t = "ab".repeat(24);
