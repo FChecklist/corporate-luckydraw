@@ -1,5 +1,14 @@
 # STATE: Corporate Lucky Draw, P1 owner rules v1.1 (20 Nov 2026)
 
+## AUDIT: FAIL on `302d251` - what was fixed (release 1.5.0, 20 Nov 2026)
+Every finding of the independent audit was worked on this branch. What changed and where is in `CHANGELOG.md`; how it works is in `docs/KNOWLEDGE.md`. In short:
+- **H1** the entry list is frozen at the draw time or the press of Start; a manual start uses a beacon round published after the press; the scheduled job makes the draw; rule simulation: 0 failures in 5,000 draws (`draw-rules-sim.test.ts`).
+- **H2** the server makes every game a closed, ID-only group (`invite-only.ts`, `invite-only.test.ts`).
+- **H3** one true privacy line on every screen, mail, the report and consent K4/K6 (`privacy-line.test.ts`).
+- **M1** `markPaid` repeatable and recoverable, `payInfo` added (`console-paid.test.ts`); the bridge's stuck row is the console repo's fix.
+- **M2/M3/M4/Low** go-live is one step with a health check (`go-live.test.ts`); console-page CSP; descriptor; 14 contract fixtures run (`console-contract.test.ts`); the 7 whole-suite failures fixed; CI with `typecheck` and `each-file`.
+The "Needs" list below was written before this work: items 2 (consent wording) and 3 (winners' 365 days) are now DONE as described above; the owner should still read the new K4/K6 wording because it is legal text. Item 5 is partly done (14 of 40 fixtures run). Items 1, 4, 6, 7 and 8 still stand. The test numbers in "Tests" below are from the first version of this PR; the current numbers are in the PR comment.
+
 Branch `p1/owner-rules-v1-1`. **Nothing is deployed.** No live service, DNS, payment or secret was touched. Not for merge or deploy until two independent audits say PASS and the owner says go.
 
 Commit: see "Exact commit" at the end of this file (filled in at the last commit).

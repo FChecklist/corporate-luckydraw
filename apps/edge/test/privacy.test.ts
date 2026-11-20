@@ -1,7 +1,9 @@
 // Privacy and lifecycle, end to end through the real Worker code and a real SQLite: names and numbers are sealed, invitations obey the organizer's rules,
 // the winners record outlives the personal data, the report is built and e-mailed, and everything is deleted on time.
 import { beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
-setDefaultTimeout(30_000); // six of these build a whole game, a report and a purge; they pass alone in under a second but pass the 5 s default when the whole suite runs in parallel (audit M4)
+setDefaultTimeout(30_000);
+// The shared list of device ids (device.ts) is one list for the whole process. In a whole-suite run other files have put thousands in it, and every vote here tries them one by one: that, not the work itself, was why these tests timed out (audit M4). This file starts with a short list.
+for (const d of [...SEEN_DEVICES]) if (d !== "a".repeat(32)) SEEN_DEVICES.delete(d);
 import { SEEN_DEVICES, withDevice } from "./device";
 import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
