@@ -1950,8 +1950,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const dr = await drawRow(env.DB, e.id);
     if (!dr) return json({ error: "This game is not a Lucky Draw." }, 404);
     let t = await drawTiming(env, e, now);
-    // lazy completion on a frozen list: an automatic draw whose time has come, or a manual one that was started and waits for its beacon round (the scheduled job does the same every minute)
-    if (dr.drawn_ms === null && ((dr.mode === "auto" && now >= roundMs(t.drawRound) + 3000) || (dr.mode === "manual" && dr.freeze_ms !== null && now >= roundMs(dr.target_round ?? 0))) && (await spend(env, now, 2))) await runDraw(env as any, e, now, t, "auto");
+    // lazy completion on a frozen list: an automatic draw whose time has come, or a manual one (also an automatic one that was stopped) that was started and waits for its beacon round (the scheduled job does the same every minute)
+    if (dr.drawn_ms === null && ((dr.mode === "auto" && now >= roundMs(t.drawRound) + 3000) || (dr.freeze_ms !== null && now >= roundMs(dr.target_round ?? 0))) && (await spend(env, now, 2))) await runDraw(env as any, e, now, t, "auto");
     return json(await drawFacts(env as any, e, now, await drawTiming(env, e, now), url.searchParams.get("pid")));
   }
   if (action === "drawset" && (req.method === "POST" || req.method === "PATCH")) { // the Organizer's draw settings (winners, prizes, automatic or manual), until the draw
