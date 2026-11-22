@@ -16,7 +16,7 @@ export function cleanPhone(raw: unknown): Cleaned {
   const indian = (ten: string): Cleaned => (/^[6-9]\d{9}$/.test(ten) ? { ok: true, digits: "91" + ten, last10: ten } : { ok: false, why: "An Indian mobile number starts with 6, 7, 8 or 9." });
   if (d.length === 10) return indian(d);
   if (d.length === 12 && d.startsWith("91")) return indian(d.slice(2));
-  if (d.startsWith("91")) return { ok: false, why: "After +91 there must be 10 digits." };
+  if (d.startsWith("91")) return { ok: false, why: "After +91, please enter 10 digits." };
   if (d.length >= 11 && d.length <= 15) return { ok: true, digits: d, last10: d.slice(-10) };
   return { ok: false, why: d.length < 10 ? "That is too short for a mobile number." : "That is too long for a mobile number." };
 }

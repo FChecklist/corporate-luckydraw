@@ -36,10 +36,12 @@ describe("one true privacy line", () => {
   });
 });
 
-describe("the public Legal page (audit M-2 of 9024db89)", () => {
-  test("it carries the one true privacy line (with the winners' 365 days), not the old 'All participant data is auto-deleted' claim", () => {
-    const html = read("apps/web/public/legal.html"), text = html.replace(/&rsquo;/g, "'").replace(/<[^>]+>/g, " ");
-    expect(text).toContain("Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires.");
+describe("the public Terms page (audit M-2 of 9024db89)", () => {
+  // legal.html now forwards to the one Terms document (live, 1 Nov 2026); the deletion statement is checked there
+  test("it says player details are deleted within 24 hours after the game, and the old 'All participant data is auto-deleted' claim is not there", () => {
+    const html = read("apps/web/public/terms.html"), text = html.replace(/&rsquo;/g, "'").replace(/<[^>]+>/g, " ");
+    expect(text).toContain("All information about participants is deleted within 24 hours after the game.");
+    expect(text).toContain("365 days");
     expect(html).not.toMatch(/All participant data is auto-deleted/);
   });
 });

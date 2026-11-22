@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.5.3",
+    "date": "2026-11-22",
+    "commit": "this release",
+    "title": "The live code of 5 Nov 2026 is merged into the owner-rules v1.1 branch, so deploying this branch no longer drops live fixes",
+    "changes": [
+      "Merged the live code of 5 Nov into the v1.1 branch: the join retry with a small random wait, the round-2 route classes, the resumable end of a draw, the owner's free test packs, the runner key, the owner's private price (migration 0032_price_adjust.sql) and the other live changes are all in this branch now, next to the owner rules v1.1 work",
+      "The new database change for the frozen draw list is now numbered 0033_draw_freeze.sql (it was 0032, the same number as the live price migration). It has not been run on production yet",
+      "Where both sides touched the same words, the owner rules v1.1 wording stands (ID only, ₹, polite voice, one privacy line, one billing sentence); where only the live side changed something, the live change stands",
+      "The free demo game is now by invitation only like every other game, and a Stop before the draw still lets the organizer press Start by hand"
+    ]
+  },
+  {
     "version": "1.5.2",
     "date": "2026-11-22",
     "commit": "this release",

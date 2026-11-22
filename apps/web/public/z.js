@@ -25,7 +25,7 @@
   const when = (ms) => { try { return new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch (e) { return new Date(ms).toISOString(); } };
   const left = (ms) => { let s = Math.max(0, Math.round(ms / 1000)); const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60; return (d ? d + "d " : "") + (d || h ? h + "h " : "") + m + "m " + s + "s"; };
   const brandHead = (I) => { const b = I.brand; if (!b || !b.name) return ""; const c = /^#[0-9a-fA-F]{6}$/.test(b.color || "") ? b.color : "#0B3D91"; return `<div class="zbanner" style="background:${c};color:#fff;display:flex;align-items:center;gap:10px">${b.logo && /^data:image\/(png|jpeg|webp);base64,/.test(b.logo) ? `<img src="${esc(b.logo)}" alt="" style="height:28px;max-width:96px;background:#fff;border-radius:6px;padding:2px">` : ""}<span>${esc(b.name)}</span></div>`; };
-  const head = (I) => `<div class="zhead"><b>Corporate Lucky Draw</b></div>${brandHead(I)}`;
+  const head = (I) => `<div class="zhead"><b>Corporate Lucky Draw</b>${I && (I.demo || /^Demo: /.test(I.name || "")) ? ` <span class="zdemotag">Demo</span>` : ""}</div>${brandHead(I)}`;
   let I = null, D = null, timer = null, S = { pid: store.get("ld-pid-" + EID) || "", err: "", busy: false, won: false, prize: null, prizeDone: false, tick: 0, wait: null, fam: null, famCopied: false };
   const WAITKEY = "ld-wait-" + EID;
   try { const w = store.get(WAITKEY); if (w && !S.pid) S.wait = { id: w, with: "" }; } catch (e) { /* the page still works */ }
@@ -43,7 +43,7 @@
     const title = esc((I.name || EID));
     let h = head(I) + `<div class="zcard"><h2>${title}</h2>`;
     if (d.rehearsal) h += `<p class="zsmall"><b>Rehearsal.</b> Up to 10 people. No prizes.</p>`;
-    h += `<p><b>${d.winners}</b> winner${d.winners === 1 ? "" : "s"}. ${d.mode === "auto" ? "The draw happens by itself on " + esc(when(d.drawMs)) + "." : "The organizer presses Start. The time is " + esc(when(d.drawMs)) + "."}</p>`;
+    h += `<p><b>${d.winners}</b> winner${d.winners === 1 ? "" : "s"}. ${d.drawMs == null ? "The game was stopped. The organizer presses Start." : d.mode === "auto" ? "The draw happens by itself on " + esc(when(d.drawMs)) + "." : "The organizer presses Start. The time is " + esc(when(d.drawMs)) + "."}</p>`;
     if (!d.rehearsal && d.prizes.some(Boolean)) h += prizeList(d);
     h += `</div>`;
     if (d.paused && !d.drawing) h += `<div class="zbanner warn">Paused. The draw waits until the organizer or host resumes it.</div>`;
@@ -52,7 +52,8 @@
     if (S.pid) {
       h += `<div class="zbanner ok">You are in the draw.</div>`;
       if (S.fam && S.fam.on && S.fam.canInvite && !d.drawn) h += `<div class="zcard"><h3>Invite your family</h3><p>You can invite up to ${esc(S.fam.per)} family members or friends. Share this link with them. They enter their own ID, and the organizer says yes.</p><p><code style="word-break:break-all">${esc(famLink())}</code></p><button class="zbtn" id="famcopy" type="button" style="min-height:44px">Copy link</button>${S.famCopied ? `<p class="zsmall">Link copied.</p>` : ""}<p class="zsmall">${esc(S.fam.used)} of ${esc(S.fam.per)} invited so far.</p></div>`;
-      h += `<div class="zcard zwait"><h3>${d.paused ? "Paused" : now < d.drawMs ? "Draw in" : "The draw is starting"}</h3><div class="zcount" id="cd">${d.paused ? "–" : now < d.drawMs ? left(d.drawMs - now) : "…"}</div><p class="zsmall">${!d.paused && now < d.drawMs && d.drawMs - now <= 120000 ? "<b>Waiting room: the draw starts in under 2 minutes.</b> " : ""}Keep this page open. The result appears here.${!d.paused && now >= d.drawMs ? " The draw can take a few minutes to start." : ""}</p></div>`;
+      if (d.drawMs == null) h += `<div class="zcard zwait"><h3>Waiting for the organizer</h3><div class="zcount" id="cd">–</div><p class="zsmall">The game was stopped. The organizer presses Start. Keep this page open. The result appears here.</p></div>`;
+      else h += `<div class="zcard zwait"><h3>${d.paused ? "Paused" : now < d.drawMs ? "Draw in" : "The draw is starting"}</h3><div class="zcount" id="cd">${d.paused ? "–" : now < d.drawMs ? left(d.drawMs - now) : "…"}</div><p class="zsmall">${!d.paused && now < d.drawMs && d.drawMs - now <= 120000 ? "<b>Waiting room: the draw starts in under 2 minutes.</b> " : ""}Keep this page open. The result appears here.${!d.paused && now >= d.drawMs ? " The draw can take a few minutes to start." : ""}</p></div>`;
     } else if (d.closed) {
       h += `<div class="zbanner bad">Registration is closed.</div>`;
     } else if (S.wait && S.wait.declined) {
@@ -152,10 +153,10 @@
     clearInterval(timer);
     timer = setInterval(() => {
       const cd = document.getElementById("cd");
-      if (cd && D && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("tick_tock"); if (window.CBFunnel) CBFunnel.report("game_started"); } }
+      if (cd && D && D.drawMs != null && !D.paused && !D.drawn) { const now = Date.now() + (S.skew || 0); cd.textContent = now < D.drawMs ? left(D.drawMs - now) : "…"; if (now < D.drawMs && D.drawMs - now <= 3000 && !S.cdShown) { S.cdShown = 1; rx("tick_tock"); if (window.CBFunnel) CBFunnel.report("game_started"); } }
       S.tick++;
       if (S.wait && !S.wait.declined && !S.pid && S.tick % 10 === 0) checkWait();
-      const near = D && !D.drawn && Date.now() + (S.skew || 0) >= D.drawMs - 120000;
+      const near = D && !D.drawn && D.drawMs != null && Date.now() + (S.skew || 0) >= D.drawMs - 120000;
       if (!document.hidden && !document.getElementById("reg") && (near ? S.tick % 3 === 0 : S.tick % 15 === 0)) refresh();
     }, 1000);
   }

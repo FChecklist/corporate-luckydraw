@@ -15,7 +15,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
 const j = async (r: Response) => (await r.json()) as any;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 const rd = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
 async function org(email = "boss@acme.com", ip = "1.1.1.1") {
   const x = await j(await call("POST", "/api/start", { email }, { "cf-connecting-ip": ip }));
   return { h: { "x-organizer": x.token as string }, token: x.token as string, ai: x.aiKey as string };
@@ -91,13 +91,13 @@ describe("the notification question", () => {
 });
 
 describe("wording: third parties, fairness, version", () => {
-  test("the privacy policy names drand and YouTube in one line, with a version date; the sub-processor page says the phone contacts them", () => {
-    const l = rd("legal.html"); expect(l).toContain("Your phone contacts drand for public random numbers, and YouTube (privacy mode) only if your organizer adds a video."); expect(l).toContain("Version 2026-10-05.");
-    const s = rd("subprocessors.html"); expect(s).toContain("drand: public random numbers. Your phone contacts it"); expect(s).toContain("YouTube (privacy mode)");
+  test("the one document names the public source of random values and YouTube in one line, with a version date; the sub-processor page points to it", () => {
+    const l = rd("terms.html"); expect(l).toContain("A public source of random values is used for draws, and YouTube in privacy mode only if an Organizer adds a video."); expect(l).toContain("Version 2026-11-01");
+    const s = rd("subprocessors.html"); expect(s).toContain('href="/terms#processors"');
   });
   test("fairness wording does not overclaim anywhere a customer reads it", () => {
     for (const f of ["index.html", "legal.html", "zc.js", "z.js", "terms.html"]) expect([f, (rd(f).match(/number, twice|every claim is checked|Nobody, including you|not even the organizer|cannot be changed|tamper-proof|unhackable/i) ?? [""])[0], /number, twice|every claim is checked|Nobody, including you|not even the organizer|cannot be changed|tamper-proof|unhackable/i.test(rd(f))]).toEqual([f, "", false]);
     const man = readFileSync(new URL("../src/ai-link.ts", import.meta.url), "utf8"); expect(man).not.toMatch(/not even the organizer/); expect(man).toContain("the same entries and the same public beacon give the same winners");
-    expect(rd("legal.html")).toContain("The same entries and the same public beacon give the same winners.");
+    expect(rd("terms.html")).toContain("so anyone with the entries and the value gets the same winners");
   });
 });

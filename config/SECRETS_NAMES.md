@@ -15,10 +15,12 @@ Where things are set:
 | `DATA_KEY` | Seals names and mobile numbers at rest (AES-256-GCM); never stored in the database | Pages secret | secret |
 | `PHONE_SALT` | Salt for the one-way hash of mobile numbers | Pages secret | secret |
 | `ORGANIZER_SECRET` | The platform (owner) key: opens every `/api/owner/*` address and the owner's tools | Pages secret | secret |
+| `RUNNER_KEY` | A long secret the owner's test programs send as the X-Runner-Key header: only with it are the test sign-in, the free owner-test packs and the SMK10M- join-guard bypass honoured | Pages secret | secret |
 | `CRON_KEY` | The scheduled job's own key: it can call only `/api/lifecycle/tick` | Pages secret and Cron secret (same value) | secret |
 | `INBOUND_SECRET` | Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion) | Pages secret | secret |
 | `VISIT_KEY` | Key that hashes network addresses for first-party public-page visit counts | Pages secret | secret |
 | `VISIT_DAILY_WRITES` | Most visit-count writes per day (a cap) | Optional Pages variable | setting |
+| `DEMO_GAME` | Set to 1 to switch on the free demo game (up to 10 people, no payment); off when empty | Optional Pages variable | setting |
 | `REPORT_KEY` | Key to read the first-party error and speed reports (`/api/telemetry`) | Pages secret | secret |
 | `RESEND_API_KEY` | Sends e-mail through the mail service (sign-in codes, invoices, reports, notes to the owner) | Pages secret | secret |
 | `RESEND_WEBHOOK_SECRET` | Checks the signature of the mail service's bounce / complaint / delivery webhook (`POST /api/mail/events`); with no value that address answers 404 | Pages secret | secret |
@@ -58,3 +60,6 @@ Where things are set:
 | `CONSOLE_PUBKEYS` | The console's PUBLIC signing keys (`k1:<key>,k2:<key>`); not a secret. Empty or missing: every /api/console route answers the normal 404 (the bridge is dark). The owner sets it at go-live | Optional Pages variable | setting |
 | `TEST_OPEN_JOIN` | TEST ONLY: lets the older engine tests make open games. Never set in any deploy file or Pages setting; `apps/edge/test/invite-only.test.ts` proves the game is closed and ID only without it | Nowhere (the tests set it in code) | setting |
 | `PAY_VIA_CONSOLE` | "1" sends this game's old payment pages and routes (and the old sign-in page) to the console and home with a 302; nothing is deleted. Off by default; the owner sets it with the console go-live | Optional Pages variable | setting |
+| `ANALYTICS` | The one central visitor database `site-analytics`: this game's own visit tracker also copies each visit into it (the copy does nothing without this binding and `ANALYTICS_KEY`) | Binding in `pages/wrangler.toml` | binding |
+| `ANALYTICS_KEY` | Key that hashes network addresses for the central visitor database; the same value on every site, so one visitor can be followed across sites | Pages secret | secret |
+| `ANALYTICS_DAILY_WRITES` | Most central visitor-database writes per day (a cap; the default in the code is 400,000) | Optional Pages variable | setting |

@@ -70,8 +70,7 @@ describe("2: billing data has one sentence", () => {
     expect(bad).toEqual([]);
   });
   test("the pages, the trust facts, the report and the invoice carry the sentence", () => {
-    for (const f of ["privacy.html", "dpa.html", "trust.html", "paytest.js"]) expect([f, plain(read(join(PUB, f))).includes(BILLING_LINE)]).toEqual([f, true]);
-    expect(plain(read(join(PUB, "terms.html")))).toContain("(a) " + BILLING_LINE);
+    for (const f of ["terms.html", "trust.html", "paytest.js"]) expect([f, plain(read(join(PUB, f))).includes(BILLING_LINE)]).toEqual([f, true]);
     expect(read(join(EDGE, "ai-facts.ts"))).toContain(BILLING_LINE);
     expect(read(join(EDGE, "report-layout.ts"))).toContain(BILLING_LINE);
     expect(read(join(ROOT, "packages/billing/src/index.ts"))).toContain(BILLING_LINE);
@@ -89,7 +88,7 @@ describe("3: one privacy-law line", () => {
   });
   test("no page, script or text source claims compliance", () => { expect(hits(everything(), STRONG, /(^|\/)(consent-text\.json|ai-facts\.ts)$/)).toEqual([]); });
   test("the home page, brochure, rules page, trust page, llms.txt, the payment-page note, the report and the facts use the one line", () => {
-    for (const f of ["index.html", "brochure.html", "legal.html", "trust.html", "llms.txt", "common.js", "site.js", "terms.html"]) expect([f, plain(read(join(PUB, f))).replace(/"/g, "").includes(PRIVACY_LINE)]).toEqual([f, true]);
+    for (const f of ["index.html", "brochure.html", "trust.html", "llms.txt", "common.js", "site.js", "terms.html"]) expect([f, plain(read(join(PUB, f))).replace(/"/g, "").includes(PRIVACY_LINE)]).toEqual([f, true]);
     for (const f of ["ai-facts.ts", "trust-page.ts", "report-layout.ts"]) expect([f, plain(read(join(EDGE, f))).replace(/"/g, "").includes(PRIVACY_LINE)]).toEqual([f, true]);
   });
   test("the older, longer wording is gone", () => {
@@ -132,7 +131,7 @@ describe("5: the report is a link in one e-mail, never a PDF in the mail", () =>
     const lay = read(join(EDGE, "report-layout.ts"));
     expect(lay).not.toMatch(/come in the following e-mails/); expect(lay).toContain("come in the following PDFs"); expect(lay).toContain("The link to this report was e-mailed to");
     expect(plain(read(join(PUB, "index.html")))).toContain("You get an e-mail with a link to your report.");
-    expect(plain(read(join(PUB, "dpa.html")))).toContain("e-mail you a link to your report");
+    expect(plain(read(join(PUB, "terms.html")))).toContain("a link to the game report"); // the one Terms document now holds the processing terms (dpa.html forwards to it)
   });
   test("the trust facts and the AI function list say how the report really arrives", () => {
     expect(read(join(EDGE, "ai-facts.ts"))).toContain("the organizer is e-mailed one link to it, and the PDF is made on the organizer's own device");

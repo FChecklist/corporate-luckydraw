@@ -3,6 +3,16 @@
 The newest release is first. The version is kept in four places that must agree (a test checks it): `version.json`, this file, `docs/KNOWLEDGE.md`, and the footer of every page (it is read from `apps/edge/src/releases.json`, which also feeds the owner's version page).
 Older releases (1.0.0 to 1.4.0) are listed in `apps/edge/src/releases.json`.
 
+## 1.5.3 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
+
+Plain words: **we merged the live code of 5 Nov into the v1.1 branch.** The live site runs commit `d040396f69f0` (5 Nov 2026). This branch had grown away from it: it was 32 changes ahead and 49 behind, so deploying it would have silently dropped live fixes. Now it holds both.
+
+- **Everything live is in this branch again.** The join retry with a small random wait, the second-round route classes, the end of a draw that can be finished again after a hiccup, the owner's free test packs, the runner key, the owner's private price for one game (database change `0032_price_adjust.sql`), the changes to the page shell and the wrangler settings, the shared payment page, the demo game and the single Terms document.
+- **Everything from owner rules v1.1 is still here.** ID-only invitations, the frozen list of entries (a Start press closes the list and waits for a beacon round that does not exist yet), the IPv6 guess limit, the true help text, the ₹ sign, the one privacy line and the one billing sentence.
+- **One database file was renumbered.** The frozen-list change was `0032_draw_freeze.sql`, the same number as the live price change. It is now `0033_draw_freeze.sql`. Production has run only up to `0032_price_adjust.sql`, so run `0033_draw_freeze.sql` before this branch is deployed.
+- **Where both sides changed the same words,** the v1.1 wording stands. Where only the live side changed, the live change stands (for example: no street address anywhere; a paid game can be cancelled until its start time; a wrong or double charge is refunded).
+- **Tests that checked the old behaviour were updated, not deleted:** the demo game is by invitation only; a Start press after a Stop waits for its beacon round; the old Legal, Privacy and Data pages now forward to the one Terms page, so their checks read that page; the old sign-in sheet stays closed because home is the one login.
+
 ## 1.5.2 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
 
 Fixes for both independent audits of commit `9024db8` (1 High, 3 Medium, several Low). In plain words:
@@ -38,7 +48,7 @@ Fixes for the second independent audit of commit `42ae412` (1 High, 2 Medium, 4 
 Fixes for every finding of the independent audit of commit `302d251` (3 High, 4 Medium, 2 Low).
 
 ### H1 - the draw is fair even though it runs a little after the draw time
-- **The list of entries is frozen** at the draw time (automatic) or at the press of Start (manual). A removal, a leave, a put-back or a late claim after that moment changes nothing. Where: `apps/edge/src/draw.ts` (`entryPids`, `freezeAt`, `registrationClosed`), `apps/edge/src/people.ts` and `rights.ts` (a block now records `seat.blk_ms`), `apps/edge/src/worker.ts` (`listClosedFor`; nobody can be added or put back after the list closes), new migration `apps/edge/migrations/0032_draw_freeze.sql` (`draw.freeze_ms`, `draw.target_round`, `seat.blk_ms`).
+- **The list of entries is frozen** at the draw time (automatic) or at the press of Start (manual). A removal, a leave, a put-back or a late claim after that moment changes nothing. Where: `apps/edge/src/draw.ts` (`entryPids`, `freezeAt`, `registrationClosed`), `apps/edge/src/people.ts` and `rights.ts` (a block now records `seat.blk_ms`), `apps/edge/src/worker.ts` (`listClosedFor`; nobody can be added or put back after the list closes), new migration `apps/edge/migrations/0033_draw_freeze.sql` (`draw.freeze_ms`, `draw.target_round`, `seat.blk_ms`).
 - **Manual start uses a beacon round that is published after the press** (`manualRound` = the round public at the press + 2). The press closes the list and stores that round; the winners appear when it is published. An older, already public round is never used. Where: `draw.ts` (`runDraw`).
 - **The draw is made without anybody opening a page**: the existing scheduled job (`apps/cron`, every minute, calls `/api/lifecycle/tick` which calls `drawTick`) makes automatic draws and finishes started manual draws. A page that asks does the same lazily, on the same frozen list. No new cron was needed.
 - **Fairness text** says only what the code does: "No one knows the result before the draw. The list of entries closes at the draw time and cannot change after that..." (`DRAW_FAIRNESS` in `draw.ts`).

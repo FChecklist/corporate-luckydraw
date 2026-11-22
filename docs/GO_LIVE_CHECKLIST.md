@@ -64,7 +64,7 @@ Order (owner): 1 all 5 games, 2 master console, 3 Lucky Draw.
 ## N. Lucky Draw (after games and console): own site, rules, lifecycle, payment, roles, claims, prizes, console row, all of A-K.
 - [ ] N1 Go-live is ONE step: set `CONSOLE_PUBKEYS` and `PAY_VIA_CONSOLE=1` together (Pages variables). Then open `/api/status/health`: `go_live.ready` must be true and `go_live.problems` empty; a half switch makes the health check fail on purpose. Then check by hand: `/pay.html`, `/signin.html` and `POST /api/start` answer 302 (console, home, home), `/api/console/capabilities` answers 200.
 - [ ] N2 `TEST_OPEN_JOIN` is NOT set anywhere (not in `pages/wrangler.toml`, not in the dashboard).
-- [ ] N3 The scheduled job (`apps/cron`, every minute) runs and holds `CRON_KEY`: it makes the draw at the draw time. Run migration `0032_draw_freeze.sql` before the deploy.
+- [ ] N3 The scheduled job (`apps/cron`, every minute) runs and holds `CRON_KEY`: it makes the draw at the draw time. Run migration `0033_draw_freeze.sql` before the deploy.
 - [ ] N4 The owner has read the new consent wording K4 and K6 (legal text) and the one privacy line.
 
 ## Status (boss updates)

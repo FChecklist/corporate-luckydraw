@@ -14,7 +14,7 @@ import type { D1, Env } from "./worker";
 export const DRAW_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS draw (eid TEXT PRIMARY KEY, winners INTEGER NOT NULL, prizes TEXT NOT NULL, mode TEXT NOT NULL, ref TEXT NOT NULL, set_ms INTEGER NOT NULL, closing_ms INTEGER, drawn_ms INTEGER, round INTEGER, beacon TEXT, result TEXT, by_role TEXT, entries INTEGER)`,
 ];
-/** 0032_draw_freeze.sql: the instant the entry list closed for a manual start (the press), the beacon round chosen at that press, and when a seat was blocked (a removal after the list closed is ignored). */
+/** 0033_draw_freeze.sql: the instant the entry list closed for a manual start (the press), the beacon round chosen at that press, and when a seat was blocked (a removal after the list closed is ignored). */
 export const DRAW_FREEZE_SCHEMA: string[] = [
   `ALTER TABLE draw ADD COLUMN freeze_ms INTEGER`,
   `ALTER TABLE draw ADD COLUMN target_round INTEGER`,
@@ -51,10 +51,12 @@ export async function saveDrawSettings(db: D1, eid: string, s: { winners: number
 /**
  * True when registering has closed: the draw time has come (automatic), Start was pressed (manual) or the draw is done. `drawMs` is the draw time on the game clock (pauses already added).
  * The draw time closes the list even if the game is paused afterwards: a pause that comes after the draw time must not open the list again.
+ * `stopped`: the Organizer stopped the game before the draw, so registering is closed and the draw is made by hand (Start).
  */
-export function registrationClosed(d: DrawRow | null, now: number, drawMs: number, _paused = false): boolean {
+export function registrationClosed(d: DrawRow | null, now: number, drawMs: number, _paused = false, stopped = false): boolean {
   if (!d) return false;
   if (d.drawn_ms !== null || d.closing_ms !== null || d.freeze_ms !== null) return true;
+  if (stopped) return true; // the Organizer stopped the game before the draw: registering is closed and the draw is made by hand
   return d.mode === "auto" && now >= drawMs;
 }
 /** The instant the entry list closed: the draw time (automatic) or the press of Start (manual). null while the list can still change. After this instant nothing changes who is in the draw. */
@@ -68,21 +70,22 @@ export const manualRound = (pressMs: number): number => roundAt(pressMs) + 2;
 
 const mask = (name: string | null | undefined, emp: string | null | undefined, n: number): string => {
   const nm = (name ?? "").trim(), id = (emp ?? "").trim();
-  if (nm) { const p = nm.split(" ").filter(Boolean); return (p.length > 1 ? `${p[0]} ${p[p.length - 1]![0]!.toUpperCase()}.` : p[0]!) + (id.length > 2 && !id.includes("@") ? ` (ID ends ${id.slice(-2)})` : ""); }
+  if (nm) { const p = nm.split(" ").filter(Boolean); return (p.length > 1 ? `${p[0]} ${p[p.length - 1]![0]!.toUpperCase()}.` : p[0]!) + (id.length > 2 && !id.includes("@") ? ` (Employee ID ends ${id.slice(-2)})` : ""); }
   if (id.length > 3 && !id.includes("@")) return `${id[0]}${"•".repeat(Math.min(4, id.length - 3))}${id.slice(-2)}`;
   if (id.includes("@")) { const [u, dom] = id.split("@"); return `${u![0]}•••@${dom}`; }
   return `Winner ${n}`;
 };
 
 /** What every screen shows: the settings, the state and (after the draw) the result. `pid` adds `mine` for that participant (the "You won" button). */
-export async function drawFacts(env: Env & PiiEnv, e: any, now: number, t: { drawRound: number; paused: boolean }, pid?: string | null) {
+export async function drawFacts(env: Env & PiiEnv, e: any, now: number, t: { drawRound: number; paused: boolean; stopped?: boolean }, pid?: string | null) {
   const d = await drawRow(env.DB, e.id);
   if (!d) return { draw: null };
-  const drawMs = roundMs(t.drawRound);
+  const stopped = !!t.stopped && d.drawn_ms === null;
+  const drawMs: number | null = stopped || !Number.isFinite(t.drawRound) ? null : roundMs(t.drawRound); // after a Stop there is no draw time: null (the pages say "the organizer presses Draw")
   const prizes: string[] = JSON.parse(d.prizes || "[]");
-  const closed = registrationClosed(d, now, drawMs);
-  const drawing = d.mode === "manual" && d.freeze_ms !== null && d.drawn_ms === null; // Start was pressed: the list is closed and the winners come when the chosen beacon round is published
-  const base = { winners: d.winners, mode: d.mode, prizes, drawMs, paused: t.paused, closed, drawn: d.drawn_ms !== null, drawnMs: d.drawn_ms, entries: d.entries, rehearsal: !!e.rehearsal_of, fairness: DRAW_FAIRNESS, privacy: NO_PERSONAL_LINE, ...(d.freeze_ms !== null ? { listClosedMs: d.freeze_ms } : {}), ...(drawing ? { drawing: true, drawAtMs: roundMs(d.target_round ?? 0) } : {}) };
+  const closed = registrationClosed(d, now, drawMs ?? Infinity, t.paused, stopped);
+  const mode: "auto" | "manual" = stopped ? "manual" : d.mode, drawing = mode === "manual" && d.freeze_ms !== null && d.drawn_ms === null; // Start was pressed: the list is closed and the winners come when the chosen beacon round is published
+  const base = { winners: d.winners, mode, prizes, drawMs, ...(stopped ? { stopped: true } : {}), paused: t.paused, closed, drawn: d.drawn_ms !== null, drawnMs: d.drawn_ms, entries: d.entries, rehearsal: !!e.rehearsal_of, fairness: DRAW_FAIRNESS, privacy: NO_PERSONAL_LINE, ...(d.freeze_ms !== null ? { listClosedMs: d.freeze_ms } : {}), ...(drawing ? { drawing: true, drawAtMs: roundMs(d.target_round ?? 0) } : {}) };
   if (d.drawn_ms === null) return { draw: base };
   const res: { pid: string; place: number }[] = JSON.parse(d.result || "[]");
   const places = prizePlaces(Math.max(d.winners, res.length));
@@ -121,16 +124,20 @@ export interface DrawDeps { /** test hook: the beacon fetch (production always u
  *  - "auto" as `by` is the system finishing a draw (automatic at its time, or a manual one that was pressed).
  * Only a signature-checked round counts. An older, already public round is never used.
  */
-export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t: { drawRound: number; paused: boolean }, by: Role | "auto", deps: DrawDeps = {}): Promise<DrawOutcome> {
+export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t: { drawRound: number; paused: boolean; stopped?: boolean }, by: Role | "auto", deps: DrawDeps = {}): Promise<DrawOutcome> {
   let d = await drawRow(env.DB, e.id);
   if (!d) return { ok: false, error: "This game is not a Lucky Draw.", status: 404 };
-  if (d.drawn_ms !== null) return { ok: true, already: true };
+  if (d.drawn_ms !== null) { // already drawn: if a passing database hiccup left the tail (life, winners, prizes, e-mails) open, this repeat finishes it; a plain repeat changes nothing
+    if (await pendingFinish(env.DB, e.id)) await finishDraw(env, e, d, JSON.parse(d.result || "[]"), true);
+    return { ok: true, already: true };
+  }
   if (e.pack === 0) return { ok: false, error: "The game starts only after it is paid for. Please pay in your console first.", status: 402 }; // OWNER RULE 20 Nov 2026: no payment, no game (a free game for up to 10 people and a paid game both have a pack above 0)
   const drawMs = roundMs(t.drawRound);
+  const mode: "auto" | "manual" = t.stopped ? "manual" : d.mode; // a Stop before the draw switches it to a manual draw (Start)
   if (by === "auto") {
-    if (d.mode === "auto") { if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 }; if (now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
+    if (mode === "auto") { if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 }; if (now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
     else if (d.freeze_ms === null) return { ok: false, error: "The game starts when you press Start.", status: 409 };
-  } else if (d.mode !== "manual") return { ok: false, error: "This game starts by itself at the time you set, so there is nothing to press.", status: 409 };
+  } else if (mode !== "manual") return { ok: false, error: "This game starts by itself at the time you set, so there is nothing to press.", status: 409 };
   else if (by !== "organizer" && by !== "host") return { ok: false, error: "Only you or your Host can start the game.", status: 403 };
   else if (d.freeze_ms === null) { // the press: the list closes now, and the beacon round is one that does not exist yet
     if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 };
@@ -139,7 +146,7 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
     if (d.drawn_ms !== null) return { ok: true, already: true };
     void up;
   }
-  const manual = d.mode === "manual";
+  const manual = mode === "manual";
   const freezeMs = manual ? d.freeze_ms! : drawMs;
   const target = manual ? d.target_round! : t.drawRound;
   if (now < roundMs(target)) return { ok: true, pending: { round: target, atMs: roundMs(target) } }; // the beacon value does not exist yet: nobody has it
@@ -153,30 +160,50 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
     const pids = await entryPids(env.DB, e.id, freezeMs);
     const clock = startClock(newClock());
     const role = (manual ? d.by_role : "auto") as Role | "auto";
-    let s: DrawState = luckyDrawRules.init({ eid: e.id, winners: d.winners, prizes: JSON.parse(d.prizes || "[]").join(","), draw: d.mode, closeAt: manual ? undefined : drawMs, idKind: "emp", ref: d.ref, cap: Math.min(e.cap, DRAW_CAP), rehearsal: !!e.rehearsal_of }, [], now);
+    let s: DrawState = luckyDrawRules.init({ eid: e.id, winners: d.winners, prizes: JSON.parse(d.prizes || "[]").join(","), draw: mode, closeAt: manual ? undefined : drawMs, idKind: "emp", ref: d.ref, cap: Math.min(e.cap, DRAW_CAP), rehearsal: !!e.rehearsal_of }, [], now);
     const regAt = manual ? now : drawMs - 1;
     for (let i = 0; i < pids.length; i += 5000) s = luckyDrawRules.step(s, { type: "registerMany", players: pids.slice(i, i + 5000) }, regAt, clock).state;
     const fin = manual ? luckyDrawRules.step(s, { type: "draw", by: (role === "auto" ? "organizer" : role) as Role, beacon: got.randomness }, now, clock) : luckyDrawRules.step(s, { type: "tick", beacon: got.randomness }, Math.max(now, drawMs), clock);
     if (!fin.state.drawn) { await release(); return { ok: false, error: "The draw could not be made. Nothing was changed.", status: 409 }; }
     const byLower = new Map(pids.map((p) => [p.toUpperCase().replace(/[^A-Z0-9]/g, ""), p])); // the engine cleans IDs the same way for everybody; map back to the seat
     const result = fin.state.drawn.map((w, place) => ({ pid: byLower.get(w) ?? w, place }));
-    const upd = await env.DB.prepare("UPDATE draw SET drawn_ms=?, round=?, beacon=?, result=?, by_role=COALESCE(by_role, ?), entries=?, freeze_ms=COALESCE(freeze_ms, ?) WHERE eid=? AND drawn_ms IS NULL").bind(now, got.round, got.randomness, JSON.stringify(result), manual ? role : "auto", s.entries.length, freezeMs, e.id).run();
-    if (!(upd.meta?.changes ?? 0)) return { ok: true, already: true };
-    await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'phones') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms, end_src='phones' WHERE life.purged_ms IS NULL").bind(e.id, now).run();
-    if (!e.rehearsal_of) {
-      await recordWinners(env as any, e, e.id, result.map((r) => ({ pattern: "lucky", ordinal: r.place + 1, round: 1, idx: 0, pids: [r.pid] })), now, "draw");
-      for (const r of result) {
-        const seat = Number(r.pid.split("x")[0]);
-        const row = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(e.id, r.pid).first<{ pii: string | null }>();
-        if (Number.isFinite(seat)) await env.DB.prepare("INSERT OR IGNORE INTO prize(eid,round,pattern,ordinal,seat,pii,orig) VALUES(?,?,?,?,?,?,?)").bind(e.id, 1, "lucky", r.place + 1, seat, row?.pii ?? null, row?.pii ?? null).run();
-      }
-      await mailResult(env, e, d, result, now);
-    }
+    // The draw (who won) is committed ONCE, together with a "tail owed" marker, in one all-or-nothing step. The tail (end of game, winner record, prizes, e-mails) is then finished here; if a passing database hiccup stops it,
+    // the marker stays and the next press / request / scheduled run finishes it (nothing is lost, nothing is done twice).
+    const [upd] = await env.DB.batch([
+      env.DB.prepare("UPDATE draw SET drawn_ms=?, round=?, beacon=?, result=?, by_role=COALESCE(by_role, ?), entries=?, freeze_ms=COALESCE(freeze_ms, ?) WHERE eid=? AND drawn_ms IS NULL").bind(now, got.round, got.randomness, JSON.stringify(result), manual ? role : "auto", s.entries.length, freezeMs, e.id),
+      env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM draw WHERE eid=? AND drawn_ms=?)").bind(`drawpend/${e.id}`, String(now), e.id, now),
+    ]);
+    if (!(upd?.meta?.changes ?? 0)) return { ok: true, already: true };
+    try { const fresh = (await drawRow(env.DB, e.id))!; await finishDraw(env, e, fresh, result, false); } catch { /* the draw stands; the tail is finished by the next request or the scheduled run */ }
     return { ok: true };
   } catch (err) {
     await release();
     return { ok: false, error: "The draw could not be made. Nothing was changed. Please try again.", status: 500 };
   }
+}
+
+/** True while the tail of a committed draw is still owed (see runDraw). */
+async function pendingFinish(db: D1, eid: string): Promise<boolean> {
+  return !!(await db.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`drawpend/${eid}`).first());
+}
+
+/**
+ * The tail of a committed draw: the end of the game, the winner record, the prize rows, then the e-mails. Every step is safe to do twice (and the e-mails are sent once: the marker is cleared before them).
+ * strict: a passing database hiccup is thrown out (so the caller answers "busy" and the repeat finishes the job) instead of being swallowed.
+ */
+export async function finishDraw(env: Env & PiiEnv & PayEnv, e: any, d: DrawRow, result: { pid: string; place: number }[], strict: boolean): Promise<void> {
+  const at = d.drawn_ms ?? Date.now();
+  await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'phones') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms, end_src='phones' WHERE life.purged_ms IS NULL").bind(e.id, at).run();
+  if (!e.rehearsal_of) {
+    await recordWinners(env as any, e, e.id, result.map((r) => ({ pattern: "lucky", ordinal: r.place + 1, round: 1, idx: 0, pids: [r.pid] })), at, "draw", true);
+    for (const r of result) {
+      const seat = Number(r.pid.split("x")[0]);
+      const row = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(e.id, r.pid).first<{ pii: string | null }>();
+      if (Number.isFinite(seat)) await env.DB.prepare("INSERT OR IGNORE INTO prize(eid,round,pattern,ordinal,seat,pii,orig) VALUES(?,?,?,?,?,?,?)").bind(e.id, 1, "lucky", r.place + 1, seat, row?.pii ?? null, row?.pii ?? null).run();
+    }
+  }
+  if (!(await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`drawpend/${e.id}`).run()).meta?.changes) return; // someone else finished it a moment ago: they send the e-mails
+  if (!e.rehearsal_of) await mailResult(env, e, d, result, at);
 }
 
 /** The result by e-mail: to every winner who gave an e-mail ID (the entry is the e-mail), and a summary to the Organizer. Never blocks the draw. */
@@ -197,9 +224,9 @@ async function mailResult(env: Env & PiiEnv & PayEnv, e: any, d: DrawRow, result
   } catch { /* the result stands; mail is retried by the outbox where it was queued */ }
 }
 
-/** Draws that are due and that nobody has looked at: the scheduled job (every minute) calls this. Automatic draws whose time has come, and manual draws that were started and wait for their beacon round. Bounded: 10 draws per call. */
-export async function drawTick(env: Env & PiiEnv & PayEnv, now: number, timing: (e: any) => Promise<{ drawRound: number; paused: boolean }>, deps: DrawDeps = {}): Promise<number> {
-  const rows = (await env.DB.prepare("SELECT e.* FROM draw d JOIN engagement e ON e.id=d.eid WHERE d.drawn_ms IS NULL AND e.cancelled_ms IS NULL AND ((d.mode='auto' AND e.start_round < ?) OR (d.mode='manual' AND d.freeze_ms IS NOT NULL)) ORDER BY e.start_round LIMIT 10").bind(roundAt(now)).all<any>()).results ?? [];
+/** Draws that are due and that nobody has looked at: the scheduled job (every minute) calls this. Automatic draws whose time has come, manual draws that were started and wait for their beacon round, and drawn games whose tail (winner record, prizes, e-mails) is still owed. Bounded: 10 draws per call. */
+export async function drawTick(env: Env & PiiEnv & PayEnv, now: number, timing: (e: any) => Promise<{ drawRound: number; paused: boolean; stopped?: boolean }>, deps: DrawDeps = {}): Promise<number> {
+  const rows = (await env.DB.prepare("SELECT e.* FROM draw d JOIN engagement e ON e.id=d.eid WHERE ((d.drawn_ms IS NULL AND e.cancelled_ms IS NULL AND ((d.mode='auto' AND e.start_round < ?) OR d.freeze_ms IS NOT NULL)) OR (d.drawn_ms IS NOT NULL AND EXISTS (SELECT 1 FROM kv WHERE k='drawpend/' || d.eid))) ORDER BY e.start_round LIMIT 10").bind(roundAt(now)).all<any>()).results ?? [];
   let n = 0;
   for (const e of rows) { const r = await runDraw(env, e, now, await timing(e), "auto", deps); if (r.ok && !r.already && !r.pending) n++; }
   return n;

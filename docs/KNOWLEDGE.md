@@ -1,7 +1,14 @@
 # Knowledge: Corporate Lucky Draw
 
-**Version 1.5.2** (22 Nov 2026). The version lives in four places that must agree (a test checks it): `version.json`, `CHANGELOG.md`, this file, and the footer of every page (read from `apps/edge/src/releases.json`).
+**Version 1.5.3** (22 Nov 2026). The version lives in four places that must agree (a test checks it): `version.json`, `CHANGELOG.md`, this file, and the footer of every page (read from `apps/edge/src/releases.json`).
 Read this first. Then `docs/STATE.md` (what the P1 work did and what the owner must decide), `docs/CONTRACT_V1.md` and `docs/PAY_STEP.md` (the console), `KNOWLEDGE-MAP.md` (all repositories).
+
+## The live code is merged in (1.5.3)
+- Production runs commit `d040396f69f0` (deployed 5 Nov 2026). This branch contains it (`git merge-base --is-ancestor d040396f69f0 HEAD` answers yes), so nothing live is dropped by deploying the branch. Check this before every deploy.
+- Live things that are in the branch now: join retry with jitter, round-2 route classes, the resumable end of a draw (`drawpend/` marker, `finishDraw`), a Stop before the draw (`stopped`), `OWNER_TEST_FREE`, `RUNNER_KEY` (`runnerOk`, `runnerTestGame`), the owner's private price (`price-adjust.ts`, migration `0032_price_adjust.sql`), the demo game (`DEMO_GAME`), the shared payment kit (`paykit.js`), the single Terms document (the old Legal, Privacy, Data processing, Refund and Legal position pages forward to it), no street address anywhere, `console.corporatetambola.com` sign-in links.
+- Database files in order: `0031_draw.sql`, `0032_price_adjust.sql` (live, already run), `0033_draw_freeze.sql` (new; the frozen list; run it BEFORE deploying). `test/migrations.test.ts` keeps the files and `SCHEMA` identical, in this order.
+- When both sides changed the same words, the owner rules v1.1 wording stands; when only live changed, live stands. A Start press after a Stop works like any manual Start (the list closes, a later beacon round decides).
+- The page builder `apps/web/tools/make_site.py` needs the brand kit folder of the owner's own computer, so on this branch the public pages were merged by hand and are checked by the tests.
 
 ## What this is
 A lucky draw for company events. The organizer lists people by ID, shares one game link, people enter their ID, and at the draw time the software picks the winners from a public random beacon (drand). Players never pay. The organizer pays in the console (not here). Nothing is deployed from this branch until two independent audits say PASS and the owner says go.

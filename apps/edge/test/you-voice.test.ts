@@ -21,7 +21,8 @@ describe("organizer and Host screens speak to you (zero first person)", () => {
   test("the organizer's and the Host's consent boxes (K1, K2, K3, K5, K6), in the server text, the page script and the Terms table", () => {
     for (const k of ["K1", "K2", "K3", "K5", "K6"] as const) for (const [box, t] of Object.entries((TEXT as any)[k] as Record<string, string>)) expect([k, box, hits(t)]).toEqual([k, box, []]);
     const js = read("apps/web/public/consent.js"), terms = visibleHtml(read("apps/web/public/terms.html"));
-    for (const k of ["K1", "K2", "K3", "K5", "K6"] as const) for (const t of Object.values((TEXT as any)[k] as Record<string, string>)) { expect([k, js.includes(t)]).toEqual([k, true]); expect([k, terms.includes(t.replace(/&/g, "&amp;"))]).toEqual([k, true]); }
+    for (const k of ["K1", "K2", "K3", "K5", "K6"] as const) for (const t of Object.values((TEXT as any)[k] as Record<string, string>)) { expect([k, js.includes(t)]).toEqual([k, true]); }
+    // the Terms page is one consolidated document now (live, 1 Nov 2026): it no longer holds a table of the consent boxes, so only the server text and the page script are compared
   });
   test("what the server tells organizers and Hosts: the mails, the sign-in button, the pay, people, cancel and credit messages", () => {
     for (const f of ["mails.ts", "pay.ts", "people.ts", "cancel.ts", "credit.ts", "hostsetup.ts", "lifecycle.ts"]) {

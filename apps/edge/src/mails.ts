@@ -17,7 +17,7 @@ import { BRAND, esc, footerText, pageHtml } from "./brand";
 const AI_CAN = "It can do what you do in the console.";
 const AI_STAYS = "You keep payment, publishing, erasing data, and pause or stop.";
 const HOST_CAN = "Watch the game, message every guest, tick prizes as given.";
-const HOST_STAYS = "Nothing else. It cannot change settings, people, payment or data.";
+const HOST_STAYS = "Nothing else: it is for watching, not for changing settings, people, payment or data.";
 
 function shell(opts: { origin: string; warning: string; title: string; intro: string; pasteLabel: string; expiry: string; button: { label: string; url: string; note: string }; paste: string; steps: string[]; can: string; stays: string; replace: string; footer: string }): { text: string; html: string } {
   const text = [
@@ -42,7 +42,8 @@ function shell(opts: { origin: string; warning: string; title: string; intro: st
 <tr><td style="padding:12px 22px 0;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8a4b00;margin-bottom:4px;">WHAT STAYS WITH YOU</div><div style="font-size:14px;line-height:1.5;">${esc(opts.stays)}</div></td></tr>
 <tr><td style="padding:12px 22px 0;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#555;margin-bottom:4px;">LOST IT?</div><div style="font-size:14px;line-height:1.5;">${esc(opts.replace)}</div></td></tr>
 ${opts.footer ? `<tr><td style="padding:12px 22px 6px;font-size:12px;color:#666;line-height:1.5;">${esc(opts.footer)}</td></tr>` : ""}
-${warn("8px 22px 20px")}`, opts.origin);
+${warn("8px 22px 20px")}
+`, opts.origin);
   return { text, html };
 }
 
@@ -132,7 +133,7 @@ export function signInMail(origin: string, code: string, token: string, linkOver
   const link = linkOverride ?? `${origin}/signin.html?t=${token}&go=console`;
   const foot = "If you did not ask for this, ignore this e-mail. Please do not forward it: it opens your account.";
   const text = [
-    "SIGN IN TO YOUR ACCOUNT", "", "Do ONE of these two things. You do not need both.", "",
+    "SIGN IN TO YOUR ACCOUNT", "", "Please choose ONE of these two ways. You do not need both.", "",
     "OPTION 1 - TYPE THE 6-DIGIT CODE", "Go back to the sign-in page, type these 6 numbers in the six boxes and press Submit:", code, "It works for 10 minutes.", "",
     "OPTION 2 - TAP THE BUTTON", "Tap this link. You are signed in at once:", link, "It works once, for 10 minutes.", "",
     foot, "", footerText(origin), "",
