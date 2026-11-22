@@ -39,7 +39,7 @@ export function restore() { globalThis.fetch = realFetch; try { W.raw?.close(); 
 export const PLAT = { "x-organizer": "plat" };
 export const keyH = (k?: string): Record<string, string> => (k ? { "x-organizer": k } : {});
 export const call = (method: string, path: string, body?: unknown, headers: Record<string, string> = {}, now = T) =>
-  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), W.env as Env, now);
+  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), (path.startsWith("/api/status/health") ? { ...W.env, TEST_OPEN_JOIN: undefined } : W.env) as Env, now); // the health read is judged without the test-only open-join switch (a set TEST_OPEN_JOIN fails it on purpose, audit L-1)
 /** The same call, but through the real handler with no consent ticks added (for proving what the server refuses). */
 export const callRaw = (method: string, path: string, body?: unknown, headers: Record<string, string> = {}, now = T, waitUntil?: (p: Promise<unknown>) => void) =>
   realHandle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), W.env as Env, now, waitUntil);

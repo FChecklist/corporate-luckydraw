@@ -121,7 +121,7 @@ export async function hostSetupRoute(c: HostCtx): Promise<Response | null> {
     if (st?.verified_ms) return c.json({ error: "Your e-mail is already confirmed. Sign in with it on other devices.", code: "already-verified" }, 409);
     const row = await identityRow(db, c.hid), onFile = row?.email_sealed ? await openText(env as any, row.email_sealed) : null;
     if (onFile && accountEmail(onFile) !== email) return c.json({ error: `This link is for ${maskEmail(onFile)}`, code: "email-mismatch" }, 409);
-    { const cm = consentMissing(b, "K5"); if (cm) return cm; } // K5: the Host accepts the role ("I will not charge any player...") before the first open goes on
+    { const cm = consentMissing(b, "K5"); if (cm) return cm; } // K5: the Host accepts the role ("You will not charge any player...") before the first open goes on
     const eh = await emailHashOf(email);
     const lc = await db.prepare("SELECT win_start, sent FROM login_code WHERE email_hash=?").bind(eh).first<{ win_start: number; sent: number }>();
     const fresh = !lc || now - lc.win_start > 3_600_000;

@@ -76,6 +76,13 @@ export async function markPaid(env: Env, o: { eid: string; sub: string; item: st
 }
 
 /** The adapter for one request (`now` is the request's own clock, so tests can set the time). */
+/** Audit M-A. The vendored bridge answers 409 `in_progress` for ever to a repeat of an order whose first try ended "unclear" (its row stays `marking`) and never calls markPaid again. markPaid is safe to repeat,
+ *  so a `marking` row older than 60 seconds (more than the life of one notice, so no first try is still running) is dropped before the bridge looks at it and the repeat is done for real.
+ *  A `paid` row is never touched. The signature, audience, act, life and one-time id are still checked by the bridge for every repeat. */
+export const STALE_MARKING_MS = 60_000;
+export async function sweepStaleMarking(db: { prepare: (q: string) => any }, now: number): Promise<void> {
+  try { await db.prepare("DELETE FROM console_paid WHERE state='marking' AND at_ms<?").bind(now - STALE_MARKING_MS).run(); } catch { /* the table is made by the bridge on its first use */ }
+}
 export function consoleAdapter(now: number): Adapter<Env> & { payInfo: typeof payInfo } {
   const ad: Adapter<Env> = {
     game: "luckydraw", gameName: "Corporate Lucky Draw", gameVersion: String((releases as any[])[0]?.version ?? "1.0.0"),

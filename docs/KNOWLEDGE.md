@@ -1,6 +1,6 @@
 # Knowledge: Corporate Lucky Draw
 
-**Version 1.5.0** (20 Nov 2026). The version lives in four places that must agree (a test checks it): `version.json`, `CHANGELOG.md`, this file, and the footer of every page (read from `apps/edge/src/releases.json`).
+**Version 1.5.1** (22 Nov 2026). The version lives in four places that must agree (a test checks it): `version.json`, `CHANGELOG.md`, this file, and the footer of every page (read from `apps/edge/src/releases.json`).
 Read this first. Then `docs/STATE.md` (what the P1 work did and what the owner must decide), `docs/CONTRACT_V1.md` and `docs/PAY_STEP.md` (the console), `KNOWLEDGE-MAP.md` (all repositories).
 
 ## What this is
@@ -12,6 +12,7 @@ A lucky draw for company events. The organizer lists people by ID, shares one ga
 | a. Closed group, by invitation, ID only | Every game is made for the ID list. "Anyone with the link", `closed:false` and mobile/name/e-mail joins are refused by the server. An unlisted ID waits for the organizer. | `invite-only.ts`, `worker.ts` | `invite-only.test.ts` |
 | c. Payment only through the console | `POST /api/console/paid` (signed notice) marks the game paid, once per order, repeatable. No payment, no draw (402). | `console-adapter.ts`, `draw.ts` | `console-paid.test.ts` |
 | e. A fair draw | The list of entries is frozen at the draw time or at the press of Start. A manual start uses a beacon round published after the press. Same entries + same beacon value = same winners. | `draw.ts` | `draw-fairness.test.ts`, `draw-rules-sim.test.ts` |
+| b. Organizer and Host screens speak to "you" | No "I", "my", "we", "our" in the organizer console, the AI-link page, the organizer guide, the sign-in mail, the server messages to organizers and the agreement boxes K1, K2, K3, K5, K6. Player boxes (K4) and the AI helper's own replies stay as they are. | `zc.js`, `consent-text.json`, `consent.js`, `mails.ts` | `you-voice.test.ts` |
 | f. One true privacy line | Player details deleted within 24 hours of the draw; the organizer's, hosts' and winners' details kept 365 days; invoices as the law requires. | `draw.ts` `NO_PERSONAL_LINE` and every screen, mail, report, consent K4/K6 | `privacy-line.test.ts` |
 
 Never write "100% secure" or the like anywhere (a test keeps it out). Voice: simple, warm, polite, favour the user.
@@ -20,7 +21,7 @@ Never write "100% secure" or the like anywhere (a test keeps it out). Voice: sim
 1. People enter an ID; a listed ID gets a seat at once, an unlisted one waits for the organizer (`worker.ts` join, `people.ts`).
 2. **Automatic**: the draw time is the game clock's start (pauses added). From that instant the list is closed (`registrationClosed`, `freezeAt`). The draw uses the beacon round OF the draw time. The scheduled job (`apps/cron`, every minute, secret `CRON_KEY`) calls `POST /api/lifecycle/tick` which calls `drawTick` (3 seconds after the draw time at the earliest). Any page that asks (`GET /api/z/{id}/draw`) does the same, lazily.
 3. **Manual**: the organizer or a Host presses Start (`POST /api/z/{id}/drawnow`). That stores `draw.freeze_ms` (the press) and `draw.target_round` (= round public at the press + 2) and closes the list. The winners come when that round is published (3 to 6 seconds); the job or a page completes it. Pressing again changes nothing. A beacon that does not answer never reopens the list.
-4. `entryPids(db, eid, freezeMs)` reads the seats AS THEY STOOD at the freeze: a seat blocked at or after the freeze (`seat.blk_ms`) still counts, a seat that joined or was claimed at or after it (`participant.joined_ms`) does not. Nobody can be added, put back or approved after the freeze (`list-closed`).
+4. `entryPids(db, eid, freezeMs)` reads the seats AS THEY STOOD at the freeze: a seat blocked at or after the freeze (`seat.blk_ms`) still counts, a seat that joined or was claimed at or after it (`participant.joined_ms`) does not. Nobody can be added, put back or approved after the freeze (`list-closed`). From the freeze until the winners are made, delete-one (`forget`), erase, un-bind, send-link-again and cancel are refused with 409 `draw-frozen` (`entriesFrozen` in `worker.ts`, `resendPerson`, `cancelPreview`): this holds also for a Start pressed before the start time. After the draw they work again.
 5. The engine is `vendor/game-core/packages/luckydraw` (ranking by SHA-256 of `CB1-LUCKY|game|ref|beacon|ID`; lowest ranks win).
 6. Retention: `erasePersonal` removes players' data 20 hours after the draw (promise: 24); winners' prize records and the team's details stay 365 days (`lifecycle.ts`).
 
@@ -44,10 +45,11 @@ Set `CONSOLE_PUBKEYS` (the console's public keys) AND `PAY_VIA_CONSOLE=1` togeth
 
 ## Known gaps (not fixed in this branch, and why)
 - The signed assertion covers `eid` and `sub` but not `item` and `orderRef` (`console-bridge/assertion.ts`, `bridge.ts`): the bridge belongs to the console repo.
-- A paid notice that stopped half way leaves the bridge row `marking` and the bridge answers 409 `in_progress` to the same order: fixed in the console repo (console-gamepay session). This game's `markPaid` is ready for the repeat.
+- A paid notice that stopped half way leaves the bridge row `marking`, and the copied bridge would answer 409 `in_progress` to the same order for ever. This game drops a `marking` row older than 60 seconds before the bridge looks (`sweepStaleMarking`, `console-adapter.ts`), so the repeat is done for real; `markPaid` is safe to repeat. The console repo's own fix is still wanted.
 - `to=pay` and `to=free` in the console hand-off are read but the target page is ignored; the game opens `zc.html`. The contract allows it.
 - 26 of the console's 40 contract fixtures need the console's own fake game and are not run here; the other 14 are (`console-contract.test.ts`).
 - Host and Co-host keys through the console are not wired (`mintKey` refuses them).
 - The game's home page (`index.html`) still has its start form; with go-live its API answers 302 to home.
+- `TEST_OPEN_JOIN` fails the health check when set (`goLiveState`).
 - Organizer, host and co-host seats are not excluded from the draw (`mark` says "stay out of lucky draws" but `entryPids` does not check the role).
-- Owner decisions: the consent wording K4/K6 was changed (legal text, version date unchanged, the exact wording is hashed with every row); the owner approves it.
+- Owner decisions: the consent wording K4/K6 (1.5.0) and K1, K2, K3, K5, K6 (1.5.1, "you" voice) was changed (legal text, version date unchanged, the exact wording is hashed with every row); the owner approves it.

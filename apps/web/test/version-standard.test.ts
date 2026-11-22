@@ -12,6 +12,7 @@ describe("one version in four places", () => {
     expect((RELEASES as any[])[0].version).toBe(V.version); expect((RELEASES as any[])[0].date).toBe(V.date);
     expect(read("CHANGELOG.md")).toMatch(new RegExp(`^## ${V.version.replace(/\./g, "\\.")} - `, "m"));
     expect(read("docs/KNOWLEDGE.md")).toContain(`**Version ${V.version}**`);
+    expect(JSON.parse(read("package.json")).version).toBe(V.version);
     for (const f of [V.changelog, V.knowledge, V.releases]) expect(() => read(f)).not.toThrow();
   });
   test("the footer of every public page says that version and its date", () => {

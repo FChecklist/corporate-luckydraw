@@ -1,5 +1,8 @@
 # STATE: Corporate Lucky Draw, P1 owner rules v1.1 (20 Nov 2026)
 
+## AUDIT: FAIL on `42ae412` - what was fixed (release 1.5.1, 22 Nov 2026)
+H-A (a Start pressed early could still be undone by delete, erase, cancel, un-bind, resend), M-A (stuck paid notice), L-1, L-2 and the organizer "you" voice are fixed with tests; see `CHANGELOG.md` 1.5.1. Not fixed here: M-B (assertion does not cover `item`/`orderRef`) and L-3 (bridge `*` header), both in the console repo's bridge; L-4 is an owner decision. Not deployed.
+
 ## AUDIT: FAIL on `302d251` - what was fixed (release 1.5.0, 20 Nov 2026)
 Every finding of the independent audit was worked on this branch. What changed and where is in `CHANGELOG.md`; how it works is in `docs/KNOWLEDGE.md`. In short:
 - **H1** the entry list is frozen at the draw time or the press of Start; a manual start uses a beacon round published after the press; the scheduled job makes the draw; rule simulation: 0 failures in 5,000 draws (`draw-rules-sim.test.ts`).

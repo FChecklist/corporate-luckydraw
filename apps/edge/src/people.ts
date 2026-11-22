@@ -311,7 +311,7 @@ const LIST_CLOSED_MSG = "The list of entries has closed, so nobody can be added 
 async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   if (c.listClosed) return c.json({ error: LIST_CLOSED_MSG, code: "list-closed" }, 409);
   if (!b || !Array.isArray(b.people) || b.people.length < 1) return c.json({ error: "Send at least one person: {people:[{name, phone}]}." }, 400);
-  { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these IDs for this game, and the people on my list have been told."
+  { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "You are allowed to use these IDs for this game, and the people on your list have been told."
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string; name?: string; id?: string }[] = []; let duplicates = 0; const sameAfterCleaning: { raw: string; as: string }[] = []; const duplicateRows: { raw: string; name: string; why: string }[] = []; const DUP_WHY = "Already on the list."; const typedOf = (x: any): string => String(x?.empId ?? x?.employeeId ?? x?.phone ?? "").slice(0, 120); // the same employee ID typed two ways in one list: named, never dropped silently
@@ -467,6 +467,7 @@ async function resendPerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
   if (c.started && !who.all) return c.json({ error: "Once the game has started only the Organizer or a Host can send a link again." }, 403);
   let pii = await openPii(c.env, row.pii), ph = row.ph, newPii: string | null = null;
   const hasSeat = !!(await db.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND ph=?").bind(c.eid, row.ph).first());
+  if (hasSeat && c.listClosed && !!(await db.prepare("SELECT 1 AS x FROM draw WHERE eid=? AND drawn_ms IS NULL").bind(c.eid).first())) return c.json({ error: "The draw is being made, so the list of entries cannot change now. Please try again in a minute, when the winners are shown.", code: "draw-frozen" }, 409); // a card sent to a new phone is not an entry until it is opened (audit H-A)
   if (b?.phone !== undefined && b.phone !== null && String(b.phone).trim() !== "") { // a new number: only for someone who has not joined yet
     const cl = cleanPhone(b.phone);
     if (!cl.ok) return c.json({ error: cl.why }, 400);
@@ -510,7 +511,7 @@ async function myOwnSeat(c: Ctx, who: Caller, b: any): Promise<Response> {
   const ph = await phoneHashOf(c.env, digits);
   const label = await labelsOf(c);
   let row = await db.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND ph=?`).bind(c.eid, ph).first<PersonRow>();
-  if (row && row.status === "removed") return c.json({ error: "That number was removed from this game. Add it back from My people first." }, 409);
+  if (row && row.status === "removed") return c.json({ error: "That number was removed from this game. Add it back from Your people first." }, 409);
   if (!row) {
     if (!(await c.spend(2))) return c.busy();
     const token = newToken(), up = who.kind === "organizer" ? "o" : (await db.prepare("SELECT created_by FROM organizer_key WHERE org=? AND substr(hash,1,7)=? AND revoked=0").bind(c.e.org, c.keyId7).first<{ created_by: string | null }>())?.created_by ?? "o";

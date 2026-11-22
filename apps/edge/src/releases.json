@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.5.1",
+    "date": "2026-11-22",
+    "commit": "this release",
+    "title": "Entries stay frozen on every path, a stuck payment notice can be repeated, and organizer screens speak to you",
+    "changes": [
+      "Once the list of entries is closed, you can no longer delete a person, delete everybody, un-bind a card, send a card link again or cancel the game until the winners are shown, so nobody can change who is in the draw after the beacon value is public",
+      "A payment notice that stopped half way can now be repeated: the game finishes the order on the console's next try instead of waiting for ever",
+      "Everything you read as an organizer or Host now speaks to you: the console, the sign-in mail and the agreement boxes say \"you\", never \"I\" or \"my\"",
+      "Going live fails the health check if the test-only open-join switch is set",
+      "The fairness sentence you show to players is now checked by a test against what the game really does, including a Start pressed before the start time"
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-11-20",
     "commit": "this release",

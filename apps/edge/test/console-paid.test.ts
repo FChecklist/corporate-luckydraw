@@ -229,3 +229,42 @@ describe("payInfo: read only, owner, item (the size), paid", () => {
   });
 });
 void roundMs;
+
+// AUDIT M-A (second audit of 42ae412): the vendored bridge answered 409 `in_progress` for ever to a repeat of an order whose first try ended "unclear" (the row stays `marking`), so a customer could be charged with the game unpaid.
+// The game now drops a `marking` row older than 60 seconds before the bridge looks (markPaid is safe to repeat); the bridge still checks the signature of the repeat.
+// FALSIFIED BY (planted, saw both tests fail, restored): removing sweepStaleMarking from worker.ts; sweeping rows of any age (the fresh-row test).
+describe("a paid notice whose first try stopped half way can be repeated (M-A)", () => {
+  beforeEach(() => { raw.prepare("CREATE TABLE IF NOT EXISTS console_paid (order_ref TEXT PRIMARY KEY, eid TEXT NOT NULL, state TEXT NOT NULL, at_ms INTEGER NOT NULL)").run(); });
+  test("a stale `marking` row: the repeat with a fresh signed notice is done for real, the game becomes paid, the order is stored once", async () => {
+    const g = await game("stuck1@acme.com", { id: "STK-1" });
+    raw.prepare("INSERT INTO console_paid(order_ref,eid,state,at_ms) VALUES('ord-stuck1','STK-1','marking',?)").run(T - 3_600_000); // the first try, one hour ago, ended "unclear"
+    expect(packOf("STK-1")).toBe(0);
+    const r = await paid(await note({ sub: g.sub, eid: "STK-1" }), "STK-1", "ord-stuck1");
+    expect(r.status).toBe(200); expect(await j(r)).toMatchObject({ ok: true, repeat: false, eid: "STK-1" });
+    expect(packOf("STK-1")).toBe(100);
+    expect(raw.prepare("SELECT state FROM console_paid WHERE order_ref='ord-stuck1'").get()).toEqual({ state: "paid" });
+    const again = await paid(await note({ sub: g.sub, eid: "STK-1" }), "STK-1", "ord-stuck1"); expect(again.status).toBe(200); expect((await j(again)).repeat).toBe(true);
+  });
+  test("a fresh `marking` row (a first try that may still be running) is NOT dropped: the repeat still answers in_progress", async () => {
+    const g = await game("stuck2@acme.com", { id: "STK-2" });
+    raw.prepare("INSERT INTO console_paid(order_ref,eid,state,at_ms) VALUES('ord-stuck2','STK-2','marking',?)").run(T - 5_000);
+    const r = await paid(await note({ sub: g.sub, eid: "STK-2" }), "STK-2", "ord-stuck2");
+    expect(r.status).toBe(409); expect((await j(r)).error).toBe("in_progress"); expect(packOf("STK-2")).toBe(0);
+  });
+  test("the sweep never makes a forged repeat work: a stale row, a notice signed with another key, the game stays unpaid", async () => {
+    const g = await game("stuck3@acme.com", { id: "STK-3" });
+    raw.prepare("INSERT INTO console_paid(order_ref,eid,state,at_ms) VALUES('ord-stuck3','STK-3','marking',?)").run(T - 3_600_000);
+    const r = await paid(await note({ sub: g.sub, eid: "STK-3", key: other.privateKey }), "STK-3", "ord-stuck3");
+    expect(r.status).toBe(401); expect(packOf("STK-3")).toBe(0);
+  });
+});
+describe("go-live health: TEST_OPEN_JOIN must not be set (audit L-1)", () => {
+  test("health fails and names the variable when it is set; a normal environment is clean", async () => {
+    const { goLiveState } = await import("../src/console-origin");
+    expect(goLiveState({ TEST_OPEN_JOIN: "1" }).problems.join(" ")).toMatch(/TEST_OPEN_JOIN/);
+    expect(goLiveState({}).problems).toEqual([]);
+    const bad = await j(await call(T, "GET", "/api/status/health", undefined, undefined, { TEST_OPEN_JOIN: "1" })); // the real health route
+    expect(bad.ok).toBe(false); expect(bad.go_live.problems.join(" ")).toMatch(/TEST_OPEN_JOIN/);
+    const good = await j(await call(T, "GET", "/api/status/health", undefined, undefined, { TEST_OPEN_JOIN: "", CONSOLE_PUBKEYS: "" })); expect(good.go_live.problems).toEqual([]); expect(good.ok).toBe(true);
+  });
+});

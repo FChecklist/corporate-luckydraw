@@ -3,6 +3,20 @@
 The newest release is first. The version is kept in four places that must agree (a test checks it): `version.json`, this file, `docs/KNOWLEDGE.md`, and the footer of every page (it is read from `apps/edge/src/releases.json`, which also feeds the owner's version page).
 Older releases (1.0.0 to 1.4.0) are listed in `apps/edge/src/releases.json`.
 
+## 1.5.1 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
+
+Fixes for the second independent audit of commit `42ae412` (1 High, 2 Medium, 4 Low). In plain words:
+
+- **H-A, a Start pressed early could still be undone.** If the organizer pressed Start long before the start time, the list of entries closed, but "delete one person", "delete everybody", "cancel the game", "un-bind a card" and "send a card link again" still worked, so the organizer could look at the public beacon value, see who would win and remove that person. Now all five are refused (409) from the moment the list closes until the winners are made; after the draw they work again (the right to delete is kept). Where: `worker.ts` (`entriesFrozen`, `forget`, `erase`, `unbind`), `people.ts` (`resendPerson`), `cancel.ts` (`cancelPreview`). Tests: `apps/edge/test/draw-frozen-guards.test.ts` (5 of them fail without the fix).
+- **M-A, a payment notice that stopped half way blocked every repeat.** The copied console bridge answers "in progress" for ever to an order that is stuck. We cannot change that file here (it belongs to the console repo), so the game now drops a "marking" row older than 60 seconds before the bridge looks. `markPaid` is safe to repeat, and the bridge still checks the signature, audience, purpose, 60-second life and one-time id of every repeat. A fresh row (a first try that may still be running) is kept. Where: `console-adapter.ts` (`sweepStaleMarking`), `worker.ts`. Tests: `console-paid.test.ts` (3 new). The console repo's own fix is still wanted, but the money chain no longer depends on it.
+- **M-B, the signature does not cover `item` and `orderRef`.** Not fixable here (the bridge is the console repo's). The game re-derives the size from the game and the owner from the signed `sub` on every call, so a changed `item` or `orderRef` cannot pay for another size or another person's game. Listed as a known gap.
+- **L-1, one dashboard variable could undo "invite only".** `TEST_OPEN_JOIN` now makes the health check fail and names the variable (`console-origin.ts`, `go-live`). Test in `console-paid.test.ts`.
+- **L-2, a guard with no test.** The "an unopened card cannot be taken up after the list closed" guard now has a test that fails without it.
+- **L-3 and L-4** (the bridge's `*` header; organizer, host and co-host seats can be drawn) are not changed: L-3 is the console repo's file and not exploitable (signed assertions, no cookies); L-4 is an owner decision (listed in `docs/KNOWLEDGE.md`).
+- **Owner rule: everything the organizer and the Host read speaks to "you".** Zero first person, kept by `apps/edge/test/you-voice.test.ts`. Reworded: "Close my account" (`zc.js`), "Sign me in" (sign-in mail), "Use my credit" (messages), "My people" (message), and the agreement boxes K1, K2, K3, K5 and K6 (`consent-text.json`, `consent.js`, the Terms table). The player's own boxes (K4) stay in the first person on purpose. The exact wording of each box is hashed with every consent row; the owner should read the five new sentences.
+- **Fairness sentence is now proved on every path**, including a Start pressed before the start time (`draw-frozen-guards.test.ts`, last test).
+- Version 1.5.1 in `version.json`, `package.json`, this file, `docs/KNOWLEDGE.md`, `apps/edge/src/releases.json` and every page footer.
+
 ## 1.5.0 - 20 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
 
 Fixes for every finding of the independent audit of commit `302d251` (3 High, 4 Medium, 2 Low).

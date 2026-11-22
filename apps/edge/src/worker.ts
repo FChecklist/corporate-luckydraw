@@ -40,7 +40,7 @@ import { cloneGame } from "./clone";
 import { inviteOnlyError, isInviteOnly, testOpenJoin, whoCanJoinOf } from "./invite-only";
 import { DRAW_FREEZE_SCHEMA, DRAW_SCHEMA, checkDrawSettings, drawFacts, drawRow, drawTick, freezeAt, registrationClosed, runDraw, saveDrawSettings } from "./draw";
 import { handleConsole, legacyPayRedirect } from "./console-bridge/bridge";
-import { consoleAdapter } from "./console-adapter";
+import { consoleAdapter, sweepStaleMarking } from "./console-adapter";
 import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA, effectiveFlag, legacyLoginRedirect } from "./console-origin";
 import { drawTiming, acceptOver, acceptWon, endBoundMs, eraseEverything, erasePersonal, erasureOf, fullDeleteAt, lifecycleTick, MAX_AHEAD_MS, personalDeleteAt, SETTINGS_KEEP_MS, recordWinners, reportApi, reportLink } from "./lifecycle";
 import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_CAP, MAX_DRAFTS, type PayEnv } from "./pay";
@@ -214,6 +214,13 @@ async function listClosedFor(env: Env, e: any, now: number): Promise<boolean> {
   if (!dr) return false;
   return registrationClosed(dr, now, roundMs((await drawTiming(env, e, now)).drawRound));
 }
+/** Lucky Draw: the entry list is closed but the winners are not made yet (a manual Start was pressed, or the draw time has come). In this window nobody may delete, un-bind or cancel anything that could change who is in the draw (audit H-A). */
+async function entriesFrozen(env: Env, e: any, now: number): Promise<boolean> {
+  const dr = await drawRow(env.DB, e.id);
+  if (!dr || dr.drawn_ms !== null) return false;
+  return registrationClosed(dr, now, roundMs((await drawTiming(env, e, now)).drawRound));
+}
+const FROZEN_MSG = "The draw is being made, so the list of entries cannot change now. Please try again in a minute, when the winners are shown.";
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
 /** What the organizer set for this engagement (tickets per participant, reward lines, brand breaks); plain defaults when nothing was set. */
 const cfgOf = (e: { tickets?: number; config?: string | null }): EngagementCfg => {
@@ -568,7 +575,7 @@ export async function handle(req: Request, env: Env, now = Date.now(), waitUntil
 async function handleCore(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
   if (keysMissing(env)) return new Response(JSON.stringify({ error: "The service is not configured. Please try again later." }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store" } });
   const pn = new URL(req.url).pathname;
-  if (pn.startsWith("/api/console/")) { const cr = await handleConsole(consoleAdapter(now), req, env); if (cr) return cr; } // the master console's bridge (console-adapter.ts); DARK (null) until the owner sets CONSOLE_PUBKEYS
+  if (pn.startsWith("/api/console/")) { if (pn === "/api/console/paid" && req.method === "POST" && (env as any).CONSOLE_PUBKEYS) await sweepStaleMarking(env.DB, now); const cr = await handleConsole(consoleAdapter(now), req, env); if (cr) return cr; } // the master console's bridge (console-adapter.ts); DARK (null) until the owner sets CONSOLE_PUBKEYS
   { const lr = legacyPayRedirect(req, { flag: effectiveFlag(env as any), consoleOrigin: CONSOLE_ORIGIN, extra: LEGACY_PAY_EXTRA }) ?? legacyLoginRedirect(req, effectiveFlag(env as any)); if (lr) return lr; } // with PAY_VIA_CONSOLE=1 every old payment route of this game answers 302 to the console (nothing is deleted)
   if (pn === "/ai" || pn.startsWith("/ai/")) return aiLink(req, env, now, waitUntil);
   if (req.method === "GET" && pn.startsWith("/j/")) return joinLinkPage(env, decodeURIComponent(pn.slice(3)).replace(/\/$/, ""), (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, (e) => cfgOf(e).name || e.id); // the short personal link (people.ts)
@@ -1829,6 +1836,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     }
     const running = now >= roundMs(e.start_round) && now < (await endBoundMs(env as any, e));
     if (running) return json({ error: "The game is running. Please delete this person after it ends." }, 409);
+    if (await entriesFrozen(env, e, now)) return json({ error: FROZEN_MSG, code: "draw-frozen" }, 409); // a manual Start pressed before the start time closes the list too
     if (!(await spend(env, now, 4))) return BUSY();
     await env.DB.batch([
       env.DB.prepare("DELETE FROM participant WHERE eid=? AND pid=?").bind(eid, seat.pid), env.DB.prepare("DELETE FROM seat WHERE eid=? AND seq=?").bind(eid, seat.seq), env.DB.prepare("DELETE FROM consent_log WHERE kind='K4' AND ref=? AND subject=?").bind(eid, seat.pid),
@@ -1844,6 +1852,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (a.kind === "ai" && !seatNo) return CONSOLE_ONLY(); // an AI names the card by its number, never by a mobile number
     const ph = seatNo ? "" : await phoneHash(b?.phone);
     if (!seatNo && !ph) return json({ error: "Enter a valid mobile number." }, 400);
+    if (await entriesFrozen(env, e, now)) return json({ error: FROZEN_MSG, code: "draw-frozen" }, 409); // an un-bound card is not an entry (entryPids)
     if (!(await spend(env, now))) return BUSY();
     const r = seatNo ? await env.DB.prepare("UPDATE seat SET dev=NULL WHERE eid=? AND seq=?").bind(eid, seatNo).run() : await env.DB.prepare("UPDATE seat SET dev=NULL WHERE eid=? AND ph=?").bind(eid, ph).run();
     return (r.meta?.changes ?? 0) > 0 ? json({ ok: true }) : json({ error: "That number has not joined this engagement." }, 404);
@@ -2058,6 +2067,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (action === "erase" && req.method === "POST") { // right to deletion: every name, number, seat and invite of this engagement's people. The winners record and the organizer's own details stay, as the report says.
     if (!can(a, e, true)) return deny(a);
     if (now >= roundMs(e.start_round) && now < (await endBoundMs(env as any, e)) && !e.cancelled_ms) return json({ error: "The game is being played right now. You can delete the participants' data as soon as it ends.", code: "game-running" }, 409); // erasing mid-game would wipe every card and the Co-host keys under the players' feet
+    if (await entriesFrozen(env, e, now)) return json({ error: FROZEN_MSG, code: "draw-frozen" }, 409);
     const n = await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>();
     if (!(await spend(env, now, (n?.c ?? 0) + 1))) return BUSY();
     await erasePersonal(env, eid!, now, "organizer");
@@ -2095,7 +2105,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (a.kind === "ai") return CONSOLE_ONLY();
     const b = await body(req, 32_768);
     if (!b || !Array.isArray(b.people) || b.people.length < 1 || b.people.length > 100) return json({ error: "Send between 1 and 100 people at a time." }, 400);
-    { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "I am allowed to use these IDs for this game"
+    { const cm = consentMissing(b, "K6"); if (cm) return cm; } // K6: "You are allowed to use these IDs for this game"
     await recordConsent(env.DB, { subject: e.org ?? "platform", kind: "K6", ref: eid!, now });
     const have = await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>();
     let room = e.cap - (have?.c ?? 0);
