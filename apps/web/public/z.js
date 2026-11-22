@@ -64,7 +64,7 @@
       h += `<form class="zcard zform" id="reg" novalidate><h2>Register once</h2>
         <label for="rid">${email ? "Enter your Email ID" : "Enter your ID"}</label>
         <input id="rid" name="id" autocomplete="${email ? "email" : "off"}" inputmode="${email ? "email" : "text"}" maxlength="80" required>
-        ${I.whoCanJoin === "list" ? `<p class="zsmall">If your ID is on the list, you join straight away. If it is not, the organizer gets a request to say yes or no.</p>` : ""}
+        ${I.whoCanJoin === "list" ? `<p class="zsmall">If your ID is on the list, you join straight away. If it is not, the organizer gets a request to say yes or no. The game matches the ID you type to the organizer's list; it cannot prove who is typing, so the organizer can still check any card.</p>` : ""}
         <div id="k4"></div>
         ${S.err ? `<div class="zbanner bad" role="alert" style="margin-top:12px">${esc(S.err)}</div>` : ""}
         <button class="zbtn" id="go" type="submit" data-needs="K4" style="min-height:48px">Register</button>

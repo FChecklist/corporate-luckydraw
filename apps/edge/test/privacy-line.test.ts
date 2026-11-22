@@ -36,6 +36,14 @@ describe("one true privacy line", () => {
   });
 });
 
+describe("the public Legal page (audit M-2 of 9024db89)", () => {
+  test("it carries the one true privacy line (with the winners' 365 days), not the old 'All participant data is auto-deleted' claim", () => {
+    const html = read("apps/web/public/legal.html"), text = html.replace(/&rsquo;/g, "'").replace(/<[^>]+>/g, " ");
+    expect(text).toContain("Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires.");
+    expect(html).not.toMatch(/All participant data is auto-deleted/);
+  });
+});
+
 describe("the consent boxes speak of IDs", () => {
   test("K4 names the ID, the 24 hours after the draw and the winner's 365 days; K6 names IDs, not names and numbers", () => {
     const k4 = CONSENT_TEXT.K4.A as string, k6 = CONSENT_TEXT.K6.A as string;

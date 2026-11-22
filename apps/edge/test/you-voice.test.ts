@@ -35,3 +35,15 @@ describe("organizer and Host screens speak to you (zero first person)", () => {
 });
 /** Words that only look first person: a typed instruction to the player (K4 is the player's own box, quoted in the privacy text), a sentence quoted from a player, or a column name. Kept short and explicit. */
 const ALLOWED: string[] = ["I am the owner,", "I am their Host,"]; // mails.ts aiPaste: the text the organizer or Host pastes into their own AI
+
+describe("the last labels an organizer sees, and the sign-in button name (audits M-1 and L-1 of 9024db89)", () => {
+  test("no 'Sign me in', 'my game' or 'my partner account' label in the pay page, the site, the partner page or its help", () => {
+    for (const f of ["apps/web/public/pay.js", "apps/web/public/site.js", "apps/web/public/partner.js", "apps/web/public/partner.html"]) expect([f, /Sign me in|Back to my game|Open my game|Create my game|Close my partner account/.test(read(f))]).toEqual([f, false]);
+  });
+  test("the sign-in mail's button and the pages that tell you to tap it use the same words: 'Sign in'", () => {
+    expect(read("apps/edge/src/mails.ts")).toContain('btn("Sign in", link)');
+    expect(read("apps/web/public/site.js")).toContain("tap the button <b>Sign in</b>");
+    expect(read("apps/web/public/partner.js")).toContain("tap the button <b>Sign in</b>");
+    expect(read("apps/web/public/partner.html")).toContain("a Sign in button");
+  });
+});

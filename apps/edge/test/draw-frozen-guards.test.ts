@@ -147,3 +147,31 @@ describe("the fairness sentence is true on every path it covers (owner rule: pro
     expect(again.map((x) => pids().find((p) => normId("emp", p) === x))).toEqual([W]);
   });
 });
+
+describe("closing the whole account, or an e-mailed deletion, cannot void a draw that is being made (audit H-1 of 9024db89)", () => {
+  test("close-account is refused (409 draw-frozen) after an early Start, the entries stay and the draw is made; after the draw it works", async () => {
+    const g = await setup({ mode: "manual" }); const { W, later } = await pressEarly(g);
+    const c = await call(later, "POST", "/api/org/close", { confirm: true }, g.key);
+    expect(c.status).toBe(409); expect((await j(c)).code).toBe("draw-frozen");
+    expect(seatCount()).toBe(6);
+    expect((raw.query("SELECT COUNT(*) AS c FROM engagement WHERE id=?").get(eidOf) as any).c).toBe(1);
+    expect(await tick(later + 2_000)).toBe(1);
+    expect(resultPid()).toEqual([W]);
+    expect((await call(later + 3_000, "POST", "/api/org/close", { confirm: true }, g.key)).status).toBe(200); // the right to close stays once the winners exist
+  });
+  test("an e-mailed deletion request is not acted on while the draw is frozen: no code is sent, nothing is deleted; after the draw the code is sent", async () => {
+    (env as any).INBOUND_SECRET = "in-secret";
+    const g = await setup({ mode: "manual" }); const { later } = await pressEarly(g);
+    const send = (now: number) => handle(new Request("http://x/api/inbound-email", { method: "POST", headers: { "content-type": "application/json", "x-inbound-secret": "in-secret" }, body: JSON.stringify({ from: "demo1@demo-test.invalid", subject: "delete", text: `delete ${eidOf}` }) }), env as any, now);
+    expect((await j(await send(later))).action).toBe("draw-frozen");
+    expect((raw.query("SELECT COUNT(*) AS c FROM outbox WHERE subject LIKE '%Confirm the deletion%'").get() as any).c).toBe(0);
+    expect(seatCount()).toBe(6);
+    expect(await tick(later + 2_000)).toBe(1);
+    expect((await j(await send(later + 3_000))).action).toBe("confirm-sent");
+  });
+  test("the refusal text does not promise 'a minute at most': it says what happens when the draw cannot be made (audit L-4)", async () => {
+    const g = await setup({ mode: "manual" }); const { later } = await pressEarly(g);
+    const r = await j(await call(later, "POST", `/api/z/${eidOf}/erase`, {}, g.key));
+    expect(r.error).toMatch(/usually over within a minute/); expect(r.error).toMatch(/stays closed until it is made/);
+  });
+});

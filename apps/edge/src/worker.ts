@@ -16,6 +16,7 @@ import { FUNNEL_EVENTS, cleanProps } from "../../../vendor/game-core/packages/co
 import { MANIFESTS } from "../../../vendor/game-core/packages/manifest/src";
 import { zoneTime, tzOfRow } from "./tz";
 import { accountEmail, refusedMail } from "./emailkey";
+import { netGroup } from "./net-key";
 import { BRAND_COLORS, DEMO_CAP, GRACE_ROUNDS, HOUSE_ORDER, isTimeZone, PRIZE_HOUSES, brandMomentsFor, defaultCfg, validateCfg, type EngagementCfg } from "../../../packages/beacon/src/config";
 import { openPii, openText, sealPii, sealText } from "./pii";
 import { TEST_LOGINS, TEST_LOGIN_CODE, TEST_LOGINS_PER_IP_DAY, testLoginsOpen } from "./testlogins";
@@ -220,7 +221,7 @@ async function entriesFrozen(env: Env, e: any, now: number): Promise<boolean> {
   if (!dr || dr.drawn_ms !== null) return false;
   return registrationClosed(dr, now, roundMs((await drawTiming(env, e, now)).drawRound));
 }
-const FROZEN_MSG = "The draw is being made, so the list of entries cannot change now. Please try again in a minute, when the winners are shown.";
+const FROZEN_MSG = "The draw is being made, so the list of entries cannot change now. This is usually over within a minute, when the winners are shown. If the winners do not appear, the draw could not be made yet (for example, the public random number is not reachable), and the list stays closed until it is made. Please try again later.";
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
 /** What the organizer set for this engagement (tickets per participant, reward lines, brand breaks); plain defaults when nothing was set. */
 const cfgOf = (e: { tickets?: number; config?: string | null }): EngagementCfg => {
@@ -381,15 +382,28 @@ const CONSOLE_ONLY = () => json({ error: "Names and mobile numbers are handled b
 /** One network address may open only so many NEW seats a day: protects the shared daily write budget from a script.
  *  A whole office or hall sits behind ONE address, so the allowance of a PAID game never falls below its pack: one address may seat up to the pack's size in a minute (and three times that in a day).
  *  The base figures (the environment's JOIN_PER_IP_MINUTE / JOIN_PER_IP_DAY, else the defaults below) still apply to an unpaid game and to the waiting room, so a script cannot use a big free game to burn the write budget. */
-const JOIN_PER_IP_DAY = 1500, JOIN_PER_IP_MINUTE = 200, ID_MISS_PER_10MIN = 30;
+const JOIN_PER_IP_DAY = 1500, JOIN_PER_IP_MINUTE = 200, ID_MISS_PER_10MIN = 30, ID_MISS_PER_GAME_10MIN = 500;
 async function joinOverLimit(env: Env, req: Request, now: number, paidSeats = 0): Promise<boolean> {
   try {
-    const ip = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), perDay = Math.max(Number((env as any).JOIN_PER_IP_DAY ?? JOIN_PER_IP_DAY), paidSeats * 3), perMin = Math.max(Number((env as any).JOIN_PER_IP_MINUTE ?? JOIN_PER_IP_MINUTE), paidSeats);
+    const ip = (await sha("jip|" + netGroup(req.headers.get("cf-connecting-ip")))).slice(0, 16), perDay = Math.max(Number((env as any).JOIN_PER_IP_DAY ?? JOIN_PER_IP_DAY), paidSeats * 3), perMin = Math.max(Number((env as any).JOIN_PER_IP_MINUTE ?? JOIN_PER_IP_MINUTE), paidSeats);
     const bump = async (k: string, max: number) => { const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0); if (n >= max) return true; await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(k, String(n + 1), String(n + 1)).run(); return false; };
     const iso = new Date(now).toISOString();
     return (await bump(`jbm/${iso.slice(0, 16)}/${ip}`, perMin)) || (await bump(`jlim/${iso.slice(0, 10)}/${ip}`, perDay));
   } catch { return false; }
 }
+/** Wrong employee IDs typed at one game: at most ID_MISS_PER_10MIN from one network (an IPv6 address counts as its /64, see net-key.ts) and at most ID_MISS_PER_GAME_10MIN from everywhere, per 10 minutes.
+ *  Each count is one statement that only succeeds while the count is under the limit, so guesses sent at the same moment cannot all slip under it. Only WRONG IDs are counted: a right ID is never counted
+ *  and never limited, because a whole office shares one address. true = refuse this try. A counter that cannot be written never blocks a person. */
+async function idMissOver(env: Env, eid: string, req: Request, now: number): Promise<boolean> {
+  try {
+    const slot = new Date(now).toISOString().slice(0, 15), ipk = (await sha("jip|" + netGroup(req.headers.get("cf-connecting-ip")))).slice(0, 16);
+    const take = async (k: string, max: number) => !!((await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,'1') ON CONFLICT(k) DO UPDATE SET v=CAST(CAST(v AS INTEGER)+1 AS TEXT) WHERE CAST(v AS INTEGER) < ?").bind(k, max).run()) as any)?.meta?.changes;
+    return !(await take(`idmiss/${eid}/${slot}/${ipk}`, ID_MISS_PER_10MIN)) || !(await take(`idmiss/${eid}/${slot}/all`, ID_MISS_PER_GAME_10MIN));
+  } catch { return false; }
+}
+const TOO_MANY_ID_TRIES = () => json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
+/** How a game asks for identity: with an ID, always (owner rule, audit L1). Only the old test switch lets a stored game keep another way. */
+const verifyFor = (env: Env, e: any) => { const v = verifyOf(e); return testOpenJoin(env) ? v : { ...v, mode: "id" as const }; };
 const BUSY = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
 /** What one successful join writes to the database (participant, seat, person/consent/audit rows ...: counted ~9 on the 1.1.x logs). The daily write guard charges this, so "2,000,000 writes a day" means writes, not joins x 3. */
 const JOIN_WRITES = 9;
@@ -1276,6 +1290,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (b?.confirm !== true) return json({ error: "Please confirm in your console." }, 400);
     const engs = (await env.DB.prepare("SELECT * FROM engagement WHERE org=?").bind(a.org).all<any>()).results ?? [];
     for (const g of engs) if (now >= roundMs(g.start_round) && now < (await endBoundMs(env as any, g))) return json({ error: "A game is running. Close the account after it ends." }, 409);
+    for (const g of engs) if (await entriesFrozen(env, g, now)) return json({ error: FROZEN_MSG, code: "draw-frozen" }, 409); // a draw is being made: closing the account would delete the entries and void it (audit H-1)
     if (!(await spend(env, now, 8 + engs.length * 4))) return BUSY();
     const forfeited = (await activeCreditSummary(env.DB, a.org, now)).activeTotalInr; // closing the account ends its credit (no refunds); the credit records stay with the payment and invoice records
     for (const g of engs) await eraseEverything(env as any, g.id);
@@ -1486,12 +1501,13 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const text = `${b?.subject ?? ""}\n${b?.text ?? ""}`;
     if (!from || !/\bdelete\b|\berase\b/i.test(text)) return json({ ok: true, action: "none" });
     // The sender field of an e-mail can be forged, so it is never enough: the first mail only makes us send a 6-digit code to the registered address; the deletion happens when a reply carrying that code arrives.
-    const done: string[] = [], asked: string[] = [];
+    const done: string[] = [], asked: string[] = [], frozen: string[] = [];
     const codes = [...new Set(text.match(/\b\d{6}\b/g) ?? [])].slice(0, 5);
     for (const tok of [...new Set(text.match(/[A-Za-z0-9_-]{4,40}/g) ?? [])].slice(0, 80)) {
       const c = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`contact/${tok}`).first<{ v: string }>();
       if (!c || accountEmail(JSON.parse(c.v).email) !== from) continue;
       const registered = String(JSON.parse(c.v).email);
+      { const g = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(tok).first<any>(); if (g && (await entriesFrozen(env, g, now))) { frozen.push(tok); continue; } } // a draw is being made: the data of its entries cannot be deleted until the winners exist (audit H-1)
       const pend = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`delreq/${tok}`).first<{ v: string }>();
       const pv = pend ? JSON.parse(pend.v) : null;
       let confirmed = false;
@@ -1504,7 +1520,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       asked.push(tok);
     }
     if (done.length) await sendMail(env as PayEnv, env.DB, from, `Deleted: participant data of ${done.join(", ")}`, `Done. All participant data for ${done.join(", ")} has been deleted.\n\nThe winners record (seat, prize, round, time) and winners' prize hand-over details are kept for up to 365 days, and so are your organizer details.`, now);
-    return json({ ok: true, action: done.length ? "deleted" : asked.length ? "confirm-sent" : "no-match", engagements: done });
+    return json({ ok: true, action: done.length ? "deleted" : asked.length ? "confirm-sent" : frozen.length ? "draw-frozen" : "no-match", engagements: done });
   }
   if (req.method === "GET" && p === "/api/notices") { // our public news list: the same for everyone, nothing about the reader is stored or asked
     const raw = (await env.DB.prepare("SELECT v FROM kv WHERE k='notices'").first<{ v: string }>())?.v ?? "[]";
@@ -1639,22 +1655,16 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (isDraft && (((action === "join" || action === "who") && req.method === "POST") || (action === "info" && !can(a, e)))) return json({ error: "This engagement is not open yet." }, 403);
   if (locked && !can(a, e) && (action === "info" || action === "join")) await nudge(env, e.id, "lockmail", now, `Your engagement ${e.id} could not begin: payment is due`, `Your engagement ${e.id} could not begin: payment is due.\n\nPay now and the first number comes 2 minutes after your payment is confirmed: ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/pay.html?e=${e.id}`);
   if (action === "who" && req.method === "POST") { // "Is this you?": once the employee ID is typed and both boxes are ticked, the first name and the first letter of the last name the organizer gave, so the person sees the name that will be used. Nothing is kept; a wrong ID counts like a wrong ID at the door.
-    const b = await body(req), vf = verifyOf(e), id = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
+    const b = await body(req), vf = verifyFor(env, e), id = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
     if (vf.mode !== "mobile" && String(b?.empId ?? "").trim() !== "" && id === null) return json({ error: badIdMessage(b?.empId, vf.idKind, (e as any)?.created_ms), code: "bad-id" }, 400); // the same plain refusal as the join path
     if (vf.mode === "mobile" || !id) return json({ known: false });
     const ck = consentMissing(b, "K4"); if (ck) return ck;
     const hit = await personByEmpId(env, eid!, id, vf.idKind === "email" ? null : legacyEmpFor(b?.empId, e)); // the cleaned ID, and for an older game also the form it was stored in
-    if (!hit || hit.status === "removed") {
-      try {
-        const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
-        const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-        if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
-        await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
-      } catch { /* a counter never blocks */ }
+    if (!hit || hit.status === "removed") { // a wrong ID counts like a wrong ID at the door
+      if (await idMissOver(env, eid!, req, now)) return TOO_MANY_ID_TRIES();
       return json({ known: false });
     }
-    const nm = ((await openPii(env, hit.pii))?.name ?? "").trim().split(/\s+/);
-    return json({ known: true, name: nm[0] ? (nm.length > 1 ? `${nm[0]} ${Array.from(nm[nm.length - 1]!)[0]}.` : nm[0]) : "" });
+    return json({ known: true }); // the person's name is NOT shown here: the ID was only matched, not proven, so a stranger who guessed an ID learns nothing but "on the list"; the organizer or a Host says yes before anything else is shown
   }
   if (action === "join" && req.method === "POST") {
     const b = await body(req);
@@ -1665,12 +1675,13 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (!tok || tok.status === "removed") return json({ error: "This link is not valid any more. Please ask the person who invited you to send it again.", code: "link-gone" }, 404);
       tokPii = await openPii(env, tok.pii);
     }
-    const typedGiven = typeof b?.phone === "string" ? b.phone.trim() !== "" : b?.phone != null;
-    let typedDigits = digitsOf(b?.phone), typedPh = await phoneHash(b?.phone);
+    const idGame = !testOpenJoin(env); // by invitation, with an ID only: a typed mobile number is never a way in, and is not kept (audit L1 of 9024db89: a stored "mobile" game must not let a listed number through)
+    const typedGiven = !idGame && (typeof b?.phone === "string" ? b.phone.trim() !== "" : b?.phone != null);
+    let typedDigits = idGame ? null : digitsOf(b?.phone), typedPh = idGame ? null : await phoneHash(b?.phone);
     if (typedDigits) typedDigits = keptPhone(b?.phone); // kept with its country: 91 + 10 digits for India, +<code><number> for any other country
     if (typedGiven && !typedPh) return json({ error: "Enter a valid mobile number." }, 400);
     // What the organizer asked people to give: a mobile number (default), an employee ID, or both. An outsider (a vendor, a customer, a family member) has no ID and gives what a guest gives.
-    const vf = verifyOf(e), empNorm = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
+    const vf = verifyFor(env, e), empNorm = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
     if (empNorm === null) return json({ error: badIdMessage(b?.empId, vf.idKind, (e as any)?.created_ms), code: "bad-id" }, 400);
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
     if (!testOpenJoin(env) && !empNorm && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400); // by invitation, with an ID only: a name or a mobile number is never a way in and is never kept
@@ -1732,14 +1743,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (vf.mode !== "mobile" && empNorm && !tok && !admitted) {
       if (vf.mode === "both") { const pp0 = pr ? await openPii(env, pr.pii) : null; if (!pr || (pp0?.empId && pp0.empId !== empNorm)) { pr = null; idMiss = true; } }
       else if (!pr) idMiss = true; // ID alone, not on the list
-      if (idMiss && !openDraw) { // guessing IDs: only so many wrong IDs per network per game per 10 minutes
-        try {
-          const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
-          const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-          if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
-          await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
-        } catch { /* a counter never blocks a join */ }
-      }
+      if (idMiss && !openDraw && (await idMissOver(env, eid!, req, now))) return TOO_MANY_ID_TRIES(); // guessing IDs: only so many wrong IDs per network (and per game) per 10 minutes
     } else if (vf.mode === "both" && pr && !tok && !admitted) { const pp0 = await openPii(env, pr.pii); if (pp0?.empId) needIdAfterConsent = true; } // asked only after the consent box is ticked: an untick-and-ask cannot be used to find out who is on the list
     if (pr?.status === "removed") return removedReply();
     const tickedBefore = !!(await env.DB.prepare("SELECT 1 AS x FROM consent_log WHERE kind='K4' AND ref=? AND subject=?").bind(eid, await pidOf(ph)).first()); // ticked when they asked to come in; the page does not keep it across a reload

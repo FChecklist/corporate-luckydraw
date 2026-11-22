@@ -1,11 +1,25 @@
 [
   {
+    "version": "1.5.2",
+    "date": "2026-11-22",
+    "commit": "this release",
+    "title": "Wrong-ID guesses are limited for IPv6 too, a name is never shown to someone who only typed an ID, and a draw being made cannot be voided by closing the account",
+    "changes": [
+      "Someone typing wrong employee IDs is now stopped after 30 tries even if their internet line changes its address on every try (a whole IPv6 line now counts as one visitor), and after 500 wrong tries on one game from anywhere",
+      "Typing an employee ID that is on your list no longer shows the person's name. An ID you type is only matched to your list, it is not proof that you are that person, so nothing about the person is shown until you say yes",
+      "While a draw is being made, closing your account or deleting the game's data by e-mail is refused until the winners are shown, so nobody can remove entries after the random number is public",
+      "The Legal page now says the same true thing about privacy as every other screen: player details are deleted within 24 hours, winners' details are kept for 365 days",
+      "Sign-in help and button names now match the sign-in e-mail (\"Sign in\"), and the last \"my\" labels you could see (\"Create your game\", \"Back to your game\", \"Close your partner account\") now speak to you",
+      "A game saved from an older version that asked for a mobile number now asks for an ID like every other game; a typed mobile number is never a way in"
+    ]
+  },
+  {
     "version": "1.5.1",
     "date": "2026-11-22",
     "commit": "this release",
     "title": "Entries stay frozen on every path, a stuck payment notice can be repeated, and organizer screens speak to you",
     "changes": [
-      "Once the list of entries is closed, you can no longer delete a person, delete everybody, un-bind a card, send a card link again or cancel the game until the winners are shown, so nobody can change who is in the draw after the beacon value is public",
+      "Once the list of entries is closed, you can no longer delete a person, delete everybody, un-bind a card, send a card link again or cancel the game until the winners are shown, so nobody can change who is in the draw after the random number is public",
       "A payment notice that stopped half way can now be repeated: the game finishes the order on the console's next try instead of waiting for ever",
       "Everything you read as an organizer or Host now speaks to you: the console, the sign-in mail and the agreement boxes say \"you\", never \"I\" or \"my\"",
       "Going live fails the health check if the test-only open-join switch is set",
