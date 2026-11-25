@@ -2,7 +2,7 @@
 // AI that searches the web all read the same words. tools/make-trust.ts writes the two files; a test regenerates them and fails if they differ, so they cannot drift.
 // The look (styles, header, footer) is the Corporate Games one, taken from site-shell.gen.ts, which apps/web/tools/make_site.py writes.
 import { FACTS } from "./ai-facts";
-import { SHELL_CSS, SHELL_FOOTER, SHELL_HEADER } from "./site-shell.gen";
+import { SHELL_CSS, SHELL_FOOTER, SHELL_HEADER, SHELL_MARK } from "./site-shell.gen";
 
 const ORIGIN = "https://luckydraw.corporatetambola.com";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -22,7 +22,7 @@ export function trustHtml(): string {
 <meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Lucky Draw"><meta property="og:title" content="${esc(TITLE)}"><meta property="og:description" content="${esc(DESC)}"><meta property="og:url" content="${ORIGIN}/trust"><meta property="og:image" content="${ORIGIN}/og-card.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Corporate Lucky Draw">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(TITLE)}"><meta name="twitter:description" content="${esc(DESC)}"><meta name="twitter:image" content="${ORIGIN}/og-card.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png?v=3" type="image/png" sizes="32x32"><link rel="icon" href="/icon-192.png?v=3" type="image/png" sizes="192x192"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
-${SHELL_CSS}</head><body class="ck g-draw">
+${SHELL_CSS}</head><body class="ck g-draw">${SHELL_MARK}
 ${SHELL_HEADER}
 <main class="legal doc" id="main" tabindex="-1">
 <div class="eyebrow">Trust</div>

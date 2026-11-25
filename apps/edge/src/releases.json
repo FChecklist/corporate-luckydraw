@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.4.1",
+    "date": "2026-11-25",
+    "commit": "this release",
+    "title": "The small mark १३९ at the top of every page",
+    "changes": [
+      "Every page and screen now carries the small mark १३९ at the very top centre: 6px, bold, dark blue, with a very thin dark red line under it",
+      "The mark does not move anything, cannot be clicked, and is hidden from screen readers and copy",
+      "Nothing else has changed: no wording, layout, price or payment change"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-30",
     "commit": "this release",

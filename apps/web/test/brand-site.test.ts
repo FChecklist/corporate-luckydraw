@@ -95,7 +95,7 @@ describe("plain wording", () => {
   });
   test("the strapline and the games are named the way the brand kit says, and only English is used", () => {
     const h = rd("index.html"); expect(h).toContain("Online games for company events"); expect(h).toMatch(/close group/i); expect(h).toContain("This week, which teams will you engage with");
-    for (const f of TEXT_FILES()) expect([f, /[\u0900-\u097F\u4E00-\u9FFF\u0600-\u06FF]/.test(rd(f))]).toEqual([f, false]);
+    for (const f of TEXT_FILES()) expect([f, /[\u0900-\u097F\u4E00-\u9FFF\u0600-\u06FF]/.test(rd(f).replace('<div class="mark139" lang="hi" aria-hidden="true"><span>१३९</span></div>', ""))]).toEqual([f, false]); // the owner-approved mark १३९ (25 Nov 2026) is the one allowed exception
   });
 });
 
