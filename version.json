@@ -1,8 +1,8 @@
 {
   "name": "corporate-luckydraw",
-  "version": "1.5.3",
-  "date": "2026-11-22",
-  "title": "The live code of 5 Nov 2026 is merged into the owner-rules v1.1 branch, so deploying this branch no longer drops live fixes",
+  "version": "1.6.0",
+  "date": "2026-11-25",
+  "title": "A player can tap Notify me to hear when a Lucky Draw begins; built and switched OFF until the owner turns it on",
   "changelog": "CHANGELOG.md",
   "knowledge": "docs/KNOWLEDGE.md",
   "releases": "apps/edge/src/releases.json"

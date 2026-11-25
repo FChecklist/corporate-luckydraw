@@ -1,7 +1,42 @@
 # Knowledge: Corporate Lucky Draw
 
-**Version 1.5.3** (22 Nov 2026). The version lives in four places that must agree (a test checks it): `version.json`, `CHANGELOG.md`, this file, and the footer of every page (read from `apps/edge/src/releases.json`).
+**Version 1.6.0** (25 Nov 2026). The version lives in four places that must agree (a test checks it): `version.json`, `CHANGELOG.md`, this file, and the footer of every page (read from `apps/edge/src/releases.json`).
 Read this first. Then `docs/STATE.md` (what the P1 work did and what the owner must decide), `docs/CONTRACT_V1.md` and `docs/PAY_STEP.md` (the console), `KNOWLEDGE-MAP.md` (all repositories).
+
+## Notify me when this game begins (1.6.0, DARK)
+A player can tap "Yes, notify me when this game begins" on the game page and the browser then tells them when the game starts. Built from `FChecklist/corporate-push` (private; spec pinned at commit `f1e93f59f45444711edbb66e632fe1333bf8f9cb`, its `KNOWLEDGE.md` section "Putting it on a site"). It is switched OFF: nothing is shown, loaded or sent until the owner sets the values below.
+| Part | File | What it does |
+|---|---|---|
+| The setting | `apps/web/public/push-config.js` | `window.CB_PUSH_API = ""`. The one value. Empty = dark. Must be a real https address to switch on. |
+| The loader | `apps/web/public/push-loader.js` | Reads the setting. Dark: does nothing at all. Set: puts the block in `#cbpush` (below the game area, so a repaint never wipes it) and loads the two client files. `z.js` calls `CBPush.update` after each paint (game id; game over = `data-push-ended="true"`). Hidden for a draft, a cancelled or an unknown game. |
+| The client | `push-optin.js`, `push-optin.css` | Copied UNCHANGED from corporate-push `client/` (the test `push-optin.test.ts` pins their SHA-256, so any edit fails it). The permission question comes only from a tap. "Stop notifications" is always there. |
+| The worker handlers | `sw-push-snippet.js`, loaded by `zsw.js` | Copied from corporate-push `client/` with ONE change: `luckydraw` added to `CP_ALLOWED_HOSTS`. `zsw.js` loads it with `importScripts` inside a try/catch (a missing file never stops the game), and its old `notificationclick` handler was removed because the snippet's replaces it (two handlers = two windows on one tap). |
+| The headers | `pages/push-config.mjs`, `pages/build.mjs`, `apps/web/public/_headers` | `script-src` stays `'self'`. `connect-src` of the game page gets the alert address only when the setting is a real https address. |
+| The server | `apps/edge/src/push.ts` | Dark unless BOTH `PUSH_URL` (https) and `PUSH_ADMIN_KEY` are set. See below. |
+| The database | `apps/edge/migrations/0034_push_notify.sql` | `draw.push_due_ms`, `draw.push_sent_ms`. No personal data. |
+
+**What the server does (only with both settings).**
+1. The moment a game really starts, `runDraw` (draw.ts) calls `markGameStarted`: automatic game = the draw time has come and the game is not paused; manual game = the press of Start closed the list. It writes `push_due_ms` once. Nothing is sent there, so a player's request or the organizer's press never waits for the alert service.
+2. The scheduled job (`runTick`, every minute, right after `drawTick`) calls `pushTick`: for each game that has `push_due_ms` and no `push_sent_ms` it first claims the send (`UPDATE ... WHERE push_sent_ms IS NULL`, one row changed), then calls `POST <PUSH_URL>/send` with `{scope:"game:<id>", kind:"game_begins", title, body, url:<game link>}`. The service sends 40 browsers per call; the calls go on with `after_id` while the answer has `next_after_id` (at most 25 calls, 1,000 browsers). One try, no retry (a retry could send twice). A start more than 2 hours old is never announced.
+3. `erasePersonal` (lifecycle.ts) ends with `purgeGamePush`: `POST <PUSH_URL>/purge {scope:"game:<id>"}`. `erasePersonal` is the one place every deletion of a game's data goes through: the 24-hour job (`lifecycleTick`), a cancel, a game that never started, the organizer's own "delete everything", an e-mailed erase request, the 365-day clean-up and the test purge. `apps/cron` holds no logic of its own (it calls `/api/lifecycle/tick`), so nothing changed there. One try with a 5-second limit; the service deletes its own game rows after 24 hours anyway.
+4. The admin key travels only in the `Authorization` header of those calls (redirects are refused). It is never logged, never in a URL, never in an answer.
+Words of the message (no "your" or "my"): title "The Lucky Draw has begun", body "Tap to open the game page and see the winners." The link is `<PUBLIC_ORIGIN>/z.html?e=<id>`.
+
+**To switch it on (the owner, in this order, after two independent audits of the exact commit).**
+1. Run `0034_push_notify.sql` on the real database (and `0033_draw_freeze.sql` if it has not run).
+2. On the push service: add `luckydraw.corporatetambola.com` to `ALLOWED_ORIGINS_EXTRA` (a deploy setting of corporate-push, NOT part of this change). Without it the service refuses this site's sign-ups and the notification link.
+3. Set `PUSH_ADMIN_KEY` (the same 32+ character key as the service's, as a Pages secret) and `PUSH_URL` (the service's https address, as a Pages variable).
+4. Put the same address in `apps/web/public/push-config.js`, deploy, and check `/z.html` in a real browser: the button shows, a tap asks for permission, Stop is there. Then `POST /send` with `"dry_run": true` for a test game on the service.
+To switch it off again: empty `push-config.js` and deploy (the page goes dark at once), and/or remove `PUSH_URL`.
+
+**Limits and open points (honest).**
+- A game's saved addresses live at most 24 hours after the tap (the service's rule). A player who taps more than 24 hours before the start loses the alert unless the service's `/extend` is used (not wired). Open question for the owner.
+- A manual Start is announced by the next scheduled run, up to about a minute after the press; an automatic game in the same run as its draw. The draw itself takes seconds.
+- No retry: if the service is down at that moment nobody is told for that game (a retry could tell people twice). More than 1,000 browsers on one game: the rest are not told.
+- `privacy.html` is a small page that forwards to `terms.html#privacy`. The sentences "a browser address, not your name, e-mail or phone" and "deleted with the game, within 24 hours" are on `privacy.html` and in `tools/legal/privacy.frag.html`, and the block itself says them next to the button. `terms.html` (the one legal document, versioned) still says "No other participant details are asked for": it needs the owner's decision (and a Terms version) BEFORE the button is switched on. It was not touched.
+- The copied client text contains words like "your browser" (for example "Notifications are blocked in your browser settings"). The task was to copy it unchanged, so the owner's voice rule for "your" is not applied inside it. Open question for the owner.
+- iPhone and iPad: the client itself explains that Add to Home Screen is needed first.
+- Tests use a fake service only: no real message was ever sent and nothing is deployed.
 
 ## The live code is merged in (1.5.3)
 - Production runs commit `d040396f69f0` (deployed 5 Nov 2026). This branch contains it (`git merge-base --is-ancestor d040396f69f0 HEAD` answers yes), so nothing live is dropped by deploying the branch. Check this before every deploy.

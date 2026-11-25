@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-11-25",
+    "commit": "this release",
+    "title": "A player can tap Notify me to hear when a Lucky Draw begins; built and switched OFF until the owner turns it on",
+    "changes": [
+      "The game page (the link a player opens) has a Notify me button that is switched OFF: it needs one setting, push-config.js, which is empty today, and then the page shows nothing, loads nothing and asks nobody for anything. The button, the 'Stop notifications' button and the privacy words are the shared corporate-push client, copied unchanged",
+      "Once the owner switches it on, a player taps the button and the browser asks for permission (only after the tap, never when the page opens). When the game really starts, one short message goes to those browsers, once per game. The saved browser address is deleted with the game, within 24 hours",
+      "The server side needs two settings that do not exist yet, PUSH_URL and PUSH_ADMIN_KEY, and one database change (0034_push_notify.sql). Without both settings nothing is sent, recorded or deleted remotely",
+      "The service worker keeps all its old work (saved game, news) and gains the push handlers; its two tap handlers became one, so one tap opens one window",
+      "The privacy notice says: a browser address, not your name, e-mail or phone; deleted with the game, within 24 hours. Not deployed"
+    ]
+  },
+  {
     "version": "1.5.3",
     "date": "2026-11-22",
     "commit": "this release",

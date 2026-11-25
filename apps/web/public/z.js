@@ -95,6 +95,7 @@
   function paint() {
     $app.innerHTML = view();
     try { const v = { phase: D && D.drawn ? "ended" : D && D.paused ? "paused" : "play", paused: !!(D && D.paused), locked: false }; if (window.ctzView) window.ctzView(v); } catch (e) { /* the recorder never disturbs the page */ }
+    try { if (window.CBPush) window.CBPush.update({ eid: EID, show: !!(I && D && !I.cancelled && !I.draft), ended: !!(D && D.drawn) }); } catch (e) { /* the alert button (push-loader.js) never disturbs the page; it does nothing while its setting is empty */ }
     const reg = document.getElementById("reg");
     if (reg) {
       const k = document.getElementById("k4");
