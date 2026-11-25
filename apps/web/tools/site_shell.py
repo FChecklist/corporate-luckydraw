@@ -46,6 +46,19 @@ def css(name):
     return f'<link rel="stylesheet" href="/{name}?v={V[name]}">'
 
 
+# The small mark १३९ at the very top centre of every page (owner order, 25 Nov 2026). Exact look: see apps/web/test/mark139.test.ts.
+MARK_CSS = '.mark139{position:absolute;top:0;left:0;right:0;margin:0;padding:1px 0 0;text-align:center;line-height:1;pointer-events:none;user-select:none;z-index:2147483647;font-family:"Noto Sans Devanagari","Mukta","Nirmala UI","Mangal","Kohinoor Devanagari","Devanagari Sangam MN",sans-serif;font-size:6px;font-weight:700;color:#0B2A6B}' + chr(10) + '.mark139 span{display:inline-block;border-bottom:.5px solid #7A1010;padding-bottom:.5px}'
+MARK_STYLE = "<style>" + MARK_CSS + "</style>"
+MARK_DIV = '<div class="mark139" lang="hi" aria-hidden="true"><span>१३९</span></div>'
+
+
+def with_mark(html):
+    """Put the mark once in a whole page: the style before </head>, the div right after <body>. Safe to run twice."""
+    html = html.replace(MARK_STYLE, "").replace(MARK_DIV, "")
+    html = re.sub(r"</head>", lambda m: MARK_STYLE + "</head>", html, count=1)
+    return re.sub(r"<body[^>]*>", lambda m: m.group(0) + MARK_DIV, html, count=1)
+
+
 def head(title, desc, path, *, index=True, legacy=True, extra_css=(), scripts=None, ld=None, canonical=True, extra_meta="", bar=True):
     """The <head>. path is the clean address ("/" or "/privacy"). legacy=True keeps app.css and site.css (the sign-in sheet, price card and legal text use them)."""
     url = ORIGIN + path
