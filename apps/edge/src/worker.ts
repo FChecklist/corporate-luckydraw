@@ -41,6 +41,7 @@ import { CREDIT_SCHEMA, activeCreditSummary, creditAppliedFor, creditLastDay, cr
 import { cloneGame } from "./clone";
 import { inviteOnlyError, isInviteOnly, testOpenJoin, whoCanJoinOf } from "./invite-only";
 import { DRAW_FREEZE_SCHEMA, DRAW_SCHEMA, checkDrawSettings, drawFacts, drawRow, drawTick, freezeAt, registrationClosed, runDraw, saveDrawSettings } from "./draw";
+import { PUSH_SCHEMA, pushTick } from "./push";
 import { handleConsole, legacyPayRedirect } from "./console-bridge/bridge";
 import { consoleAdapter, sweepStaleMarking } from "./console-adapter";
 import { CONSOLE_ORIGIN, LEGACY_PAY_EXTRA, effectiveFlag, legacyLoginRedirect } from "./console-origin";
@@ -91,6 +92,8 @@ export interface Env {
   ANALYZE_AI_URL?: string; ANALYZE_AI_KEY?: string; ANALYZE_AI_MODEL?: string;
   /** Optional and public (it is not a secret): the Google sign-in client id. Without it the "Continue with Google" button is hidden and /api/auth/google answers 404. */
   GOOGLE_CLIENT_ID?: string;
+  /** Optional, both or neither (push.ts): the address of the corporate-push service (https) and its admin key (a secret). With both, one "the game has begun" message goes to the browsers that tapped the alert button, and their saved addresses are deleted with the game. With either missing nothing is sent and nothing is recorded. */
+  PUSH_URL?: string; PUSH_ADMIN_KEY?: string;
 }
 const controlKey = (id: string) => `c/${id}.json`;
 const controlUrl = (env: Env, id: string) => (env.CONTROL_BASE && env.CONTROL_R2 ? `${env.CONTROL_BASE.replace(/\/$/, "")}/${controlKey(id)}` : null);
@@ -211,6 +214,8 @@ export const SCHEMA: string[] = [
   ...ADJUST_SCHEMA,
   // Lucky Draw: the entry list closes at the draw time or at the press of Start; the beacon round of a manual start; when a seat was blocked (0033_draw_freeze.sql)
   ...DRAW_FREEZE_SCHEMA,
+  // Lucky Draw: when the game really started and when its one "game begins" alert was claimed (0034_push_notify.sql)
+  ...PUSH_SCHEMA,
 ];
 
 /** Lucky Draw: has the entry list closed (the draw time has come, or Start was pressed)? From then on nobody can be added, put back or taken out of the draw, and a removal only blocks the seat (it never deletes it). */
@@ -556,6 +561,7 @@ export async function runTick(env: Env, now: number) {
   await remindUnpaid(env, now);
   const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
   await drawTick(env as any, now, (e) => drawTiming(env, e, now));
+  await pushTick(env, now); // the one "the game has begun" message of each game that just started (push.ts); dark and free of any request until PUSH_URL and PUSH_ADMIN_KEY are both set
   const life = await lifecycleTick(env as any, now);
   const purged = await purgeOld(env, now);
   const invoices = await issueDueInvoices(env as PayEnv, now); // Razorpay-first payments whose payer closed the page: the tax invoice is issued 15 minutes after the capture (payfirst.ts)

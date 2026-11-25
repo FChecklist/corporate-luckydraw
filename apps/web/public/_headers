@@ -3,6 +3,8 @@
   Strict-Transport-Security: max-age=31536000
 
 # Cloudflare Pages headers. The phone page and organizer page are locked down: only our own files, the public randomness beacon, and our own API.
+# The "notify me when this game begins" button (push-config.js): while CB_PUSH_API is empty, the game page below connects only to the addresses it lists and nothing is added. script-src stays 'self' (the button's script is our own file).
+# When the owner sets CB_PUSH_API, that ONE address is added to connect-src of /z.html and /z. pages/build.mjs does it for the real deploy (pages/push-config.mjs); keep this file in step (apps/web/test/push-optin.test.ts fails if they differ).
 /z.html
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://api.drand.sh https://api2.drand.sh https://api3.drand.sh https://drand.cloudflare.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
   X-Content-Type-Options: nosniff

@@ -111,6 +111,15 @@
       ]
     },
     {
+      "id": "game-alert",
+      "store": "localStorage",
+      "say": "On a player's phone, only if the player taps the game alert button: a yes or no for that game (the key is written * here because its name is built from a fixed prefix and the game id), and, only when turning the alert off could not reach the server, the browser address to try again next time. Both are removed when the alert is turned off.",
+      "keys": [
+        "*",
+        "corporatePush.v1pending"
+      ]
+    },
+    {
       "id": "visits",
       "store": "localStorage",
       "say": "On the public pages only: a random visitor id and one first-party cookie, cbv, kept one year, to count visits. Never on game pages, never with names or numbers. With Global Privacy Control or Do Not Track no id is made.",

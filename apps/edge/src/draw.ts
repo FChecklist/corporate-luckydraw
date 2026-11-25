@@ -9,6 +9,7 @@ import { openPii, type PiiEnv } from "./pii";
 import { recordWinners, roundMs } from "./lifecycle";
 import { sendMail, type PayEnv } from "./pay";
 import { teamEmails } from "./cancel";
+import { markGameStarted } from "./push";
 import type { D1, Env } from "./worker";
 
 export const DRAW_SCHEMA: string[] = [
@@ -26,7 +27,7 @@ export const NO_PERSONAL_LINE = "Player details are deleted within 24 hours of t
 /** What is true in code, and no more. The entry list closes at the draw time (or at your press) and cannot change after that. The beacon value is public and nobody can choose it. */
 export const DRAW_FAIRNESS = "No one knows the result before the draw. The list of entries closes at the draw time and cannot change after that. The winners come from a public beacon value (drand) that nobody can choose or predict: the same entries and the same value always give the same winners.";
 
-export interface DrawRow { eid: string; winners: number; prizes: string; mode: "auto" | "manual"; ref: string; set_ms: number; closing_ms: number | null; drawn_ms: number | null; round: number | null; beacon: string | null; result: string | null; by_role: string | null; entries: number | null; freeze_ms: number | null; target_round: number | null }
+export interface DrawRow { eid: string; winners: number; prizes: string; mode: "auto" | "manual"; ref: string; set_ms: number; closing_ms: number | null; drawn_ms: number | null; round: number | null; beacon: string | null; result: string | null; by_role: string | null; entries: number | null; freeze_ms: number | null; target_round: number | null; /** push.ts (0034): when the game really started, and when its one alert was claimed; absent on a database that has not run 0034 */ push_due_ms?: number | null; push_sent_ms?: number | null }
 export const drawRow = (db: D1, eid: string) => db.prepare("SELECT * FROM draw WHERE eid=?").bind(eid).first<DrawRow>();
 const cleanPrize = (s: unknown): string => (typeof s === "string" ? s.replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) : "");
 
@@ -137,11 +138,13 @@ export async function runDraw(env: Env & PiiEnv & PayEnv, e: any, now: number, t
   if (by === "auto") {
     if (mode === "auto") { if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 }; if (now < drawMs + 3000) return { ok: false, error: "It is not draw time yet.", status: 409 }; }
     else if (d.freeze_ms === null) return { ok: false, error: "The game starts when you press Start.", status: 409 };
+    if (mode === "auto") await markGameStarted(env, e.id, now); // the draw time has come and the game is not paused: the game has really started (push.ts marks it once; it does nothing at all unless the alert service is set up)
   } else if (mode !== "manual") return { ok: false, error: "This game starts by itself at the time you set, so there is nothing to press.", status: 409 };
   else if (by !== "organizer" && by !== "host") return { ok: false, error: "Only you or your Host can start the game.", status: 403 };
   else if (d.freeze_ms === null) { // the press: the list closes now, and the beacon round is one that does not exist yet
     if (t.paused) return { ok: false, error: "The draw is paused. It waits until you resume.", status: 409 };
     const up = await env.DB.prepare("UPDATE draw SET freeze_ms=?, target_round=?, by_role=? WHERE eid=? AND drawn_ms IS NULL AND freeze_ms IS NULL").bind(now, manualRound(now), by, e.id).run();
+    if ((up.meta?.changes ?? 0) > 0) await markGameStarted(env, e.id, now); // the press closed the list: the game has really started (once; the first press stands for both)
     d = (await drawRow(env.DB, e.id))!; // when two people pressed together, the first press stands for both
     if (d.drawn_ms !== null) return { ok: true, already: true };
     void up;

@@ -3,6 +3,19 @@
 The newest release is first. The version is kept in four places that must agree (a test checks it): `version.json`, this file, `docs/KNOWLEDGE.md`, and the footer of every page (it is read from `apps/edge/src/releases.json`, which also feeds the owner's version page).
 Older releases (1.0.0 to 1.4.0) are listed in `apps/edge/src/releases.json`.
 
+## 1.6.0 - 25 Nov 2026 (branch `local/pt33.4-2026-11-25`, based on `p1/owner-rules-v1-1`, not deployed)
+
+Plain words: **a player can tap "Yes, notify me when this game begins" and hear when a Lucky Draw begins. It is built, tested and switched OFF.** Until the owner turns it on, the game page shows nothing new, loads nothing new and asks no outside service for anything.
+
+- **The button.** On the game page (`z.html`, the link a player opens) there is a small block with the button, a "Stop notifications" button that is always there, and the privacy words. It is the shared corporate-push client (`push-optin.js`, `push-optin.css`), copied unchanged from `FChecklist/corporate-push` at `f1e93f59f454`. The browser's permission question opens only after a tap, never when the page opens. After the game it offers "Keep notifying me about new games".
+- **One setting, empty today.** `apps/web/public/push-config.js` holds the address of the alert service. While it is empty nothing is shown, no alert script or style is loaded and no request is made to any alert service. The page's headers allow that one address only when it is set (`pages/push-config.mjs`).
+- **The service worker.** `zsw.js` keeps everything it did (saved game, news) and now loads `sw-push-snippet.js` (the corporate-push handlers, plus `luckydraw` in the list of hosts a notification may open). Its two tap handlers became one: two would open two windows on one tap.
+- **The server side (`apps/edge/src/push.ts`).** With BOTH settings `PUSH_URL` and `PUSH_ADMIN_KEY`: when a game really starts (the draw time of an automatic game, the press of Start on a manual one) the game's row is marked once, and the scheduled job sends ONE message for the game (`POST /send`, kind `game_begins`, with the game link); when the game's data is deleted (the 24-hour job, a cancel, a game that never started, the organizer's own delete, the 365-day clean-up) it calls `POST /purge` for that game. With either setting missing: nothing is read, written or sent.
+- **One database change:** `0034_push_notify.sql` (two columns on `draw`: `push_due_ms`, `push_sent_ms`). Run it before the two settings are set. Production has run up to `0032_price_adjust.sql`; `0033_draw_freeze.sql` is still waiting from 1.5.3.
+- **Privacy words.** "a browser address, not your name, e-mail or phone" and "deleted with the game, within 24 hours" are in `privacy.html` and `tools/legal/privacy.frag.html`. The one legal document (`terms.html`) is NOT changed: see the open points in `docs/KNOWLEDGE.md`.
+- **Tests that prove it** (each fails without the change): `apps/edge/test/push-notify.test.ts` (fake alert service: nothing without the two settings, one send per game, purge on every kind of delete, the key never in a body or a log) and `apps/web/test/push-optin.test.ts` (nothing and no request while dark; block, Stop and no prompt on load when set; the copied files are byte-for-byte the audited ones; headers).
+- **Updated, not deleted:** `pwa.test.ts` (the worker now loads the snippet and has one tap handler), `migrations.test.ts` (0034), `config/SECRETS_NAMES.md` (the two names), `apps/web/storage-registry.json` (the two device-storage keys of the alert button).
+
 ## 1.5.3 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
 
 Plain words: **we merged the live code of 5 Nov into the v1.1 branch.** The live site runs commit `d040396f69f0` (5 Nov 2026). This branch had grown away from it: it was 32 changes ahead and 49 behind, so deploying it would have silently dropped live fixes. Now it holds both.

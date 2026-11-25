@@ -7,9 +7,12 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
-const CACHE = "cb-game-v35"; // bump when the game files change shape, so every phone saves a matching set
+// The alert ("notify me when this game begins"): the push and notificationclick handlers are the corporate-push snippet, kept in its own file so its list of allowed hosts exists once. It does nothing until a browser holds an alert subscription,
+// and a missing file never stops the game from working: the game itself does not depend on it. It also carries the one notificationclick handler of this worker (two handlers would open two windows on one tap).
+try { importScripts("/sw-push-snippet.js"); } catch (e) { /* the game works without the alert handlers */ }
+const CACHE = "cb-game-v36"; // bump when the game files change shape, so every phone saves a matching set
 const FILES = ["/offline.html", "/offline.js", "/z.html", "/reactions.js", "/funnel.js", "/reactions.css", "/zc.html", "/consent.js", "/blackbox.js", "/guide.js", "/z.js", "/rights.js", "/zc.js", "/control.js", "/common.js",
-  "/app.css", "/z.css", "/fonts.css", "/fonts-extra.css", "/tokens.css", "/components.css", "/draw-site.css", "/draw-console.css", "/theme-init.js", "/brandkit.js", "/favicon.svg", "/pwa.js", "/autoupdate.js", "/keep.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-mark.svg",
+  "/app.css", "/z.css", "/fonts.css", "/fonts-extra.css", "/tokens.css", "/components.css", "/draw-site.css", "/draw-console.css", "/theme-init.js", "/brandkit.js", "/favicon.svg", "/pwa.js", "/autoupdate.js", "/keep.js", "/push-config.js", "/push-loader.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-mark.svg",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 
 // A saved copy must be a plain answer (not a redirect) or the browser refuses to show it from the saved set.
@@ -64,11 +67,7 @@ async function showNews() {
   } catch { /* try again at the next sync */ }
 }
 self.addEventListener("periodicsync", (e) => { if (e.tag === "cb-news") e.waitUntil(showNews()); });
-self.addEventListener("notificationclick", (e) => {
-  e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "/";
-  e.waitUntil(self.clients.matchAll({ type: "window" }).then((cs) => { for (const c of cs) if ("focus" in c) { c.navigate(url).catch(() => {}); return c.focus(); } return self.clients.openWindow(url); }));
-});
+// (a tap on a notification is handled by the one notificationclick handler in sw-push-snippet.js: a link on this site or on one of our own hosts opens, anything else opens the home page)
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;

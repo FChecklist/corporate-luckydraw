@@ -13,6 +13,7 @@ import { ensureGameRecordTable, keepGameRecord } from "./gamerecord";
 import { ensureGameLog, writeGameLog } from "./gamelog";
 import { sweepVisits } from "./visits";
 import { closeAuditFor, isHeld, shredParticipantAudit } from "./audit";
+import { purgeGamePush } from "./push";
 import { GRACE_ROUNDS, INVITE_CATEGORIES, PRIZE_HOUSES, validateCfg, keysInPlay, linesFor, type EngagementCfg, type PatternKey } from "../../../packages/beacon/src/config";
 import { callRoundR, luckyRound } from "../../../packages/beacon/src/game";
 import { roundAt } from "../../../packages/beacon/src/index";
@@ -157,6 +158,7 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
     env.DB.prepare("INSERT INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?, 'organizer', ?, ?) ON CONFLICT(eid) DO UPDATE SET purged_ms=?, report_state=COALESCE(life.report_state, ?)").bind(eid, now, now, by, now, by),
   ]);
   await shredParticipantAudit(env as any, eid, now); // best effort inside: a held engagement keeps its log until the hold is lifted, then the tick shreds it
+  await purgeGamePush(env, eid); // the browser addresses saved for the "game has begun" alert go with the game (push.ts); one try, never throws, no request at all unless the alert service is set up
 }
 /** Everything about an engagement, at the end of its 365 days (or for a draft nobody published). */
 export async function eraseEverything(env: Env, id: string, now = Date.now()): Promise<void> {
