@@ -2,7 +2,7 @@
   {
     "version": "1.4.1",
     "date": "2026-11-25",
-    "commit": "this release",
+    "commit": "3d07c39",
     "title": "The small mark १३९ at the top of every page",
     "changes": [
       "Every page and screen now carries the small mark १३९ at the very top centre: 6px, bold, dark blue, with a very thin dark red line under it",
