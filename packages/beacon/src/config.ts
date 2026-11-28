@@ -96,7 +96,7 @@ export function checkBrandLogo(v: unknown): { ok: true; bytes: number } | { ok: 
   if (long > short * LOGO_MAX_RATIO) return { ok: false, error: `The logo is too long and thin. It may be at most ${LOGO_MAX_RATIO} times wider than tall.` };
   return { ok: true, bytes: raw.length };
 }
-export const MAX_INVITES_PER_PERSON = 10;
+export const MAX_INVITES_PER_PERSON = 4; // owner decision 1 Nov 2026: you and up to 4 family members
 export const defaultInvites = (): InviteCfg => ({ on: false, per: 4, cats: ["family", "colleagues"] });
 export type VerifyMode = "mobile" | "id" | "either" | "both";
 export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both"];
@@ -170,11 +170,11 @@ export const isTimeZone = (z: unknown): z is string => { if (typeof z !== "strin
 export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown; idKind?: unknown; roomMode?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
   const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}), ...(base.idKind === "email" ? { idKind: "email" as const } : {}), ...(base.roomMode ? { roomMode: true as const } : {}) };
   if (input.rounds !== undefined) {
-    if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `A Lucky Draw has one draw and no rounds. Leave rounds out.` };
+    if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS || (!opts.stored && input.rounds !== 1)) return { ok: false, error: `A Lucky Draw has one draw and no rounds. Leave rounds out.` }; // LD-21: new input must be 1; a game read back from storage keeps what it had
     cfg.rounds = input.rounds as number;
   }
   if (input.tickets !== undefined) {
-    if (input.tickets !== 1 && input.tickets !== 2) return { ok: false, error: "A Lucky Draw has no cards: each person registers once." };
+    if ((input.tickets !== 1 && input.tickets !== 2) || (!opts.stored && input.tickets !== 1)) return { ok: false, error: "A Lucky Draw has no cards: each person registers once." }; // LD-21: new input must be 1; stored games keep 2
     cfg.tickets = input.tickets;
   }
   if (input.rewards !== undefined) {
@@ -228,7 +228,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     for (let i = 1; i < out.length; i++) if (out[i]!.after === out[i - 1]!.after) return { ok: false, error: "Two breaks cannot start at the same step." };
     cfg.breaks = out;
   }
-  if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
+  if (input.mark !== undefined) { if ((input.mark !== "auto" && input.mark !== "tap") || (!opts.stored && input.mark === "tap")) return { ok: false, error: "Marking is not used in a Lucky Draw. Leave it out." }; /* LD-21: "tap" only for a stored game */ if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
   if (input.join !== undefined) { if (input.join !== "name" && input.join !== "phone") return { ok: false, error: "Joining is \"name\" (guests type their name) or \"phone\" (guests also give a mobile number)." }; if (input.join === "phone") cfg.join = "phone"; else delete cfg.join; }
   if (input.tz !== undefined) { if (input.tz === null || input.tz === "") delete cfg.tz; else if (isTimeZone(input.tz)) { if (input.tz === DEFAULT_TZ) delete cfg.tz; else cfg.tz = input.tz; } else return { ok: false, error: "That time zone is not known. Use a name such as America/New_York or Asia/Kolkata." }; }
   if (input.name !== undefined) { const nm = cleanText(input.name, 60); if (nm) cfg.name = nm; else delete cfg.name; }
@@ -285,7 +285,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     if (input.verify === "mobile") delete cfg.verify; else cfg.verify = input.verify as VerifyMode;
   }
   if (input.idKind !== undefined) {
-    if (input.idKind !== "email" && input.idKind !== "emp") return { ok: false, error: "What the ID is: an employee ID or an Email ID." };
+    if (input.idKind !== "email" && input.idKind !== "emp") return { ok: false, error: "Choose an Employee ID or an Email ID." };
     if (input.idKind === "email") cfg.idKind = "email"; else delete cfg.idKind;
   }
   if (input.employeesOnly !== undefined) {
@@ -300,7 +300,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     const v = input.invites as any;
     if (!v || typeof v !== "object" || typeof v.on !== "boolean") return { ok: false, error: "Invites: say whether they are on or off." };
     const per = v.per === undefined ? cfg.invites!.per : v.per;
-    if (!Number.isInteger(per) || per < 1 || per > MAX_INVITES_PER_PERSON) return { ok: false, error: `Each person can invite 1 to ${MAX_INVITES_PER_PERSON} people.` };
+    if (!Number.isInteger(per) || per < 1 || per > MAX_INVITES_PER_PERSON) return { ok: false, error: `Each person can invite 1 to ${MAX_INVITES_PER_PERSON} people: you and up to ${MAX_INVITES_PER_PERSON} family members.` };
     const cats = v.cats === undefined ? cfg.invites!.cats : v.cats;
     if (!Array.isArray(cats) || cats.some((c: unknown) => !INVITE_CATEGORIES.some((k) => k.id === c))) return { ok: false, error: "Pick the kinds of guests from the list." };
     const uniq = [...new Set(cats as string[])];

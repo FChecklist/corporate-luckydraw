@@ -83,7 +83,7 @@ export function leaveStatements(c: Pick<RightsCtx, "db" | "eid" | "now" | "start
   else st.push(db.prepare("DELETE FROM person WHERE eid=? AND ph=? AND role IS NULL").bind(eid, s.ph));
   st.push(db.prepare("DELETE FROM kv WHERE k >= ? AND k < ? AND v=?").bind(`email/${eid}/`, `email/${eid}0`, s.ph)); // the email record goes with the person (1.8.0)
   if (c.extraLeave) st.push(...c.extraLeave(eid, s.pid));
-  if (c.started) st.push(db.prepare("UPDATE participant SET pii=NULL, name=NULL WHERE eid=? AND pid=?").bind(eid, s.pid), db.prepare("UPDATE seat SET blocked=1 WHERE eid=? AND pid=?").bind(eid, s.pid));
+  if (c.started) st.push(db.prepare("UPDATE participant SET pii=NULL, name=NULL WHERE eid=? AND pid=?").bind(eid, s.pid), db.prepare("UPDATE seat SET blocked=1, blk_ms=? WHERE eid=? AND pid=?").bind(now, eid, s.pid));
   else st.push(db.prepare("DELETE FROM participant WHERE eid=? AND pid=?").bind(eid, s.pid), db.prepare("DELETE FROM seat WHERE eid=? AND pid=?").bind(eid, s.pid));
   return st;
 }

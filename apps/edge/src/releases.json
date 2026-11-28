@@ -1,5 +1,59 @@
 [
   {
+    "version": "1.5.3",
+    "date": "2026-11-22",
+    "commit": "this release",
+    "title": "The live code of 5 Nov 2026 is merged into the owner-rules v1.1 branch, so deploying this branch no longer drops live fixes",
+    "changes": [
+      "Merged the live code of 5 Nov into the v1.1 branch: the join retry with a small random wait, the round-2 route classes, the resumable end of a draw, the owner's free test packs, the runner key, the owner's private price (migration 0032_price_adjust.sql) and the other live changes are all in this branch now, next to the owner rules v1.1 work",
+      "The new database change for the frozen draw list is now numbered 0033_draw_freeze.sql (it was 0032, the same number as the live price migration). It has not been run on production yet",
+      "Where both sides touched the same words, the owner rules v1.1 wording stands (ID only, ₹, polite voice, one privacy line, one billing sentence); where only the live side changed something, the live change stands",
+      "The free demo game is now by invitation only like every other game, and a Stop before the draw still lets the organizer press Start by hand"
+    ]
+  },
+  {
+    "version": "1.5.2",
+    "date": "2026-11-22",
+    "commit": "this release",
+    "title": "Wrong-ID guesses are limited for IPv6 too, a name is never shown to someone who only typed an ID, and a draw being made cannot be voided by closing the account",
+    "changes": [
+      "Someone typing wrong employee IDs is now stopped after 30 tries even if their internet line changes its address on every try (a whole IPv6 line now counts as one visitor), and after 500 wrong tries on one game from anywhere",
+      "Typing an employee ID that is on your list no longer shows the person's name. An ID you type is only matched to your list, it is not proof that you are that person, so nothing about the person is shown until you say yes",
+      "While a draw is being made, closing your account or deleting the game's data by e-mail is refused until the winners are shown, so nobody can remove entries after the random number is public",
+      "The Legal page now says the same true thing about privacy as every other screen: player details are deleted within 24 hours, winners' details are kept for 365 days",
+      "Sign-in help and button names now match the sign-in e-mail (\"Sign in\"), and the last \"my\" labels you could see (\"Create your game\", \"Back to your game\", \"Close your partner account\") now speak to you",
+      "A game saved from an older version that asked for a mobile number now asks for an ID like every other game; a typed mobile number is never a way in"
+    ]
+  },
+  {
+    "version": "1.5.1",
+    "date": "2026-11-22",
+    "commit": "this release",
+    "title": "Entries stay frozen on every path, a stuck payment notice can be repeated, and organizer screens speak to you",
+    "changes": [
+      "Once the list of entries is closed, you can no longer delete a person, delete everybody, un-bind a card, send a card link again or cancel the game until the winners are shown, so nobody can change who is in the draw after the random number is public",
+      "A payment notice that stopped half way can now be repeated: the game finishes the order on the console's next try instead of waiting for ever",
+      "Everything you read as an organizer or Host now speaks to you: the console, the sign-in mail and the agreement boxes say \"you\", never \"I\" or \"my\"",
+      "Going live fails the health check if the test-only open-join switch is set",
+      "The fairness sentence you show to players is now checked by a test against what the game really does, including a Start pressed before the start time"
+    ]
+  },
+  {
+    "version": "1.5.0",
+    "date": "2026-11-20",
+    "commit": "this release",
+    "title": "A fair draw you can check, by invitation only, one true privacy line, and a payment notice that can be repeated safely",
+    "changes": [
+      "The list of entries closes at the draw time (or when you press Start) and cannot change after that: removing or adding someone later does not change the draw",
+      "When you press Start, the winners come from a public beacon round that is published after your press, so nobody can see the result before it is made",
+      "The scheduled job (every minute) makes the draw even when nobody opens a page",
+      "Every game is by invitation only and asks for an ID only; the server refuses \"anyone with the link\"",
+      "One privacy line everywhere: player details are deleted within 24 hours of the draw; the organizer's, hosts' and winners' details are kept for 365 days; invoices as the law requires",
+      "The paid notice from the console can be repeated safely if a first try stopped half way",
+      "Going live is one step with a health check; the old sign-in and pay routes go away together"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-30",
     "commit": "this release",
@@ -78,7 +132,7 @@
     "changes": [
       "Lucky Draw on its own Cloudflare stack",
       "Cards for every guest, winners decided by the software from the public numbers",
-      "Payment through the central payment service, report by e-mail"
+      "Payment through the central payment service, an e-mail with a link to your report"
     ]
   }
 ]

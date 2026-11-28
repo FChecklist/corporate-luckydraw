@@ -38,7 +38,7 @@ const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { sta
 export const creditExpiryMs = (paidMs: number): number => (Math.floor((paidMs + IST) / DAY) + CREDIT_DAYS + 1) * DAY - IST;
 /** The India-time date a person is told ("14 Jun 2027"): the LAST day the credit can be used. */
 export const creditLastDay = (expiresMs: number): string => new Date(expiresMs - 1).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
-export const rs = (n: number, cur = "INR"): string => (cur === "USD" ? "US$" : "Rs ") + (Math.abs(n - Math.round(n)) < 0.005 ? Math.round(n).toLocaleString(cur === "USD" ? "en-US" : "en-IN") : n.toLocaleString(cur === "USD" ? "en-US" : "en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+export const rs = (n: number, cur = "INR"): string => (cur === "USD" ? "US$" : "₹") + (Math.abs(n - Math.round(n)) < 0.005 ? Math.round(n).toLocaleString(cur === "USD" ? "en-US" : "en-IN") : n.toLocaleString(cur === "USD" ? "en-US" : "en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const istStamp = (ms: number) => new Date(ms).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) + " IST";
 const gameName = (e: { id: string; config?: string | null }) => { try { return JSON.parse(e.config ?? "{}").name || e.id; } catch { return e.id; } };
 
@@ -65,7 +65,7 @@ export async function mailTeam(env: PayEnv, org: string | null, eid: string | nu
 }
 
 /** The rule in one sentence, for e-mails and pages. */
-export const NO_REFUND_LINE = "There are no refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
+export const NO_REFUND_LINE = "If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
 
 // ------------------------------------------------------------------------------------------------ making credit
 /**
@@ -162,7 +162,7 @@ export async function mailCreditCreated(env: PayEnv, c: CreditRow, e: { id: stri
   const lines = why === "cancel"
     ? [c.expires_ms <= now ? `Your game "${gameName(e)}" (${e.id}) is cancelled. The credit from your payment of ${rs(c.total_inr, c.currency)} lapsed on ${lapseDate(c)}, 365 days after the payment, so there is nothing left to use.` : `Your game "${gameName(e)}" (${e.id}) is cancelled. Your payment of ${rs(c.total_inr, c.currency)} stays as credit until ${lapseDate(c)}. Use it for your next game.`]
     : [`A payment of ${rs(c.total_inr, c.currency)} arrived for the game "${gameName(e)}" (${e.id}) after it was cancelled or closed. It stays as credit until ${lapseDate(c)}. Use it for your next game.`];
-  await mailTeam(env, c.org, c.eid ?? e.id, why === "cancel" ? `Your credit of ${rs(c.total_inr, c.currency)}: ${gameName(e)}` : `A payment became credit: ${gameName(e)}`, [...lines, NO_REFUND_LINE, `Open your console and choose "Use my credit" on the Pay step of your next game.`].join("\n\n"), now);
+  await mailTeam(env, c.org, c.eid ?? e.id, why === "cancel" ? `Your credit of ${rs(c.total_inr, c.currency)}: ${gameName(e)}` : `A payment became credit: ${gameName(e)}`, [...lines, NO_REFUND_LINE, `Open your console and choose "Use your credit" on the Pay step of your next game.`].join("\n\n"), now);
 }
 async function mailCreditUsed(env: PayEnv, c: CreditRow, amount: number, e: { id: string; org: string | null; config?: string | null }, left: number, now: number): Promise<void> {
   await mailTeam(env, c.org, e.id, `${rs(amount, c.currency)} of credit used for ${gameName(e)}`, [`${rs(amount, c.currency)} of credit was used for the game "${gameName(e)}" (${e.id}).`, left > 0.004 ? `That credit still has ${rs(left, c.currency)} left, valid until ${lapseDate(c)}.` : "That credit is now fully used."].join("\n\n"), now);
@@ -191,7 +191,7 @@ export async function creditTick(env: PayEnv, now: number): Promise<{ lapsed: nu
     const claim = await db.prepare(`UPDATE credit SET ${col}=? WHERE id=? AND ${col} IS NULL`).bind(now, c.id).run();
     if ((claim.meta?.changes ?? 0) === 0) continue;
     if (three && c.mail30_ms === null) await db.prepare("UPDATE credit SET mail30_ms=? WHERE id=? AND mail30_ms IS NULL").bind(now, c.id).run(); // the 3-day mail replaces the 30-day one when we are already that close
-    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it is gone: there are no refunds.`, now); out.mailed++;
+    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that the credit lapses and is not paid out.`, now); out.mailed++;
   }
   return out;
 }

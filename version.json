@@ -1,0 +1,9 @@
+{
+  "name": "corporate-luckydraw",
+  "version": "1.5.3",
+  "date": "2026-11-22",
+  "title": "The live code of 5 Nov 2026 is merged into the owner-rules v1.1 branch, so deploying this branch no longer drops live fixes",
+  "changelog": "CHANGELOG.md",
+  "knowledge": "docs/KNOWLEDGE.md",
+  "releases": "apps/edge/src/releases.json"
+}

@@ -28,3 +28,8 @@ Cloudflare dashboard, Workers and Pages, corporate-luckydraw, Deployments: roll 
 | Commit | Date | Deployment | Mode |
 |---|---|---|---|
 | 15dd94b | 2026-11-01 | c1a442dc | TEST |
+
+## Switches added 2026-11-01
+
+* `DEMO_GAME=1` (Pages variable, off by default): shows the free demo game (up to 10 people, no payment, named "Demo", 3 a day per organizer account and per address). The console button reads it from `/api/game-manifest`.
+* Payment test (`/paytest`, Rs 1): owner key only. The page asks for the owner key and sends it as `x-organizer`; without it the server answers 403. Ledger code is `LDR` (txn ids look like `LDR-pay_...`, product type `payment_test`). Needs the site in LIVE mode with the Razorpay and central ledger secrets.

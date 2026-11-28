@@ -36,7 +36,7 @@
 //   7. Currency. Figures are pushed per currency; INR is always sent.
 import type { D1, Env } from "./worker";
 
-export const SITE_CODE = "BNG";
+export const SITE_CODE = "LDR";
 export const SITE_HOST = "corporate-luckydraw.pages.dev";
 export const SITE_PRODUCT = "corporate_luckydraw";
 export const PLAN_PREFIX = "luckydraw_pack_";

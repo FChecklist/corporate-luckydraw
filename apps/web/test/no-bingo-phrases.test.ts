@@ -38,8 +38,8 @@ describe("no phrase that belongs only to another game is served on the Lucky Dra
   for (const [name, re] of AI_BINGO) test(`the AI manuals and the trust page source do not say: ${name}`, () => {
     expect(MANUALS.filter((f) => re.test(noComments(readFileSync(join(SRC, f), "utf8"))))).toEqual([]);
   });
-  test("the Rules section of legal.html is the Lucky Draw rules", () => {
-    const t = text("legal.html").replaceAll("&quot;", '"');
-    for (const must of ["Each person joins once", "Joining closes when the draw starts", 'Winners get an e-mail and a "You won" button', "A rehearsal has up to 10 people and no prizes"]) expect([must, t.includes(must)]).toEqual([must, true]);
+  test("the Lucky Draw rules (9.7) are in the one legal document", () => {
+    const t = text("terms.html").replaceAll("&quot;", '"');
+    for (const must of ["Lucky Draw has one entry per participant", "Entry closes at the draw time", "Winners are shown to all, with the words You won"]) expect([must, t.includes(must)]).toEqual([must, true]);
   });
 });

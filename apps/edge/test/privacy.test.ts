@@ -1,6 +1,9 @@
 // Privacy and lifecycle, end to end through the real Worker code and a real SQLite: names and numbers are sealed, invitations obey the organizer's rules,
 // the winners record outlives the personal data, the report is built and e-mailed, and everything is deleted on time.
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(30_000);
+// The shared list of device ids (device.ts) is one list for the whole process. In a whole-suite run other files have put thousands in it, and every vote here tries them one by one: that, not the work itself, was why these tests timed out (audit M4). This file starts with a short list.
+for (const d of [...SEEN_DEVICES]) if (d !== "a".repeat(32)) SEEN_DEVICES.delete(d);
 import { SEEN_DEVICES, withDevice } from "./device";
 import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
@@ -29,7 +32,7 @@ const overAs = async (pid: string, now: number) => { let r!: Response; for (cons
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "10000000" };
+  env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: SECRET, RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "10000000" };
   sentReports.length = 0;
 });
 
@@ -203,15 +206,15 @@ describe("the report and the deletion", () => {
     const m = sentReports[0]!;
     expect(m.to).toBe("boss@acme.com"); expect(m.subject).toMatch(/PRV-1/); expect(m.attachments.length).toBe(0);
     expect(m.text).toMatch(/built on your own/); expect(m.text).toMatch(/within 24 hours/); expect(m.text).toMatch(/365 days/); expect(m.text).not.toMatch(/backup/i); expect(m.text).toMatch(/winners record/);
-    expect(m.text).toMatch(/DPDP Act/); expect(m.text).toMatch(/CCPA/); expect(m.text).not.toMatch(/personal data(?! protection)/i);
-    expect(m.text + "").not.toMatch(/the law requires|required by law/i);
+    expect(m.text).toContain("designed to follow US privacy laws, the EU GDPR and India's DPDP"); /* the owner's one privacy line, 20 Nov 2026 */ expect(m.text).toContain("We keep billing data for audit and tax reasons."); expect(m.text).not.toMatch(/personal data(?! protection)/i);
+    expect(m.text + "").toMatch(/invoices as the law requires|invoices are kept/i); /* owner wording 20 Nov 2026 (audit H3): invoices as the law requires (it was "not at all" before) */
     const link = linkOf(m); expect(link).toMatch(/report\.html\?e=PRV-1&k=/);
     const r = await buildReport(link); const pdf = r.text;
     expect(pdf.startsWith("%PDF-1.4")).toBe(true); expect(pdf).toMatch(/%%EOF\s*$/);
-    for (const needle of ["Organizer Olga", "Guest 3", "98765 00001", "98765 00002", "Zed ??", "organizer", "Blackout", "Line", "boss@acme.com", "Sent on:", "deleted", "365th day"]) expect(pdf.toLowerCase()).toContain(needle.toLowerCase());
-    for (const needle of ["How your data is handled", "permanently auto-deleted from the Corporate Lucky Draw systems within 24 hours", "DPDP", "GDPR", "California Consumer Privacy Act", "advertising", "encryption", "winners record", "Agreed by", "Prize given"]) expect(pdf).toContain(needle);
+    for (const needle of ["Organizer Olga", "Guest 3", "98765 00001", "98765 00002", "Zed ??", "organizer", "Blackout", "Line", "boss@acme.com", "Link e-mailed on:", "deleted", "365th day"]) expect(pdf.toLowerCase()).toContain(needle.toLowerCase());
+    for (const needle of ["How your data is handled", "Player details", "within 24 hours of the draw", "DPDP", "GDPR", "US privacy laws", "advertising", "encryption", "winners record", "Agreed by", "Prize given"]) expect(pdf).toContain(needle);
     expect(pdf).not.toMatch(/personal data(?! protection)/i);
-    expect(pdf).not.toMatch(/the law requires|required by law/i);
+    expect(pdf).toMatch(/Invoices are kept for as long as the law requires/);
     expect(pdf).not.toMatch(/(rs|inr|usd|price)[^\n(]{0,12}per (person|participant|head|user)/i);
     expect(pdf).toMatch(/Who invited whom/); expect(pdf).toMatch(/\+- Guest 3/);
     expect(raw.query("SELECT report_ms FROM life").get()).not.toEqual({ report_ms: null });

@@ -18,7 +18,7 @@ V = {"fonts.css": 1, "fonts-extra.css": 1, "tokens.css": 1, "components.css": 1,
 
 # the six header items, in the owner's order (words and order never change; the addresses follow what exists)
 NAV = [("How it works", "/how-it-works", ""), ("Free demo game", "/zc.html?demo=1", "demo"), ("Guide", "/guide", ""), ("Brochure", "/brochure", ""),
-       ("Refer &amp; earn", "/partner", ""), ("Log in", "/#login", "login")]
+       ("Refer &amp; earn", "/partner", ""), ("Log in", "https://console.corporatetambola.com/", "login")]
 
 
 def read(path):
@@ -119,13 +119,14 @@ def footer():
             '<li><a href="https://tictactoe.corporatetambola.com/">Tic Tac Toe</a></li><li><a href="https://snakes.corporatetambola.com/">Snakes and Ladders</a></li>'
             '<li><a href="https://luck.corporatetambola.com/">Luck by Chance</a></li><li><a href="/">Lucky Draw</a></li></ul></div>\n'
             '<div><h2>This site</h2><ul><li><a href="/how-it-works">How it works</a></li><li><a href="/zc.html?demo=1">Free demo game</a></li><li><a href="/guide">Guide</a></li>'
-            '<li><a href="/brochure">Brochure</a></li><li><a href="/partner">Refer &amp; earn</a></li><li><a href="/#login">Log in</a></li></ul></div>\n'
+            '<li><a href="/brochure">Brochure</a></li><li><a href="/partner">Refer &amp; earn</a></li><li><a href="https://console.corporatetambola.com/">Log in</a></li></ul></div>\n'
             '<div><h2>Legal and help</h2><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy notice</a></li><li><a href="/subprocessors">Sub-processors</a></li>'
             '<li><a href="/dpa">Data processing terms</a></li><li><a href="/refund-policy">Refund policy</a></li><li><a href="/legal-position">Legal position</a></li>'
             '<li><a href="/pricing">Price list</a></li><li><a href="/about">About</a></li><li><a href="/contact">Contact</a></li></ul></div>\n'
             '</div>\n'
-            '<div class="ck-legal"><p><a href="https://itservices-rajat-agarwal.pages.dev" target="_blank" rel="noopener">IT Services by Rajat Agarwal</a> is the trade name of Rajat Agarwal, an individual running a sole proprietorship in India. B-1105, Shipra Krishna Vista, Indirapuram, Ghaziabad, Uttar Pradesh, 201014, India. GST is not charged. Payments are collected by IT Services by Rajat Agarwal.</p>'
+            '<div class="ck-legal"><p><a href="https://itservices-rajat-agarwal.pages.dev" target="_blank" rel="noopener">IT Services by Rajat Agarwal</a> is the trade name of Rajat Agarwal, an individual running a sole proprietorship in India. GST is not charged. Payments are collected by IT Services by Rajat Agarwal.</p>'
             '<p>&copy; 2026 Rajat Agarwal. All rights reserved.</p>'
+            '<p class="ck-more">Explore more: <a href="https://dpdp.veridian-aios.com/">VERIDIAN DPDP</a>, <a href="https://veridian-aios.com/">VERIDIAN</a> and <a href="https://townhall-records.com/">Townhall Records</a>.</p>'
             '<p class="ck-version" id="siteVersion">' + version_line() + '</p></div>\n'
             '</div></footer>')
 

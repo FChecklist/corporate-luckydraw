@@ -1,4 +1,4 @@
-// The game report the organizer receives by e-mail: one PDF with everything we hold about the game and its people, and a plain statement of what
+// The game report the organizer opens from the link in one e-mail (the PDF is made on their own device): one PDF with everything we hold about the game and its people, and a plain statement of what
 // is deleted and when. This file only lays data out; it knows nothing about the database (see lifecycle.ts for where the data comes from).
 import { BRAND } from "./brand";
 import { GOLD, NAVY, PdfDoc, WHITE, type Column } from "./pdf";
@@ -44,7 +44,7 @@ const who = (w: { name: string | null; phone: string | null }) => `${w.name || "
 
 export function layoutReport(d: ReportData): Uint8Array {
   const pdf = new PdfDoc();
-  pdf.footer = `Corporate Lucky Draw  |  Game ${d.engagementId}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
+  pdf.footer = `Corporate Lucky Draw  |  Game ${d.engagementId}  |  link e-mailed ${istFull(d.sentAtMs, d.tz)}`;
 
   // ---- title band
   pdf.rect(0, pdf.H, pdf.W, 92, NAVY); pdf.rect(0, pdf.H - 92, pdf.W, 3, GOLD);
@@ -55,16 +55,16 @@ export function layoutReport(d: ReportData): Uint8Array {
   pdf.para(`Game ${d.engagementId}   |   ${d.people.length} people   |   ${d.prizes.reduce((n, p) => n + p.winners.length, 0)} prize wins`, { size: 9.5, color: WHITE });
   pdf.y = pdf.H - 92 - 16;
 
-  pdf.box("Sent to you", [
-    `E-mail address: ${d.organizerEmail}`,
-    `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`,
-    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once the copy held by Corporate Lucky Draw is deleted.",
+  pdf.box("Made for you", [
+    `Link e-mailed to: ${d.organizerEmail}`,
+    `Link e-mailed on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`,
+    "This PDF is the complete record of your game, including the IDs of everyone who took part (and the name and mobile number a winner chose to give for the prize). Please keep it safe: it is the only copy of the player data once the copy held by Corporate Lucky Draw is deleted.",
   ], [0.93, 0.96, 1], NAVY);
 
   pdf.box("What is kept, and what is deleted", [
-    `You have been given ALL the data held about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, every participant's name, mobile number, join record, card assignment and invite link record is permanently auto-deleted from the Corporate Lucky Draw systems. After that nobody at Corporate Lucky Draw, and nothing in the software or database, holds them.`,
+    `You have been given ALL the player data held about this game. Within 24 hours of the draw, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, every player's ID, join record, seat and invite record is permanently auto-deleted from the Corporate Lucky Draw systems. After that nobody at Corporate Lucky Draw, and nothing in the software or database, holds them. The details of the organizer, the hosts and the winners are kept for 365 days, as listed below.`,
     "Kept for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); (2) the winners record: which prize, which round, at what time, and the card seat number; and (3) the name (and mobile number, if given) each winner confirmed for the prize hand-over, with the date it was given. The winners record itself holds no names or numbers.",
-    `Everything about this game, including those two records, is permanently deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. Billing data is kept for audit and tax reasons.`,
+    `Everything about this game, including those two records, is permanently deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. We keep billing data for audit and tax reasons.`,
     "For your next game you can reuse the people list until it is deleted (the reuse button in your console), or upload your own list again afterwards from this report.",
   ]);
 
@@ -136,29 +136,29 @@ export function layoutReport(d: ReportData): Uint8Array {
     ["Average join rate before the start", rate],
   ]);
 
-  if (d.omitPeople) { pdf.h1("5. Who invited whom, and 6. Everyone"); pdf.para(`This game had ${d.totalPeople} people, so the invite tree and the full list (names and mobile numbers) come in the following e-mails, in parts of up to 1,500 people each.`, { size: 9.5 }); }
+  if (d.omitPeople) { pdf.h1("5. Who invited whom, and 6. Everyone"); pdf.para(`This game had ${d.totalPeople} people, so the invite tree and the full list (names and mobile numbers) come in the following PDFs, in parts of up to 1,500 people each.`, { size: 9.5 }); }
   else { treeSection(pdf, d.people); listSection(pdf, d.people, d.tz); }
 
   pdf.h1("7. When your data is deleted");
   pdf.table([{ head: "Data", width: 62 }, { head: "Deleted by", width: 48 }], [
-    ["Participants' names and mobile numbers, seats, invite links", istFull(d.personalDeleteAtMs, d.tz)],
+    ["Players' IDs, seats, join and invite records", istFull(d.personalDeleteAtMs, d.tz)],
     ["Organizer / host / co-host details and the winners record", `00:00 hours IST, ${istDate(d.fullDeleteAtMs)}`],
   ]);
   pdf.para("Everything can be deleted sooner: press 'Delete' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail IT Services by Rajat Agarwal from your registered address.", { size: 9 });
 
   pdf.h1("8. How your data is handled");
-  pdf.box("All of it is deleted. Here is exactly what, and when.", [
-    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently auto-deleted from the Corporate Lucky Draw systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that none of it is held.`,
-    "2. Only these are kept, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), the winners record (which prize, which round, at what time, which seat number), and the name (and mobile number, if given) each winner confirmed for the prize hand-over. The winners record itself has no names and no mobile numbers.",
-    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is permanently deleted too. Billing data is kept for audit and tax reasons.`,
+  pdf.box("Here is exactly what is deleted, what is kept, and when.", [
+    `1. Player details (every ID, seat, join record and invite record) are permanently auto-deleted from the Corporate Lucky Draw systems within 24 hours of the draw, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that none of the player details is held.`,
+    "2. Only these are kept, for 365 days: the details of the organizer, hosts and co-hosts (name, e-mail address and mobile number), the winners record (which prize, which round, at what time, which seat number), and the name (and mobile number, if given) each winner confirmed for the prize hand-over. The winners record itself has no names and no mobile numbers.",
+    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is permanently deleted too. Invoices are kept for as long as the law requires.`,
     "4. Names and mobile numbers are stored encrypted while they are held, and only your own game's report is ever built from them.",
   ]);
   pdf.box("The laws followed", [
-    "Corporate Lucky Draw is built to follow India's Digital Personal Data Protection Act, 2023 (DPDP Act), the European Union's General Data Protection Regulation (GDPR) and the United Kingdom's equivalent, and the privacy laws of the United States, including state laws such as the California Consumer Privacy Act (CCPA / CPRA).",
+    "Corporate Lucky Draw is designed to follow US privacy laws, the EU GDPR and India's DPDP.",
     "In practice this means: only the data needed to run your game is collected; it is used only for that purpose; it is protected with encryption; it is kept for the shortest time possible, and the exact time is stated here; it is never sold or used for advertising; and the people who took part, and you, can ask IT Services by Rajat Agarwal to show, correct or delete their data at any time.",
-    "You are the organizer of your game and decide who takes part; the data is processed on your behalf. To exercise any right, or to ask anything, reply to the e-mail this report came with.",
+    "You are the organizer of your game and decide who takes part; the data is processed on your behalf. To exercise any right, or to ask anything, reply to the e-mail that had the link to this report.",
   ], [0.93, 0.96, 1], NAVY);
-  pdf.para(`Sent on ${istFull(d.sentAtMs, d.tz)} to ${d.organizerEmail}.`, { size: 8.5, color: [0.4, 0.43, 0.48] });
+  pdf.para(`The link to this report was e-mailed to ${d.organizerEmail} on ${istFull(d.sentAtMs, d.tz)}.`, { size: 8.5, color: [0.4, 0.43, 0.48] });
   pdf.para(`${BRAND.name}  |  Questions? Write to ${BRAND.support}  |  Rules, privacy and disclaimer: ${BRAND.defaultOrigin}${BRAND.legalPath}`, { size: 8.5, color: [0.4, 0.43, 0.48] });
   return pdf.build();
 }
@@ -200,7 +200,7 @@ function treeSection(pdf: PdfDoc, people: ReportPerson[]) {
   else { for (const l of lines) pdf.pre(l); if (lines.length >= 4000) pdf.para("(The list is cut at 4,000 lines.)", { size: 8.5 }); }
 }
 function listSection(pdf: PdfDoc, people: ReportPerson[], tz?: string) {
-  pdf.h1("6. Everyone, with name and mobile number");
+  pdf.h1("6. Everyone, by ID");
   pdf.para(`${people.length} people. 'Joined' is the time they opened the link (${zoneAbbr(people.find((x) => x.joinedMs)?.joinedMs ?? 0, tz)}). Names in scripts other than Latin letters print as ? in this PDF.`, { size: 9, gap: 4 });
   const cols: Column[] = [{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 20 }, { head: "Mobile", width: 16 }, { head: "Joined", width: 8 }, { head: "Late", width: 4 }, { head: "Role", width: 9 }, { head: "By", width: 5, align: "r" }, { head: "List", width: 4 }];
   pdf.table(cols, [...people].sort((a, b) => (a.seat ?? 1e9) - (b.seat ?? 1e9)).map((p) => [p.seat === null ? "-" : String(p.seat), p.name || "(no name)", mob(p.phone), p.joinedMs ? hm(p.joinedMs, tz) : "-", p.late ? "yes" : "", p.role || "", p.invitedBy ? String(p.invitedBy) : "", p.onRoster ? "yes" : ""]), { zebra: true });
@@ -208,13 +208,13 @@ function listSection(pdf: PdfDoc, people: ReportPerson[], tz?: string) {
 /** One of the extra PDFs of a big game: the invite tree and the list for up to 1,500 people. */
 export function layoutPeoplePart(d: ReportData, people: ReportPerson[], k: number, n: number): Uint8Array {
   const pdf = new PdfDoc();
-  pdf.footer = `Corporate Lucky Draw  |  Game ${d.engagementId}  |  people part ${k} of ${n}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
+  pdf.footer = `Corporate Lucky Draw  |  Game ${d.engagementId}  |  people part ${k} of ${n}  |  link e-mailed ${istFull(d.sentAtMs, d.tz)}`;
   pdf.rect(0, pdf.H, pdf.W, 70, NAVY); pdf.rect(0, pdf.H - 70, pdf.W, 3, GOLD);
   pdf.y = pdf.H - 26;
   pdf.para("Corporate Lucky Draw", { font: "F2", size: 11, color: GOLD, gap: 2 });
   pdf.para(`People, part ${k} of ${n}  |  Game ${d.engagementId}`, { font: "F2", size: 16, color: WHITE });
   pdf.y = pdf.H - 70 - 14;
-  pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is auto-deleted from the Corporate Lucky Draw systems by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
+  pdf.box("Made for you", [`Link e-mailed to: ${d.organizerEmail}`, `Link e-mailed on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is auto-deleted from the Corporate Lucky Draw systems by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
   treeSection(pdf, people); listSection(pdf, people, d.tz);
   return pdf.build();
 }
