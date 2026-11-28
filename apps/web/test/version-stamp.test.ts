@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 // @ts-ignore (plain .mjs next to the build script)
-import { versionStamp } from "../../../pages/version.mjs";
+import { versionStamp, stampFooter } from "../../../pages/version.mjs";
 
 const ROOT = join(import.meta.dir, "../../..");
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { name: string };
@@ -41,4 +41,15 @@ describe("P12: the version stamp", () => {
     expect(d).toMatch(/\| [0-9a-f]{7} \|/); // at least one deploy row, by short commit
     expect(readFileSync(join(ROOT, "README.md"), "utf8")).not.toMatch(/Nothing is deployed/i);
   });
+});
+
+describe("footer version", () => {
+  test("the built pages show v<version> in the legal footer, the same number as /version.json", () => {
+    const r = Bun.spawnSync([process.execPath, "pages/build.mjs"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+    expect(r.exitCode).toBe(0);
+    const v = JSON.parse(readFileSync(join(ROOT, "pages/public/version.json"), "utf8"));
+    const html = readFileSync(join(ROOT, "pages/public/index.html"), "utf8");
+    expect(html).toContain('<p class="ck-ver">v' + v.version + "</p>");
+  });
+  test("a bad version is refused", () => { expect(() => stampFooter(ROOT, "unknown")).toThrow(); });
 });

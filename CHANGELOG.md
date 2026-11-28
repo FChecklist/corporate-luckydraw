@@ -2,6 +2,15 @@
 
 Newest first. Release entries below are taken from `apps/edge/src/releases.json` (the source of truth, served to the owner at `/api/owner/releases`); this file mirrors them. The number a running site reports is `version` in `/version.json`.
 
+## Unreleased (28 Nov 2026, footer version)
+Added
+- What: every page with the legal footer now shows the release number, `v1.4.0`, as the first line of the footer.
+- Why: the owner rule that every site and page shows its version, notes and release date, so a visitor or the owner can see which release is live.
+- Where: `pages/version.mjs` (`stampFooter`), `pages/build.mjs`, `apps/web/test/version-stamp.test.ts`; also new `KNOWLEDGE.md` (how the game works).
+- How / logic: at build time the same number written to `/version.json` (newest entry of `releases.json`) is inserted after `<div class="ck-legal">` in each built page. Source pages are not edited.
+- Input: `releases.json`. Output: `<p class="ck-ver">v1.4.0</p>` in the built pages.
+- Release date: TO BE FILLED when deployed. No game logic changed. Not deployed; the version number stays 1.4.0.
+
 ## Unreleased (27 Nov 2026, versioning order)
 Added
 - `/version.json` now also carries `version` (the newest release number in `releases.json`), next to `commit`, `dirty`, `builtAt`, `game`. Where: `pages/version.mjs`, `apps/web/test/version-stamp.test.ts`, `docs/DEPLOYS.md`.

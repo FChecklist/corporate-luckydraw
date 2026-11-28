@@ -2,7 +2,7 @@
 import { cpSync, mkdirSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-import { versionStamp } from "./version.mjs";
+import { versionStamp, stampFooter } from "./version.mjs";
 import { versionRefs } from "./cache-bust.mjs";
 const SRC = join(import.meta.dir, "../apps/web/public"), OUT = join(import.meta.dir, "public");
 rmSync(OUT, { recursive: true, force: true }); mkdirSync(OUT, { recursive: true }); const STAMP = versionStamp({ root: join(import.meta.dir, ".."), game: JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8")).name }), BUILT_SIG = [STAMP.commit, STAMP.builtAt, ""].join("|"); /* what this build calls itself: written to version.json and baked into autoupdate.js (the same text autoupdate.js builds from /version.json) */
@@ -41,4 +41,5 @@ writeFileSync(join(OUT, "_headers"), rules);
 writeFileSync(join(OUT, "version.json"), JSON.stringify(STAMP) + "\n"); // what is live (P12): served at /version.json
 writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/*"], exclude: ["/img/*", "/fonts/*", "/*.js", "/*.css", "/*.png", "/*.svg", "/*.webmanifest", "/*.txt", "/*.xml", "/*.pdf", "/*.mp4", "/*.ico", "/*.woff2"] }));
 console.log("pages/public ready");
+stampFooter(OUT, STAMP.version); /* footer "v<version>" on every page with the legal footer */
 versionRefs(OUT, STAMP.commit); // every local script/css address in every page gets ?v=<commit>: a release means new addresses (cache safety, 31 Oct 2026)
