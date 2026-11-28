@@ -13,6 +13,8 @@ Plain words: **we merged the live code of 5 Nov into the v1.1 branch.** The live
 - **Where both sides changed the same words,** the v1.1 wording stands. Where only the live side changed, the live change stands (for example: no street address anywhere; a paid game can be cancelled until its start time; a wrong or double charge is refunded).
 - **Tests that checked the old behaviour were updated, not deleted:** the demo game is by invitation only; a Start press after a Stop waits for its beacon round; the old Legal, Privacy and Data pages now forward to the one Terms page, so their checks read that page; the old sign-in sheet stays closed because home is the one login.
 
+- **Default branch reconciled (28 Nov 2026).** The repo default branch (the old 1.4.0 line) now contains this 1.5.3 line, so it holds exactly the code that is live (commit `7b9226a`). The only addition is the default-branch version stamp: `/version.json` also carries `version` (from `apps/edge/src/releases.json`). No game, edge or page behaviour changed. Not deployed.
+
 ## 1.5.2 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
 
 Fixes for both independent audits of commit `9024db8` (1 High, 3 Medium, several Low). In plain words:
