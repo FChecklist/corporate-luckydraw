@@ -1,6 +1,6 @@
 // Uniform employee ID (owner rule 2026-10-30): NFKC, upper case, keep only A-Z and 0-9; empty = refusal; 30 characters at most after cleaning; games made before EMP_CLEAN_FROM_MS keep the old rule.
 import { describe, expect, test } from "bun:test";
-import { EMP_CLEAN_FROM_MS, empClean, empHashOf, normEmp } from "../src/people";
+import { EMP_CLEAN_FROM_MS, empClean, empHashOf, legacyEmpFor, normEmp } from "../src/people";
 
 const NEW = EMP_CLEAN_FROM_MS + 1, OLD = EMP_CLEAN_FROM_MS - 1;
 describe("employee ID cleaning", () => {
@@ -26,8 +26,12 @@ describe("employee ID cleaning", () => {
     const env = { PHONE_SALT: "s" }, hs = await Promise.all(["1B-678", "1b-678", "1B/678", "1B 678"].map((t) => empHashOf(env, normEmp(t, NEW)!)));
     expect(new Set(hs).size).toBe(1);
   });
-  test("a game made before the deploy keeps the old rule", () => {
-    expect(normEmp("1B/678", OLD)).toBe("1B/678"); expect(normEmp("1B 678", OLD)).toBe("1B678"); expect(normEmp("1B😀", OLD)).toBeNull(); expect(normEmp("---", OLD)).toBeNull();
+  test("20 Nov 2026: the one rule applies to EVERY game, old or new (the game's age no longer changes it)", () => {
+    expect(normEmp("1B/678", OLD)).toBe("1B678"); expect(normEmp("1B 678", OLD)).toBe("1B678"); expect(normEmp("1B😀", OLD)).toBe("1B"); expect(normEmp("---", OLD)).toBeNull();
+    expect(EMP_CLEAN_FROM_MS).toBe(0);
+  });
+  test("an older game is also looked up in the form an older release stored (A-1101 stays findable as A-1101)", () => {
+    expect(legacyEmpFor("1b/678", { created_ms: 1 })).toBe("1B/678"); expect(legacyEmpFor("1B 678", { created_ms: 1 })).toBeNull(); expect(legacyEmpFor("1B😀", { created_ms: 1 })).toBeNull();
   });
   test("without a game time the new rule applies", () => { expect(normEmp("1B-678")).toBe("1B678"); });
 });

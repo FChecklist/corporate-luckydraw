@@ -1,56 +1,77 @@
 # Changelog: Corporate Lucky Draw
 
-Newest first. Release entries below are taken from `apps/edge/src/releases.json` (the source of truth, served to the owner at `/api/owner/releases`); this file mirrors them. The number a running site reports is `version` in `/version.json`.
+The newest release is first. The version is kept in four places that must agree (a test checks it): `version.json`, this file, `docs/KNOWLEDGE.md`, and the footer of every page (it is read from `apps/edge/src/releases.json`, which also feeds the owner's version page).
+Older releases (1.0.0 to 1.4.0) are listed in `apps/edge/src/releases.json`.
 
-## Unreleased (27 Nov 2026, versioning order)
-Added
-- `/version.json` now also carries `version` (the newest release number in `releases.json`), next to `commit`, `dirty`, `builtAt`, `game`. Where: `pages/version.mjs`, `apps/web/test/version-stamp.test.ts`, `docs/DEPLOYS.md`.
-- This CHANGELOG.md and `docs/REPO-KNOWLEDGE.md`.
-No game, edge or page behaviour changes. No version bump: the current release stays 1.4.0. Not deployed.
+## 1.5.3 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
 
-## 1.4.0 - 2026-10-30 (commit this release)
-The Corporate Games look: new website, one logo, six-item menu
-- Every public page now looks and feels like the Corporate Tambola website: warm colours, the Corporate Lucky Draw badge with CORPORATE above the name, the same header, footer, buttons and fonts
-- The header menu has six items: How it works, Free demo game, Guide, Brochure, Refer & earn, Log in
-- New pages: How it works and Guide (the organizer guide); the Brochure is a web page with the one-page PDF to download
-- One Corporate Games bar at the top of every public page; new app icons, share picture and e-mail header in the same brand
-- The organizer console and the phone pages wear the same colours, fonts and header bar. Nothing in how the console works has changed
-- Wording: close group everywhere, shorter plain sentences; the old organizer-guide address points to the Guide
+Plain words: **we merged the live code of 5 Nov into the v1.1 branch.** The live site runs commit `d040396f69f0` (5 Nov 2026). This branch had grown away from it: it was 32 changes ahead and 49 behind, so deploying it would have silently dropped live fixes. Now it holds both.
 
-## 1.3.2 - 2026-10-27 (commit bd66d3c)
-A game waiting for payment never blocks a new game
-- Only drafts that were never published count toward the limit of ten drafts; a game that is published but not yet paid for no longer stops an Organizer or Host from making a new game
-- Making a copy of a game follows the same rule
+- **Everything live is in this branch again.** The join retry with a small random wait, the second-round route classes, the end of a draw that can be finished again after a hiccup, the owner's free test packs, the runner key, the owner's private price for one game (database change `0032_price_adjust.sql`), the changes to the page shell and the wrangler settings, the shared payment page, the demo game and the single Terms document.
+- **Everything from owner rules v1.1 is still here.** ID-only invitations, the frozen list of entries (a Start press closes the list and waits for a beacon round that does not exist yet), the IPv6 guess limit, the true help text, the ₹ sign, the one privacy line and the one billing sentence.
+- **One database file was renumbered.** The frozen-list change was `0032_draw_freeze.sql`, the same number as the live price change. It is now `0033_draw_freeze.sql`. Production has run only up to `0032_price_adjust.sql`, so run `0033_draw_freeze.sql` before this branch is deployed.
+- **Where both sides changed the same words,** the v1.1 wording stands. Where only the live side changed, the live change stands (for example: no street address anywhere; a paid game can be cancelled until its start time; a wrong or double charge is refunded).
+- **Tests that checked the old behaviour were updated, not deleted:** the demo game is by invitation only; a Start press after a Stop waits for its beacon round; the old Legal, Privacy and Data pages now forward to the one Terms page, so their checks read that page; the old sign-in sheet stays closed because home is the one login.
 
-## 1.3.1 - 2026-10-27 (commit 47115ce)
-Bigger daily write guard
-- The daily database-write guard is raised to 2,000,000 (a runaway guard only), because the account is on the paid Workers plan; a crowd joining together no longer meets a 'very busy' answer from the guard
+- **Default branch reconciled (28 Nov 2026).** The repo default branch (the old 1.4.0 line) now contains this 1.5.3 line, so it holds exactly the code that is live (commit `7b9226a`). The only addition is the default-branch version stamp: `/version.json` also carries `version` (from `apps/edge/src/releases.json`). No game, edge or page behaviour changed. Not deployed.
 
-## 1.3.0 - 2026-10-27 (commit 04515b0)
-Same hardening as Corporate Tambola 1.3.3: joining, permissions, messages, simpler console
-- Joining: an employee ID or mobile number is checked against the organizer's list, a stranger waits for the organizer's yes, one phone cannot play as another (device proof on every card action), the same person joining twice gets the same card
-- A join that gets no answer (slow link, busy moment) is asked again by itself, safe because the same person always gets the same card
-- Permissions: a Co-host who has not accepted the terms cannot pay, an delete is refused while the game is being played, a Host's narrow link cannot change controls
-- Simpler console: the rarely used 'How many rounds' choice is hidden, never disabled; one game is one round
-- A demo link (zc.html?pass=) is used once, also when the console opens straight into a game
-- Players' data is deleted 20 hours after the end (the promise stays 24 hours) and a lazy tick runs the housekeeping when the scheduled job is late
-- Every refusal now says what happened, where, and how to fix it (guide catalog)
-- Big screen shows 'Connection lost' when the public clock does not answer for 15 seconds
+## 1.5.2 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
 
-## 1.2.0 - 2026-10-22 (commit 5a7b2b5)
-One-door sign-in and e-mail-first console
-- One sign-in door for Organizers and Hosts with a six-box code screen
-- A confirmed Host's e-mail is answered 'exists' (a code is sent)
-- Console keeps the state of each step
+Fixes for both independent audits of commit `9024db8` (1 High, 3 Medium, several Low). In plain words:
 
-## 1.1.0 - 2026-10-14 (commit 8b23cfe)
-Colourful cards, Help Desk, guided errors
-- Colour and phone-fit work, installable app
-- Help Desk helper flow
-- Plain-words errors with a Take-me-there button
+- **The limit on wrong employee IDs could be walked around on IPv6.** The game counts wrong IDs per internet address. A home or office line on IPv6 owns about 18 billion billion addresses and can change the last half of its address on every try, so it was never counted. Now an IPv6 address counts as its first half (the "/64"), so one line is one visitor. IPv4 addresses work as before. The count is also made in one step, so tries sent at the same moment cannot all slip under the limit. Added a second limit: at most 500 wrong IDs on one game in 10 minutes from anywhere. The same grouping now applies to the limit on new seats, so a script cannot flood the waiting room from many neighbouring addresses. Tests: `apps/edge/test/guess-limit.test.ts` (3 of them fail without the grouping).
+- **An ID you type is matched to your list. It is not proof that you are that person.** This is the owner's accepted rule (BOSS decision, 22 Nov 2026; see also `docs/ROLES_AND_CONSOLE_SPEC_3.md`: "matched to a list, not proven") and it is now written down where people read it, including the player's help text. Because of it, we do **not** count a right ID and we do **not** limit right IDs per address: a whole office shares one address and must be able to get in. Only wrong IDs are counted. What we changed: the check "is this you?" no longer shows the person's name. It only says whether the ID is on the list. Nothing about the person is shown until you (or a Host) say yes.
+- **A draw being made could still be voided in two more ways.** Closing the whole organizer account, and a deletion request sent by e-mail, ignored the frozen list. A person who had already seen the public random number could have removed everybody and killed the draw. Both are now refused until the winners are shown, then work again. The "please wait" message no longer promises "a minute at most": it says the list stays closed until the draw has been made, for example when the public random number cannot be reached. Tests: `apps/edge/test/draw-frozen-guards.test.ts`.
+- **The public Legal page still said all player data is deleted in 24 hours.** It now says the one true line, like every other screen: player details are deleted within 24 hours of the draw; the organizer's, hosts' and winners' details are kept for 365 days; invoices as the law requires. Test: `privacy-line.test.ts`.
+- **The sign-in help named a button that no longer exists.** The sign-in e-mail's button says "Sign in". The sign-in page, the partner page and its help still said "Sign me in". They now match. Also changed to speak to you: "Create your game", "Back to your game", "Open your game button", "Close your partner account".
+- **Older games that asked for a mobile number now ask for an ID.** A game saved by an older version could let a listed mobile number in with any ID. A typed mobile number is now never a way in, and it is not kept.
+- **Words made plainer.** The 1.5.1 notes below no longer use developer words.
 
-## 1.0.0 - 2026-10-12 (commit 741602b)
-Corporate Lucky Draw goes live
-- Lucky Draw on its own Cloudflare stack
-- Cards for every guest, winners decided by the software from the public numbers
-- Payment through the central payment service, report by e-mail
+Not changed, on purpose (each is on the owner's list in `docs/KNOWLEDGE.md`, "Known gaps"): the signature of a payment notice does not cover the item and the order number (a change in the console's repository; the game re-checks size and owner every time); the console's own `*` header; organizer, host and co-host seats can win; the new agreement-box wording needs the owner's read.
+
+Version 1.5.2 in `version.json`, `package.json`, this file, `docs/KNOWLEDGE.md`, `apps/edge/src/releases.json` and every page footer.
+
+## 1.5.1 - 22 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
+
+Fixes for the second independent audit of commit `42ae412` (1 High, 2 Medium, 4 Low). In plain words:
+
+- **H-A, a Start pressed early could still be undone.** If the organizer pressed Start long before the start time, the list of entries closed, but "delete one person", "delete everybody", "cancel the game", "un-bind a card" and "send a card link again" still worked, so the organizer could look at the public random number, see who would win and remove that person. Now all five are refused (409) from the moment the list closes until the winners are made; after the draw they work again (the right to delete is kept). Where: `worker.ts` (`entriesFrozen`, `forget`, `erase`, `unbind`), `people.ts` (`resendPerson`), `cancel.ts` (`cancelPreview`). Tests: `apps/edge/test/draw-frozen-guards.test.ts` (5 of them fail without the fix).
+- **M-A, a payment notice that stopped half way blocked every repeat.** The copied payment-notice checker answers "in progress" for ever to an order that is stuck. We cannot change that file here (it belongs to the console repository), so the game now forgets a half-done order that is older than 60 seconds before the checker looks. `markPaid` is safe to repeat, and the checker still checks the signature, audience, purpose, 60-second life and one-time id of every repeat. A fresh half-done order (a first try that may still be running) is kept. Where: `console-adapter.ts` (`sweepStaleMarking`), `worker.ts`. Tests: `console-paid.test.ts` (3 new). The console repo's own fix is still wanted, but the money chain no longer depends on it.
+- **M-B, the signature does not cover `item` and `orderRef`.** Not fixable here (the checker is the console repository's). The game re-derives the size from the game and the owner from the signed `sub` on every call, so a changed `item` or `orderRef` cannot pay for another size or another person's game. Listed as a known gap.
+- **L-1, one dashboard variable could undo "invite only".** `TEST_OPEN_JOIN` now makes the health check fail and names the variable (`console-origin.ts`, `go-live`). Test in `console-paid.test.ts`.
+- **L-2, a guard with no test.** The "an unopened card cannot be taken up after the list closed" guard now has a test that fails without it.
+- **L-3 and L-4** (the checker's `*` header; organizer, host and co-host seats can be drawn) are not changed: L-3 is the console repository's file and not exploitable (signed assertions, no cookies); L-4 is an owner decision (listed in `docs/KNOWLEDGE.md`).
+- **Owner rule: everything the organizer and the Host read speaks to "you".** Zero first person, kept by `apps/edge/test/you-voice.test.ts`. Reworded: "Close my account" (`zc.js`), "Sign me in" (sign-in mail), "Use my credit" (messages), "My people" (message), and the agreement boxes K1, K2, K3, K5 and K6 (`consent-text.json`, `consent.js`, the Terms table). The player's own boxes (K4) stay in the first person on purpose. The exact wording of each box is hashed with every consent row; the owner should read the five new sentences.
+- **Fairness sentence is now proved on every path**, including a Start pressed before the start time (`draw-frozen-guards.test.ts`, last test).
+- Version 1.5.1 in `version.json`, `package.json`, this file, `docs/KNOWLEDGE.md`, `apps/edge/src/releases.json` and every page footer.
+
+## 1.5.0 - 20 Nov 2026 (branch `p1/owner-rules-v1-1`, PR #3, not deployed)
+
+Fixes for every finding of the independent audit of commit `302d251` (3 High, 4 Medium, 2 Low).
+
+### H1 - the draw is fair even though it runs a little after the draw time
+- **The list of entries is frozen** at the draw time (automatic) or at the press of Start (manual). A removal, a leave, a put-back or a late claim after that moment changes nothing. Where: `apps/edge/src/draw.ts` (`entryPids`, `freezeAt`, `registrationClosed`), `apps/edge/src/people.ts` and `rights.ts` (a block now records `seat.blk_ms`), `apps/edge/src/worker.ts` (`listClosedFor`; nobody can be added or put back after the list closes), new migration `apps/edge/migrations/0033_draw_freeze.sql` (`draw.freeze_ms`, `draw.target_round`, `seat.blk_ms`).
+- **Manual start uses a beacon round that is published after the press** (`manualRound` = the round public at the press + 2). The press closes the list and stores that round; the winners appear when it is published. An older, already public round is never used. Where: `draw.ts` (`runDraw`).
+- **The draw is made without anybody opening a page**: the existing scheduled job (`apps/cron`, every minute, calls `/api/lifecycle/tick` which calls `drawTick`) makes automatic draws and finishes started manual draws. A page that asks does the same lazily, on the same frozen list. No new cron was needed.
+- **Fairness text** says only what the code does: "No one knows the result before the draw. The list of entries closes at the draw time and cannot change after that..." (`DRAW_FAIRNESS` in `draw.ts`).
+- **Simulation**: `apps/edge/test/draw-rules-sim.test.ts` runs 5,000 draws through the real draw code and checks nine rules against an independent oracle: rule failures 0 of 5,000 (0.00%). The same draws with the old entry list fail 76.5% (the control that proves the simulation sees the fault). The earlier 19.22% simulation was not in the repo, so its exact definition could not be reproduced; this one is the new, written-down definition. Regression tests: `apps/edge/test/draw-fairness.test.ts`.
+- Screens: `apps/web/public/zc.js` (Start closes the list and waits for the winners), `z.js`.
+
+### H2 - closed group, invite only, ID only, enforced by the server
+- Every new game is made for the ID list; `whoCanJoin: "anyone"`, `closed: false` and any way of asking other than an ID (`verify: mobile|either|both`) are refused with 400. A game stored open is still treated as closed. A join with only a name or a mobile number is refused (`need-id`). An ID that is not on the list waits for the organizer. Where: new `apps/edge/src/invite-only.ts`, `worker.ts` (create, settings, join), `ai-go.ts`, `ai-link.ts`, `ai-functions.ts` (the AI guided path has no open choice), `zc.js` (no "Anyone with the link"). Tests: `apps/edge/test/invite-only.test.ts`.
+- `TEST_OPEN_JOIN` exists only so the older engine tests (cards, claims, retention) can still make open games. It is named in no deploy file, no request can set it, and `invite-only.test.ts` proves it.
+
+### H3 - the privacy line is true for winners
+- One line everywhere: "Player details are deleted within 24 hours of the draw. The organizer's, hosts' and winners' details are kept for 365 days, and invoices as the law requires." Where: `draw.ts` (`NO_PERSONAL_LINE`), `z.js`, `zc.js`, `ai-link.ts`, `index.html`, `trust-page.ts`, the report PDF (`report-layout.ts`, rebuilt `reportgen.js`) and the report mail (`lifecycle.ts`).
+- Consent K4 and K6 speak of IDs, not names and numbers (`consent-text.json`, `consent.js`). Tests: `apps/edge/test/privacy-line.test.ts`.
+
+### M1 - a half-done paid notice can be finished by repeating it
+- `markPaid` re-checks owner and size on every call (a wrong one is a `definite` refusal), sets the size, the people limit and the late-payment time in ONE statement, writes the two notes with INSERT OR IGNORE, is a no-op on a paid game of the same order, never moves the draw time on a repeat, and refuses a different order on a paid game. New read-only `payInfo(env,{eid,sub})` returns `{owner,item,paid}`. Where: `apps/edge/src/console-adapter.ts`. The bridge's own stuck `marking` row is fixed in the console repo (the vendored `console-bridge/` is untouched). Tests: `apps/edge/test/console-paid.test.ts`.
+
+### M2 / M3 / M4 / Low
+- Going live is one step: the redirects switch on only when BOTH `PAY_VIA_CONSOLE=1` and `CONSOLE_PUBKEYS` are set; `/api/status/health` shows which is missing and fails on a half switch. `/api/start` and `/api/auth/*` go to home when live. The sign-in page lets only the console hand-off through (`t` AND `go=console`); the sign-in page has no Google. Where: `console-origin.ts`, `pages/functions/_middleware.ts`, `admin.ts`, `signin.js`. Tests: `apps/edge/test/go-live.test.ts`.
+- CSP of the console page: `frame-src` is the payment window only, `connect-src` allows `https://console.corporatetambola.com`, no wildcard, no Google, no Razorpay (`pages/build.mjs`, `apps/web/public/_headers`). Descriptor `payGame` and `consoleOrigin` in `zc.js`.
+- The console's contract fixtures that do not need its fake game (14 of 40) now run against this game: `apps/edge/test/console-contract.test.ts`.
+- The 7 whole-suite failures are gone: a stale Bingo big-screen test removed and listed in `docs/STALE_BINGO_TESTS.md`, six slow privacy tests get a 30 s limit, the owner-test date is no longer compared with today.
+- New CI: `.github/workflows/ci.yml` (jobs `typecheck` and `each-file`; every test file is its own process, `tools/run-each-file.mjs`).
+- Not fixed here (see `docs/KNOWLEDGE.md`, "Known gaps"): the signed assertion does not cover `item` and `orderRef` (the bridge, console repo); the bridge's stuck `marking` row (console repo); `to=pay` and `to=free` in the hand-off are read but the target page is ignored (the contract allows it); 26 of the 40 contract fixtures need the console's fake game.

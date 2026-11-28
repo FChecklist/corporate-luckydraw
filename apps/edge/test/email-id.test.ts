@@ -33,7 +33,7 @@ async function setup(opts: { closed?: boolean; verify?: string; employeesOnly?: 
 }
 const add = (key: string, people: unknown[]) => call("POST", "/api/z/PPL-1/people", { people }, key);
 
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
 afterEach(() => { globalThis.fetch = realFetch; });
 
 describe("Email ID criterion", () => {
@@ -56,10 +56,10 @@ describe("Email ID criterion", () => {
     const bad = await joinAs("PPL-1", 5, { phone: undefined, empId: "a@b" }); expect(bad.status).toBe(400); expect((await j(bad)).error).toMatch(/Email ID/);
     expect((await joinAs("PPL-1", 6, { phone: undefined, empId: "other@b.com" })).status).not.toBe(200);
   });
-  test("an Email ID typed in an employee-ID game is refused (a game made before the deploy keeps the old words)", async () => {
+  test("an Email ID typed in an employee-ID game is refused (the same words for every game since 20 Nov 2026)", async () => {
     const t = await setup({ verify: "id", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "RAJAT1DEMOCOM" }]);
-    const r = await joinAs("PPL-1", 1, { phone: undefined, empId: "rajat1@demo.com" }); expect(r.status).toBe(400); expect((await j(r)).error).toMatch(/letters and numbers only/);
-    expect(normId("rajat1@demo.com", "emp", EMP_CLEAN_FROM_MS + 1)).toBeNull(); expect(badIdMessage("rajat1@demo.com", "emp", EMP_CLEAN_FROM_MS + 1)).toMatch(/looks like an Email ID/); // a game made after the deploy
+    const r = await joinAs("PPL-1", 1, { phone: undefined, empId: "rajat1@demo.com" }); expect(r.status).toBe(400); const msg = (await j(r)).error; expect(msg).toMatch(/letters and numbers only/); expect(msg).toMatch(/e-mail address/);
+    expect(normId("rajat1@demo.com", "emp", EMP_CLEAN_FROM_MS + 1)).toBeNull(); expect(badIdMessage("rajat1@demo.com", "emp", EMP_CLEAN_FROM_MS + 1)).toMatch(/looks like an e-mail address/);
     expect(normId("RAJAT1＠Demo.com", "email")).toBe("rajat1@demo.com"); expect(normId("1B-678", "emp", EMP_CLEAN_FROM_MS + 1)).toBe("1B678");
   });
 });

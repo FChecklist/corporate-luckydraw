@@ -27,10 +27,10 @@
       ${bad(state.msg)}
       ${state.codeStep && !state.newAcct ? `<label for="cd">6-digit code sent to ${esc(state.email)}</label><input id="cd" inputmode="numeric" autocomplete="one-time-code" maxlength="8"><button class="zbtn" id="go">Sign in</button>
         <p class="zsmall"><a href="#" class="hdl" id="mk">No account yet? Make one</a></p>`
-        : state.newAcct ? `<label for="em">Your e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}">${C ? C.html("K2") : ""}<button class="zbtn" id="go"${C ? ' data-needs="K2"' : ""}>Make my account</button>`
-        : `<label for="em">Your e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}" placeholder="your e-mail"><button class="zbtn" id="go">E-mail me a code</button>
+        : state.newAcct ? `<label for="em">Your e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}">${C ? C.html("K2") : ""}<button class="zbtn" id="go"${C ? ' data-needs="K2"' : ""}>Make your account</button>`
+        : `<label for="em">Your e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}" placeholder="your e-mail"><button class="zbtn" id="go">Send a code to your e-mail</button>
         <p class="zsmall"><a href="#" class="hdl" id="mk">No account yet? Make one</a></p>`}
-      <p class="zsmall"><a href="#" class="hdl" id="stop">I do not want this</a></p></div>`);
+      <p class="zsmall"><a href="#" class="hdl" id="stop">No, thank you</a></p></div>`);
     if (state.newAcct && C) C.wire(app, "K2", {});
     const go = document.getElementById("go");
     const mk = document.getElementById("mk"); if (mk) mk.onclick = (e) => { e.preventDefault(); state.newAcct = true; state.codeStep = false; state.msg = ""; state.email = (document.getElementById("em") || {}).value || state.email; signIn(); };
@@ -69,7 +69,7 @@
   }
   function active() {
     shell(`<div class="zcard"><h2>Done</h2><p>${esc(info.helperName)} can now prepare games for you. You publish each one with one tap, and you can stop this at any time.</p>${bad(state.msg)}
-      <button class="zbtn alt" id="stop">Stop Help Desk</button><p class="zsmall"><a class="hdl" href="/zc.html">Open my console</a></p></div>`);
+      <button class="zbtn alt" id="stop">Stop Help Desk</button><p class="zsmall"><a class="hdl" href="/zc.html">Open your console</a></p></div>`);
     document.getElementById("stop").onclick = () => stop();
   }
   async function stop() {

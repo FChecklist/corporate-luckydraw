@@ -44,7 +44,7 @@ const REWARDS = [
 ];
 beforeEach(async () => {
   const d = makeD1();
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
+  env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
   T0 = roundTimeMs(START - 3); t = 0;
   const r = await call("POST", "/api/z", { id: EID, startRound: START - GRACE_ROUNDS, callSeconds: CALL_SECONDS, cap: 200, rewards: REWARDS }, { "x-organizer": SECRET });
   expect(r.status).toBe(200);
@@ -88,7 +88,7 @@ describe("the store enforces the maximum winners per house", () => {
     expect(((await (await call("GET", `/api/z/FUT-1/info`)).json()) as any).rewards.length).toBe(5);
   });
   test("a saved game with 3 Line winners loads, plays and can be read back", async () => {
-    const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
+    const d = makeD1(); env = { DB: d.db, TEST_OPEN_JOIN: "1", ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "1000000" };
     const create = await call("POST", "/api/z", { id: "OLD-1", startRound: START - GRACE_ROUNDS, callSeconds: CALL_SECONDS, cap: 50 }, { "x-organizer": SECRET });
     expect(create.status).toBe(200);
     await env.DB.prepare("UPDATE engagement SET config=? WHERE id=?").bind(JSON.stringify({ rewards: [1, 2, 3].map((ordinal) => ({ pattern: "line", scope: "ticket", ordinal, text: "" })) }), "OLD-1").run();

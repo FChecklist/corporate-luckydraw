@@ -9,7 +9,7 @@ Lucky draw game for company events; the draw runs at about the published time (s
 Bun + TypeScript monorepo (`apps/edge` Cloudflare Worker with D1 database, `apps/web/public` static pages, `packages/*` game code, `pages/` Cloudflare Pages build and Functions, `apps/cron` scheduled jobs where present). Payments only via the one IT Services payee (see KNOWLEDGE-MAP rules).
 
 ## Current version
-**1.4.0**. Where it is kept: `apps/edge/src/releases.json` (newest first) and mirrored in `CHANGELOG.md`. A running site reports it at `/version.json` as `{ version, commit, dirty, builtAt, game }`; `dirty` must be false for a release (a build from a dirty tree is not a recorded release). Footers of the static pages do not show the version (hand-copied footers; not changed).
+**1.5.3** (22 Nov 2026). Where it is kept: `apps/edge/src/releases.json` (newest first), the root `version.json`, `CHANGELOG.md` and `docs/KNOWLEDGE.md` (a test checks they agree). A running site reports it at `/version.json` as `{ version, commit, dirty, builtAt, game }`; `dirty` must be false for a release (a build from a dirty tree is not a recorded release). Footers of the static pages show it too (`id="siteVersion"`, e.g. "Version 1.5.3, released 22 Nov 2026"), and the build adds `?v=<commit>` to local script and stylesheet addresses as a cache-bust.
 
 ## Build / test / deploy / rollback
 - Install: `bun install`. Test: `bun test packages apps tools/control-worker` (`bun run test`); typecheck `bun run typecheck`; quick version check `bun test apps/web/test/version-stamp.test.ts`.

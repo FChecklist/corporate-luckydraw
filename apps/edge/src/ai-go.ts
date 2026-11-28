@@ -41,7 +41,7 @@ const timeLabel = (t: string) => { const h = Number(t.slice(0, 2)); return `${h 
 export const startMsOf = (d: string, t: string, tz: string = DEFAULT_TZ): number => { const [y, m, dd] = d.split("-").map(Number); return zoneLocalToUtc(y!, m!, dd!, Number(t.slice(0, 2)), Number(t.slice(2)), tz); };
 export const startRoundOf = (ms: number): number => roundAt(ms);
 const validDay = (d: string | null) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d), validTime = (t: string | null) => !!t && SLOTS.includes(t);
-const money = (n: number, inIndia = true) => inIndia ? `Rs ${price(n, "INR").total.toLocaleString("en-IN")} (about US$ ${price(n, "USD").total})` : `US$ ${price(n, "USD").total} (or Rs ${price(n, "INR").total.toLocaleString("en-IN")})`;
+const money = (n: number, inIndia = true) => inIndia ? `₹${price(n, "INR").total.toLocaleString("en-IN")} (about US$ ${price(n, "USD").total})` : `US$ ${price(n, "USD").total} (or ₹${price(n, "INR").total.toLocaleString("en-IN")})`;
 const packFor = (cap: number) => PACKS.find((p) => p[0] >= cap)?.[0] ?? null;
 
 /** The params a step carries forward, in a stable short order. */
@@ -73,11 +73,11 @@ const timeRows = (ctx: GoCtx, q: URLSearchParams, next: string): [string, string
 const winnersOf = (q: URLSearchParams, c: number): number => Math.max(1, Math.min(Number(q.get("w")) || 3, c || 1));
 const summaryLines = (q: URLSearchParams): string[] => {
   const d = q.get("d")!, t = q.get("t")!, o = OCCASIONS[q.get("o") || "other"] ?? OCCASIONS.other!, c = Number(q.get("c")), w = winnersOf(q, c), manual = q.get("h") === "m";
-  const v = Number(q.get("v")) || 0, j = q.get("j") === "c";
+  const v = Number(q.get("v")) || 0; // a Lucky Draw is always by invitation: only the people on the ID list can join
   const pk = packFor(c);
   return [`Game: ${o!.label}`, `Draw day and time: ${dayLabel(d)}, ${timeLabel(t)} ${zoneLabel(q)} (registration closes then)`, `People: up to ${c}${pk ? ` (${money(pk)})` : ""}`,
-    "Each person registers once, with an ID", j ? "Invite-only: only people on your list can register" : "Anyone with the link can register",
-    v ? `Each participant may invite up to ${v} more people` : "Participants may not invite others", `Winners: ${w} (you name the prizes next)`, manual ? "The draw starts when you or a Host press Draw now" : "The draw runs by itself at the draw time", "Nothing is charged until you pay, before the start time."];
+    "Each person registers once, with an ID", "By invitation only: only the people on your ID list can register",
+    v ? `Each participant may invite up to ${v} more people` : "Participants may not invite others", `Winners: ${w} (you name the prizes next)`, manual ? "The draw starts when you or a Host press Start" : "The game starts by itself at the time you set", "Nothing is charged until you pay, before the start time."];
 };
 const consoleOf = (ctx: GoCtx, id: string, act = "") => `${ctx.origin}/zc.html?e=${encodeURIComponent(id)}${act ? "&do=" + act : ""}`;
 
@@ -94,12 +94,12 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
       return { say: "What is the occasion?", choices: choices(Object.entries(OCCASIONS).map(([k, v]) => [v.label, L("size", { o: k })] as [string, string])), ifWrong: WRONG };
     case "size": return { say: "How many people at most? Choose a little above your headcount (people invited by your guests count too). The price follows the size and is paid only when you are ready, before the start.", choices: choices(PACKS.map(([n]) => [`Up to ${n} people: ${money(n, zoneKey(q) === "in" || !zoneKey(q))}`, L("play", { c: String(n) }), n === 250] as [string, string, boolean?])), ifWrong: WRONG };
     case "play": {
-      const j = q.get("j") === "c", v = Number(q.get("v")) || 0;
-      const lines = `Here is how it will work: each person registers once, with an ID. ${j ? "Invite-only." : "Open to anyone with the link."} ${v ? `Participants may invite up to ${v} more people each.` : "Participants may not invite others."}`;
-      return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [j ? "Open to anyone with the link" : "Invite-only (only people on my list)", L("play", { j: j ? "o" : "c" })], [v ? "Participants may not invite others" : "Let each participant invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
+      const v = Number(q.get("v")) || 0;
+      const lines = `Here is how it will work: each person registers once, with an ID. By invitation only: your ID list decides who can join. ${v ? `Participants may invite up to ${v} more people each.` : "Participants may not invite others."}`;
+      return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [v ? "Participants may not invite others" : "Let each participant invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
     }
     case "prizes": return { say: "How many winners? (You give the prizes; only the software is provided. You name each prize afterwards. The software picks the winners at draw time.)", choices: choices(WINNER_CHOICES.map((n) => [`${n} winner${n === 1 ? "" : "s"}`, L("extras", { w: String(n) }), n === 3] as [string, string, boolean?])), ifWrong: WRONG };
-    case "extras": return { say: "How should the draw start?", choices: choices([["Automatic: it runs by itself at the draw time", L("review", { h: "a" }), true], ["Manual: the organizer or a Host presses Draw now", L("review", { h: "m" })]]), ifWrong: WRONG };
+    case "extras": return { say: "How should the game start?", choices: choices([["The game starts by itself: it begins at the time you set", L("review", { h: "a" }), true], ["You start the game: it waits until you or a Host press Start", L("review", { h: "m" })]]), ifWrong: WRONG };
     case "review": {
       if (!validDay(q.get("d")) || !validTime(q.get("t")) || !q.get("c")) return goScreen(ctx, "new", q);
       return { say: ["Please read this back to the organizer and ask for a clear yes:", ...summaryLines(q).map((l) => "- " + l), "", "Nothing has been saved yet."].join("\n"), choices: choices([["Yes, save my draft", L("save"), true], ["Change the day or time", L("new", { d: "", t: "" })], ["Change the size", L("size")], ["Change who can join", L("play")], ["Change the winners", L("prizes")], ["Change how the draw starts", L("extras")]]), ifWrong: WRONG };
@@ -112,7 +112,7 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
       const baseId = `${o.code}-${pad(istParts(startMs, tz).mo)}${pad(istParts(startMs, tz).d)}`; let id = baseId, made: any = null;
       for (let i = 1; i <= 9; i++) {
         id = i === 1 ? baseId : `${baseId}-${i}`;
-        const body: any = { id, name: `${o.label}, ${dayLabel(q.get("d")!)}`, startRound: startRoundOf(startMs), tz, callSeconds: 12, cap: Number(q.get("c")), closed: q.get("j") === "c" };
+        const body: any = { id, name: `${o.label}, ${dayLabel(q.get("d")!)}`, startRound: startRoundOf(startMs), tz, callSeconds: 12, cap: Number(q.get("c")), whoCanJoin: "list" };
         const r = await ctx.api("POST", "z", body);
         if (r.status !== 200) return { say: `I could not save it: ${r.json?.error ?? "something went wrong"}. ${r.json?.next ?? ""}`.trim(), choices: choices([["Open the organizer's console", `${ctx.origin}/zc.html`]]), ifWrong: WRONG };
         if (!r.json.existed) { made = r.json; break; }
